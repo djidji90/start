@@ -1,0 +1,32 @@
+[
+  {
+    "id": 0,
+    "name": " Creola Katherine Johnson",
+    "profession": "matemática",
+    "hablidades": "ser una gran estratega "
+  },
+  {
+    "id": 1,
+    "name": "Mario José Molina-Pasquel Henríquez",
+    "profession": "químico",
+    "hablidades": "invento el futbol"
+  },
+  {
+    "id": 2,
+    "name": "Mohammad Abdus Salam",
+    "profession": "físico",
+    "hablidades": "buen luchador"
+  },
+  {
+    "id": 3,
+    "name": "Percy Lavon Julian",
+    "profession": "químico",
+    "hablidades": "buen cantante"
+  },
+  {
+    "id": 4,
+    "name": "Subrahmanyan Chandrasekhar",
+    "profession": "astrofísico",
+    "hablidades": "futbolista"
+  }
+]
