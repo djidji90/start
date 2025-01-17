@@ -1,4 +1,9 @@
   import React from "react";
+  import pato from '../assets/imagenes/pato.jpg';
+  import {useNavigate } from "react-router-dom";
+
+ 
+  
 import {
   Box,
   Typography,
@@ -18,16 +23,19 @@ import {
 } from "@mui/icons-material";
 
 const Footer = () => {
+const navigate = useNavigate();
   return (
-    <Box
+    
+    <Box 
       sx={{
         backgroundColor: "teal",
         color: "white",
         py: 2,
-        mt: 2,
+        mt: 5 ,
       }}
     >
       <Container maxWidth="xl" whidh="1px">
+        
         <Grid container spacing={4}>
           {/* Logo y descripción */}
           <Grid item xs={12} md={4}>
@@ -40,6 +48,7 @@ const Footer = () => {
               plataforma para amantes del EcuaBeat.
             
             </Typography>
+            
           </Grid>
 
           {/* Enlaces rápidos */}
@@ -83,10 +92,19 @@ const Footer = () => {
             textAlign: "center",
           }}
         >
+        {/* Logo */}
+              <img
+                src={pato}
+                alt="Logo"
+                style={{ width: 50, height: "auto", marginRight: "20px", cursor: "pointer" }}
+                onClick={() => navigate("/")}
+              />
+
           <Typography variant="body2">
             © {new Date().getFullYear()} djidji. Todos los derechos reservados. Leoncio A. Machimbo
           </Typography>
         </Box>
+        
       </Container>
     </Box>
   );

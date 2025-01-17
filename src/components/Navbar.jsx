@@ -1,85 +1,136 @@
 import React, { useState } from "react";
-import { AppBar, Toolbar, Typography, InputBase, Box, Button, IconButton } from "@mui/material";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  InputBase,
+  Box,
+  Button,
+  Menu,
+  MenuItem,
+  IconButton,
+} from "@mui/material";
 import { styled } from "@mui/system";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import SearchIcon from "@mui/icons-material/Search";
 import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-
+import { Logout } from "@mui/icons-material";
+import pato from "../assets/imagenes/pato.jpg";
 
 const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [anchorEl, setAnchorEl] = useState(null);
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+
+  const menuItems = [
+    { label: "Inicio", path: "/" },
+    { label: "Nosotros", path: "/AboutUs" },
+    { label: "Regístrate", path: "/SingInPage" },
+    { label: "Descubre", path: "/HomePage" },
+    { label: "Búsqueda", path: "/songs" },
+    { label: "Tienda", path: "/" },
+    { label: "Perfil", path: "/profile" },
+  ];
+
+  const handleMenuClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
 
   const handleSearch = () => {
-    console.log(Buscando, {searchQuery});
-    // Aquí podrías integrar una funcionalidad real de búsqueda
+    if (searchQuery.trim()) {
+      navigate(`/songs?query=${searchQuery}`);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setIsAuthenticated(false);
+    navigate("/login");
   };
 
   return (
     <AppBar
       position="static"
       sx={{
-        background: "linear-gradient(5px, 15px, orange)", // Gradiente futurista
-        boxShadow: "10px 5px 40px(0,0,0,0.3)",
+        background: "linear-gradient(5px, 15px, orange)",
+        boxShadow: "10px 5px 40px rgba(0, 0, 0, 0.3)",
       }}
     >
       <Toolbar>
-        {/* Menú */}
-        <IconButton
-          edge="start"
-          color="inherit"
-          aria-label="menu"
-          sx={{ mr: 1 }}
-        >
-          <MenuIcon />
-        </IconButton>
+        {/* Logo */}
+        <img
+          src={pato}
+          alt="Logo"
+          style={{ width: 50, height: "auto", marginRight: "20px", cursor: "pointer" }}
+          onClick={() => navigate("/")}
+        />
 
-        {/* Título de la página */}
+        {/* Título */}
         <Typography
           variant="h6"
           sx={{
             flexGrow: 1,
-            fontWeight: "3px",
-            color: "Window",
-            textTransform: "lowercase",
-            letterSpacing: "4px",
+            fontWeight: "bold",
+            color: "white",
+            textTransform: "uppercase",
+            letterSpacing: "2px",
+            cursor: "pointer",
           }}
+          onClick={() => navigate("/")}
         >
           Djidji
         </Typography>
 
-        {/* Enlaces a otras páginas */}
-        <Box sx={{ display: "flex", gap: 3 }}>
-          <Link to="/" style={linkStyle}>
-            Inicio
-          </Link>
-          <Link to="/Noticias" style={linkStyle}>
-            novedades
-          </Link>
-          <Link to="/SingInPage" style={linkStyle}>
-            registrate
-          </Link>
-          <Link to="/StoragePageV2" style={linkStyle}>
-            tienda
-          </Link>
-          <Link to="/AboutUs" style={linkStyle}>
-            nosotros
-          </Link>
-          <Link to="/DetallesCancion" style={linkStyle}>
-            artistas
-          </Link>
-          
+        {/* Menú desplegable (solo en pantallas pequeñas) */}
+        <IconButton
+          edge="end"
+          color="inherit"
+          aria-label="menu"
+          onClick={handleMenuClick}
+          sx={{ display: { xs: "block", sm: "none" } }}
+        >
+          <MenuIcon />
+        </IconButton>
+
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+          MenuListProps={{
+            "aria-labelledby": "basic-button",
+          }}
+        >
+          {menuItems.map((item) => (
+            <MenuItem key={item.label} onClick={() => navigate(item.path)}>
+              {item.label}
+            </MenuItem>
+          ))}
+        </Menu>
+
+        {/* Links (pantallas grandes) */}
+        <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3 }}>
+          {menuItems.map((item) => (
+            <Link to={item.path} key={item.label} style={linkStyle}>
+              {item.label}
+            </Link>
+          ))}
         </Box>
-        
+
         {/* Barra de búsqueda */}
         <SearchBox>
           <SearchIconWrapper>
             <SearchIcon />
           </SearchIconWrapper>
           <StyledInputBase
-            placeholder="Buscar canciones o artistas..."
-            inputProps={{ "aria-brailleroledescription": "search" }}
+            placeholder="¿Qué estás buscando?"
+            inputProps={{ "aria-label": "search" }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -90,7 +141,7 @@ const Navbar = () => {
               ml: 1,
               backgroundColor: "turquoise",
               color: "#fff",
-              "&:hover": { backgroundColor: "sandybrown " },
+              "&:hover": { backgroundColor: "sandybrown" },
             }}
           >
             Buscar
@@ -99,12 +150,21 @@ const Navbar = () => {
 
         {/* Iconos adicionales */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: 2 }}>
-          <IconButton color="inherit">
+          <IconButton color="inherit" title="Notificaciones">
             <NotificationsIcon sx={{ color: "orange" }} />
           </IconButton>
-          <IconButton color="inherit">
+          <IconButton color="inherit" title="Cuenta">
             <AccountCircleIcon sx={{ color: "#FF4500" }} />
           </IconButton>
+
+          {/* Autenticación: Cerrar sesión o Iniciar sesión */}
+          {isAuthenticated ? (
+            <Button onClick={handleLogout} color="inherit">
+              <Logout /> Cerrar sesión
+            </Button>
+          ) : (
+            <Link to="/login" style={linkStyle}>Iniciar sesión</Link>
+          )}
         </Box>
       </Toolbar>
     </AppBar>
@@ -113,14 +173,14 @@ const Navbar = () => {
 
 // Estilo de los enlaces
 const linkStyle = {
-  textDecoration: "5px",
+  textDecoration: "none",
   color: "#fff",
   fontWeight: "bold",
   fontSize: "1rem",
   padding: "8px 16px",
   borderRadius: "8px",
   "&:hover": {
-    backgroundColor: "rgba(15px, 255, 255, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
 };
 
@@ -129,10 +189,9 @@ const SearchBox = styled("div")(({ theme }) => ({
   display: "flex",
   alignItems: "center",
   backgroundColor: "rgba(255,255,255,0.15)",
-  borderRadius: theme.palette.AccountCircleIcon,
-  padding: "10 8px",
-  width: "50%",
-  color: "white",
+  borderRadius: theme.shape.borderRadius,
+  padding: "4px 8px",
+  width: "40%",
 }));
 
 const SearchIconWrapper = styled("div")(({ theme }) => ({

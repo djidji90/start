@@ -1,25 +1,26 @@
 import { useState } from "react";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import Noticias from "./components/Noticias";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import SubirCancion from "./components/SubirCancion";
-import Comentarios from "./components/Cometarios";
 import CartDrawer from "./components/CartDrawer";
-import StorePageV2 from "./components/Tienda";
-import ContactUs from "./components/AboutUs";
+
 import { AuthProvider } from "./components/hook/UseAut";
-import SignInPage from "./components/SignInCard";
 import AboutUs from "./components/AboutUs";
-import DetallesCancion from "./components/DetallesCancion";
-import Home from "./components/Home";
-import PrivateRoute from "./components/PrivateRoute";
+import Login from "./components/Loginn";
+import Register from "./components/Registrate";
+
+import SongSearchPage from "./components/theme/musica/SearchBar"; // Página de búsqueda de canciones
+import SongDetailsPage from "./components/theme/musica/SongsDetaill"; // Página de detalles de la canción
+import UserProfilePage from "./components/theme/musica/UserProfile"; // Página de perfil de usuario
+import ProtectedRoute from "./components/theme/musica/ProtectedRoute";
+import CommentsPage from "./components/theme/musica/CommentsPage"; // Nueva página de comentarios
 
 export default function App() {
   const [cartItems, setCartItems] = useState([]);
   const [isCartOpen, setCartOpen] = useState(false);
 
   const toggleCart = () => setCartOpen(!isCartOpen);
+
   return (
     <AuthProvider>
       <div>
@@ -33,27 +34,46 @@ export default function App() {
           <Navbar />
 
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/Noticias" element={<Noticias />} />
-            <Route path="/SubirCancion" element={<SubirCancion />} />
-            <Route path="/Comentarios" element={<Comentarios />} />
-            <Route path="/StoragePageV2" element={<StorePageV2 />} />
-            <Route path="/SubirCancion" element={<SubirCancion />} />
+            <Route path="/" element={<Login />} />
+            <Route path="/songs" element={<SongSearchPage />} />
+            <Route path="/AboutUS" element={<AboutUs />} />
+            <Route path="/SingInPage" element={<Register />} />
+
+            {/* Ruta protegida para ver los detalles de la canción */}
             <Route
-              path="/AboutUs"
+              path="/songs/:songId"
               element={
-                <PrivateRoute>
-                  <AboutUs />{" "}
-                </PrivateRoute>
+                <ProtectedRoute>
+                  <SongDetailsPage />
+                </ProtectedRoute>
               }
             />
-            <Route path="/SingInPage" element={<SignInPage />} />
-            <Route path="/SingInPage" element={<SignInPage />} />
-            <Route path="/DetallesCancion" element={<DetallesCancion />} />
+
+            {/* Ruta protegida para ver los comentarios de la canción */}
+            <Route
+              path="/songs/:songId/comments"
+              element={
+                <ProtectedRoute>
+                  <CommentsPage />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Ruta protegida para el perfil de usuario */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <UserProfilePage />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
+
           <Footer />
         </BrowserRouter>
       </div>
     </AuthProvider>
   );
 }
+

@@ -1,97 +1,184 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Grid,
-  TextField,
+  AppBar,
+  Toolbar,
   Typography,
+  InputBase,
+  Box,
   Card,
-  CardMedia,
   CardContent,
-  CardActions,
+  CardMedia,
   Button,
-  Pagination,
-} from '@mui/material';
+  Grid,
+  CircularProgress,
+  TextField,
+} from "@mui/material";
+import { styled } from "@mui/system";
+import SearchIcon from "@mui/icons-material/Search";
+import axios from "axios";
 
-const mockProducts = [
-  { id: 1, name: 'Disco de Rock', price: 20, image: 'https://via.placeholder.com/150' },
-  { id: 2, name: 'Auriculares Pro', price: 50, image: 'https://via.placeholder.com/150' },
-  { id: 3, name: 'Camiseta de Banda', price: 25, image: 'https://via.placeholder.com/150' },
-  { id: 4, name: 'Vinilo Clásico', price: 30, image: 'https://via.placeholder.com/150' },
-  { id: 5, name: 'Poster de Concierto', price: 10, image: 'https://via.placeholder.com/150' },
-  { id: 6, name: 'Gorra de Música', price: 15, image: 'https://via.placeholder.com/150' },
-  // Añadir más productos para pruebas.
-];
+// URL de tu API
+const API_URL = "https://mock-api.com/products"; // Cambia esto por la URL real
 
-export default function StorePageV2() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+const StyledAppBar = styled(AppBar)(({ theme }) => ({
+  backgroundColor: "#1a1a1a",
+  boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.3)",
+}));
 
-  const filteredProducts = mockProducts.filter((product) =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+const StyledSearchBox = styled("div")(({ theme }) => ({
+  display: "flex",
+  alignItems: "center",
+  backgroundColor: "rgba(255, 255, 255, 0.15)",
+  borderRadius: theme.shape.borderRadius,
+  padding: "4px 8px",
+  width: "100%",
+}));
 
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+const StyledInputBase = styled(InputBase)(({ theme }) => ({
+  color: "inherit",
+  marginLeft: theme.spacing(1),
+  flex: 1,
+}));
 
-  const handleSearch = (e) => setSearchTerm(e.target.value);
+const HomePage = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const handlePageChange = (_, page) => setCurrentPage(page);
+  // Fetch de productos desde la API
+  const fetchProducts = async (query = "") => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}?q=${query}`);
+      setProducts(response.data);
+      setError("");
+    } catch (err) {
+      setError("Error al cargar los productos. Intenta nuevamente.");
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Maneja la búsqueda de productos
+  const handleSearch = () => {
+    fetchProducts(searchQuery);
+  };
+
+  useEffect(() => {
+    fetchProducts(); // Cargar productos al inicio
+  }, []);
 
   return (
-    <Box sx={{ p: 4 }}>
-      <Typography variant="h3" align="center" bgcolor={'ThreeDFace'} color='info' fontFamily={'monospace'} gutterBottom>
-        🎧 compra lo que te gusta
-      </Typography>
+    <Box sx={{ minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* Navbar */}
+      <StyledAppBar position="sticky">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            🎶 Djidji Store
+          </Typography>
+          <StyledSearchBox>
+            <SearchIcon />
+            <StyledInputBase
+              placeholder="Buscar productos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSearch}
+              sx={{ ml: 1 }}
+            >
+              Buscar
+            </Button>
+          </StyledSearchBox>
+        </Toolbar>
+      </StyledAppBar>
+      {/* Contenido Principal */}
+      <Box sx={{ padding: 4 }}>
+        <Typography
+          variant="h4"
+          sx={{
+            textAlign: "center",
+            fontWeight: "bold",
+            mb: 4,
+            color: "#333",
+          }}
+        >
+          Explora Nuestros Productos Destacados
+        </Typography>
 
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-        <TextField
-          label="Buscar productos"
-          variant="outlined"
-          onChange={handleSearch}
-          sx={{ width: '50%' }}
-        />
-      </Box>
-
-      <Grid container spacing={3}>
-        {paginatedProducts.map((product) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-            <Card sx={{ maxWidth: 345, mx: 'auto', boxShadow: 3 }}>
-              <CardMedia
-                component="img"
-                height="200"
-                image={product.image}
-                alt={product.name}
-              />
-              <CardContent>
-                <Typography variant="h6">{product.name}</Typography>
-                <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
-                  ${product.price}
-                </Typography>
-              </CardContent>
-              <CardActions>
-                <Button size="small" variant="contained" color="primary">
-                  Agregar al Carrito
-                </Button>
-                <Button size="small" variant="outlined" color="secondary">
-                  Ver Detalles
-                </Button>
-              </CardActions>
-            </Card>
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Typography variant="body1" color="error" align="center">
+            {error}
+          </Typography>
+        ) : products.length === 0 ? (
+          <Typography
+            variant="body1"
+            color="textSecondary"
+            align="center"
+          >
+            No se encontraron productos.
+          </Typography>
+        ) : (
+          <Grid container spacing={3}>
+            {products.map((product) => (
+              <Grid item xs={12} sm={6} md={4} key={product.id}>
+                <Card
+                  sx={{
+                    boxShadow: 3,
+                    "&:hover": { boxShadow: 6 },
+                    borderRadius: 2,
+                  }}
+                >
+                  <CardMedia
+                    component="img"
+                    height="200"
+                    image={product.image || "/placeholder.png"}
+                    alt={product.name}
+                  />
+                  <CardContent>
+                    <Typography
+                      variant="h6"
+                      component="div"
+                      sx={{ fontWeight: "bold" }}
+                    >
+                      {product.name}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      {product.description}
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      color="primary"
+                      sx={{ mt: 1 }}
+                    >
+                      ${product.price.toFixed(2)}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      fullWidth
+                      sx={{ mt: 2 }}
+                      onClick={() => alert("Añadir al carrito: " + product.name)}
+                    >
+                      Añadir al Carrito
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
-        ))}
-      </Grid>
-
-      <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-        <Pagination
-          count={Math.ceil(filteredProducts.length / itemsPerPage)}
-          page={currentPage}
-          onChange={handlePageChange}
-          color="primary"
-        />
+        )}
       </Box>
     </Box>
   );
-}
+};
+
+export default HomePage;

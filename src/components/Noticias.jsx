@@ -1,120 +1,151 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
+  Box,
+  Container,
+  Typography,
+  TextField,
+  Grid,
+  Button,
   Card,
   CardContent,
   CardMedia,
-  Typography,
-  CardActions,
   IconButton,
-  Button,
-  Grid,
-  TextField,
-  List,
-  ListItem,
-  ListItemText,
+  CircularProgress,
 } from "@mui/material";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import DownloadIcon from "@mui/icons-material/Download";
 
-const songs = [
-  { title: "amangefe", artist: "hermanos maga", image: "dog.jpg", genero: "balada", año_publicacion: 2020 },
-  { title: "cohiba", artist: "kiko b & cesario mc", image: "cat.jpg", genero: "hip hop", año_publicacion: 2024 },
-  { title: "marihauna", artist: "teddy bala", image: "perro.jpg", genero: "afro beat" , año_publicacion: 2024},
-  { title: "amangefe", artist: "hermanos maga", image: "dog.jpg", genero: "balada", año_publicacion: 2020 },
-  { title: "cohiba", artist: "kiko b & cesario mc", image: "cat.jpg", genero: "hip hop", año_publicacion: 2024 },
-  { title: "marihauna", artist: "teddy bala", image: "perro.jpg", genero: "afro beat" , año_publicacion: 2024},
-];
+const API_URL = "http://127.0.0.1:8000/api/modelo1/"; // Cambia esto por tu API real
 
-const SongCard = ({ song }) => {
-  const [likes, setLikes] = useState(0);
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState([]);
+const SongPage = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [songs, setSongs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const handleLike = () => {
-    setLikes((prev) => prev + 1);
-  };
-
-  const handleCommentSubmit = () => {
-    if (comment.trim()) {
-      setComments((prev) => [...prev, comment]);
-      setComment("");
+  // Fetch songs from the API
+  const fetchSongs = async (query = "", pageNumber = 1) => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${API_URL}?query=${query}&page=${pageNumber}&limit=10`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSongs(data.songs);
+      } else {
+        console.error("Error fetching songs");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Handle search input
+  const handleSearch = (event) => {
+    event.preventDefault();
+    setPage(1); // Reset to first page on new search
+    fetchSongs(searchQuery, 1);
+  };
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    setPage((prev) => {
+      const nextPage = prev + 1;
+      fetchSongs(searchQuery, nextPage);
+      return nextPage;
+    });
+  };
+
+  const handlePreviousPage = () => {
+    if (page > 1) {
+      setPage((prev) => {
+        const previousPage = prev - 1;
+        fetchSongs(searchQuery, previousPage);
+        return previousPage;
+      });
+    }
+  };
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchSongs();
+  }, []);
+
   return (
-    <Card sx={{ maxWidth: 320, margin: 2, boxShadow: 10}}>
-      {/* Imagen de la canción */}
-      <CardMedia
-        component="img"
-        height="140"
-        image={song.image}
-        alt={song.title}
-      />
-      {/* Contenido de la canción */}
-      <CardContent>
-        <Typography variant="h6" component="div">
-        titulo:  {song.title} 
-        </Typography>
-        <Typography variant="inherit" color="info">
-         artista: {song.artist}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-         genero: {song.genero}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-         publicado año: {song.año_publicacion}
-        </Typography>
-      </CardContent>
-      {/* Botones de Like y comentarios */}
-      <CardActions>
-        <IconButton color="primary" onClick={handleLike}>
-          <FavoriteIcon /> <span style={{ marginLeft: 8 }}>{likes}</span>
-        </IconButton>
-        <IconButton color="secondary">
-          <ChatBubbleOutlineIcon />
-        </IconButton>
-      </CardActions>
-      {/* Campo para agregar comentarios */}
-      <CardContent>
-        <TextField
-          fullWidth
-          variant="outlined"
-          label="Añadir un comentario"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-        />
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleCommentSubmit}
-          sx={{ marginTop: 2 }}
+    <Box sx={{ backgroundColor: "#f9f9f9", minHeight: "100vh", py: 5 }}>
+      <Container>
+        {/* Search Bar */}
+        <Box
+          component="form"
+          onSubmit={handleSearch}
+          sx={{
+            display: "flex",
+            gap: 2,
+            alignItems: "center",
+            mb: 4,
+            justifyContent: "center",
+          }}
         >
-          Enviar
-        </Button>
-        {/* Lista de comentarios */}
-        <List sx={{ marginTop: 2 }}>
-          {comments.map((comm, index) => (
-            <ListItem key={index}>
-              <ListItemText primary={comm} />
-            </ListItem>
-          ))}
-        </List>
-      </CardContent>
-    </Card>
+          <TextField
+            label="Buscar canciones o artistas"
+            variant="outlined"
+            fullWidth
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Button type="submit" variant="contained" color="primary">
+            Buscar
+          </Button>
+        </Box>
+
+        {/* Songs Grid */}
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", mt: 5 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Grid container spacing={4}>
+            {songs.map((song) => (
+              <Grid item xs={12} sm={6} md={4} key={song.id}>
+                <SongCard song={song} />
+              </Grid>
+            ))}
+          </Grid>
+        )}
+
+        {/* Pagination Buttons */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            mt: 4,
+          }}
+        >
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={handlePreviousPage}
+            disabled={page === 1}
+          >
+            Anterior
+          </Button>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={handleNextPage}
+          >
+            Siguiente
+          </Button>
+        </Box>
+      </Container>
+    </Box>
   );
 };
 
-const SongList = () => {
-  return (
-    <Grid container spacing={2} justifyContent="center">
-      {songs.map((song, index) => (
-        <Grid item key={index}>
-          <SongCard song={song} />
-        </Grid>
-      ))}
-    </Grid>
-  );
-};
+export default SongPage;
 
-export default SongList;
   

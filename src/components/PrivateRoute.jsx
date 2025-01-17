@@ -1,8 +1,16 @@
-import { useAuth } from './hook/UseAut';
-import { Navigate } from 'react-router-dom';
+import React from "react";
+import { Navigate } from "react-router-dom";
 
-export default function PrivateRoute({ children }) {
-    const { authToken } = useAuth();
+const ProtectedRoute = ({ children }) => {
+  const isAuthenticated = !!localStorage.getItem("accessToken");
 
-    return authToken ? children : <Navigate to="/SinginPage" />;
-}
+  // Si no está autenticado, redirige a /login
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  // Si está autenticado, renderiza el componente hijo
+  return children;
+};
+
+export default ProtectedRoute;

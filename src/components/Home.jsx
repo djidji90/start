@@ -1,149 +1,245 @@
-// ChatRoom.js
-import React, { useState, useEffect } from 'react';
+// SignUpCard.js
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-    Box,
-    TextField,
-    Button,
-    Typography,
-    List,
-    ListItem,
-    ListItemText,
-    Paper,
-    Divider,
-    CircularProgress,
-} from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Paper,
+  CircularProgress,
+  Alert,
+  Grid,
+} from "@mui/material";
 
-const API_URL = 'https://mock-api.com/chat'; // Cambia esto por la URL de tu API real.
+const API_URL = "http://127.0.0.1:8000/api/register/"; // Cambia esto por tu http://localhost:5175API real en producción
 
-const ChatRoom = () => {
-    const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [userName, setUserName] = useState('');
-    const [loading, setLoading] = useState(true);
+export default function SignUpCard() {
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    city: "",
+    neighborhood: "",
+    phone: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-    // Obtener mensajes al cargar
-    useEffect(() => {
-        const fetchMessages = async () => {
-            try {
-                const response = await fetch(`${API_URL}/messages`);
-                const data = await response.json();
-                setMessages(data);
-            } catch (error) {
-                console.error('Error al cargar los mensajes:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
+  const navigate = useNavigate();
 
-        fetchMessages();
-    }, []);
+  // Manejar los cambios en los campos del formulario
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-    // Manejar envío de mensajes
-    const handleSendMessage = async () => {
-        if (newMessage.trim() && userName.trim()) {
-            const newMsg = { user: userName, text: newMessage };
+  // Manejar el envío del formulario
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    setSuccess("");
 
-            try {
-                const response = await fetch(`${API_URL}/messages`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newMsg),
-                });
+    const { password, confirmPassword, email, firstName, lastName, phone } =
+      formData;
 
-                if (response.ok) {
-                    const savedMessage = await response.json();
-                    setMessages([...messages, savedMessage]);
-                    setNewMessage('');
-                } else {
-                    console.error('Error al enviar el mensaje.');
-                }
-            } catch (error) {
-                console.error('Error al conectarse con la API:', error);
-            }
-        }
-    };
+    // Validaciones básicas
+    if (!email || !password || !confirmPassword || !firstName || !lastName) {
+      setError("Por favor, completa todos los campos obligatorios.");
+      setLoading(false);
+      return;
+    }
 
-    return (
-        <Box
-            sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100vh',
-                padding: 2,
-                backgroundColor: '#f4f6f8',
-            }}
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden.");
+      setLoading(false);
+      return;
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      setError("Por favor, ingresa un correo electrónico válido.");
+      setLoading(false);
+      return;
+    }
+
+    if (!/^\d+$/.test(phone)) {
+      setError("El número de teléfono solo puede contener dígitos.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setSuccess("Registro exitoso. Redirigiendo al inicio de sesión...");
+        setTimeout(() => navigate("/login"), 3000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || "Error al registrar. Intenta de nuevo.");
+      }
+    } catch (err) {
+      setError("Error de red. Por favor, inténtalo nuevamente más tarde.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f4f6f8",
+        padding: 2,
+      }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          p: 4,
+          maxWidth: 500,
+          borderRadius: 2,
+          boxShadow: 4,
+        }}
+      >
+        <Typography variant="h5" component="h1" gutterBottom align="center">
+          Crea tu cuenta en Djidji Music 🎵
+        </Typography>
+        <Typography
+          variant="body1"
+          color="textSecondary"
+          align="center"
+          gutterBottom
         >
-            <Typography variant="h4" textAlign="center" gutterBottom>
-                Comunidad Musical
-            </Typography>
+          Regístrate para disfrutar de la mejor música.
+        </Typography>
 
-            {/* Lista de Mensajes */}
-            <Paper
-                elevation={3}
-                sx={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    padding: 2,
-                    marginBottom: 2,
-                }}
-                id="chat-container"
-            >
-                {loading ? (
-                    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-                        <CircularProgress />
-                    </Box>
-                ) : (
-                    <List>
-                        {messages.map((message, index) => (
-                            <ListItem key={index}>
-                                <ListItemText
-                                    primary={
-                                        <Typography
-                                            variant="subtitle1"
-                                            fontWeight="bold"
-                                            color="primary"
-                                        >
-                                            {message.user}
-                                        </Typography>
-                                    }
-                                    secondary={message.text}
-                                />
-                            </ListItem>
-                        ))}
-                    </List>
-                )}
-            </Paper>
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" sx={{ mt: 2 }}>
+            {success}
+          </Alert>
+        )}
 
-            <Divider />
+        <Box component="form" noValidate sx={{ mt: 2 }} onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Nombre"
+                name="firstName"
+                variant="outlined"
+                fullWidth
+                required
+                value={formData.firstName}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Apellido"
+                name="lastName"
+                variant="outlined"
+                fullWidth
+                required
+                value={formData.lastName}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Correo electrónico"
+                name="email"
+                variant="outlined"
+                fullWidth
+                required
+                value={formData.email}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Contraseña"
+                name="password"
+                type="password"
+                variant="outlined"
+                fullWidth
+                required
+                value={formData.password}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Confirmar contraseña"
+                name="confirmPassword"
+                type="password"
+                variant="outlined"
+                fullWidth
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Teléfono"
+                name="phone"
+                variant="outlined"
+                fullWidth
+                required
+                value={formData.phone}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Ciudad"
+                name="city"
+                variant="outlined"
+                fullWidth
+                value={formData.city}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="Barrio"
+                name="neighborhood"
+                variant="outlined"
+                fullWidth
+                value={formData.neighborhood}
+                onChange={handleChange}
+              />
+            </Grid>
+          </Grid>
 
-            {/* Entrada de Mensaje */}
-            <Box display="flex" gap={2} mt={2}>
-                <TextField
-                    label="Nombre de Usuario"
-                    variant="outlined"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    sx={{ flex: 1 }}
-                />
-                <TextField
-                    label="Escribe tu mensaje"
-                    variant="outlined"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    sx={{ flex: 3 }}
-                />
-                <Button
-                    variant="contained"
-                    color="primary"
-                    endIcon={<SendIcon />}
-                    onClick={handleSendMessage}
-                >
-                    Enviar
-                </Button>
-            </Box>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            sx={{ mt: 3 }}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : "Registrarse"}
+          </Button>
         </Box>
-    );
-};
-
-export default ChatRoom;
+      </Paper>
+    </Box>
+  );
+}
