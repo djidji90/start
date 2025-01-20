@@ -1,113 +1,132 @@
 import React, { useState, useEffect } from "react";
-import { Box, TextField, Button, Typography, Grid, Snackbar, Alert } from "@mui/material";
 import axios from "axios";
-import { useParams } from "react-router-dom";
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  CircularProgress,
+  Snackbar,
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
+} from "@mui/material";
 
-const CommentsPage = () => {
-  const { songId } = useParams(); // Recuperamos el id de la canción desde la URL
+const CommentsSection = ({ songId }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
-  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [openSnackbar, setOpenSnackbar] = useState(false);
 
-  // Cargar comentarios de la canción cuando se monta el componente
-  useEffect(() => {
-    const fetchComments = async () => {
-      setLoading(true);
-      try {
-        const response = await axios.get(`http://127.0.0.1:8000/api/comments/${songId}/`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`, // Asegúrate de enviar el token
-          },
-        });
-        setComments(response.data); // Establece los comentarios en el estado
-      } catch (error) {
-        setErrors({ general: "No se pudieron cargar los comentarios." });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchComments();
-  }, [songId]); // Vuelve a cargar cuando el songId cambie
-
-  const handleCommentChange = (e) => {
-    setNewComment(e.target.value);
+  const getAuthHeader = () => {
+    const accessToken = localStorage.getItem("accessToken");
+    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
   };
 
-  const handleCommentSubmit = async (e) => {
-    e.preventDefault();
-    if (!newComment) return; // Validación simple
-
+  const fetchComments = async () => {
     setLoading(true);
+    setError("");
     try {
-      const response = await axios.post(
-        `http://127.0.0.1:8000/api/comments/${songId}/`,
-        { content: newComment },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`, // Enviar token
-          },
-        }
+      const response = await axios.get(
+        `http://127.0.0.1:8000/api2/songs/${songId}/comments/`,
+        { headers: getAuthHeader() }
       );
-      setSuccessMessage("Comentario enviado correctamente.");
-      setOpenSnackbar(true);
-      setNewComment(""); // Limpiar el campo de comentario
-      setComments([...comments, response.data]); // Añadir el nuevo comentario al estado
-    } catch (error) {
-      setErrors({ general: "Error al enviar el comentario." });
+      setComments(response.data);
+    } catch (err) {
+      setError("No se pudieron cargar los comentarios. Intenta nuevamente.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCloseSnackbar = () => setOpenSnackbar(false);
+  const handleAddComment = async () => {
+    if (!newComment.trim()) {
+      setError("El comentario no puede estar vacío.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      const response = await axios.post(
+        `http://127.0.0.1:8000/api2/songs/${songId}/comments/`,
+        { text: newComment },
+        { headers: getAuthHeader() }
+      );
+      setComments((prevComments) => [response.data, ...prevComments]);
+      setNewComment("");
+      setSuccessMessage("Comentario agregado con éxito.");
+      setOpenSnackbar(true);
+    } catch (err) {
+      setError("No se pudo agregar el comentario. Intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchComments();
+  }, [songId]);
 
   return (
-    <Box sx={{ padding: 2 }}>
-      <Typography variant="h4">Comentarios</Typography>
-      {errors.general && <Alert severity="error">{errors.general}</Alert>}
-      <Box sx={{ marginTop: 2 }}>
-        <form onSubmit={handleCommentSubmit}>
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label="Escribe tu comentario"
-            value={newComment}
-            onChange={handleCommentChange}
-            variant="outlined"
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            sx={{ marginTop: 2 }}
-            disabled={loading}
-          >
-            {loading ? "Enviando..." : "Enviar Comentario"}
-          </Button>
-        </form>
+    <Box sx={{ padding: 2, marginTop: 4 }}>
+      <Typography variant="h5" sx={{ marginBottom: 2 }}>
+        Comentarios
+      </Typography>
+
+      {loading && (
+        <Box sx={{ display: "flex", justifyContent: "center", marginTop: 2 }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ marginBottom: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Box sx={{ display: "flex", alignItems: "center", marginBottom: 2 }}>
+        <TextField
+          label="Escribe un comentario"
+          variant="outlined"
+          fullWidth
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          sx={{ marginRight: 2 }}
+        />
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleAddComment}
+          disabled={loading}
+        >
+          Comentar
+        </Button>
       </Box>
 
-      <Box sx={{ marginTop: 4 }}>
-        <Typography variant="h6">Comentarios</Typography>
-        <Grid container spacing={2}>
-          {comments.map((comment) => (
-            <Grid item xs={12} key={comment.id}>
-              <Typography variant="body1">{comment.content}</Typography>
-              <Typography variant="body2" sx={{ color: "#777" }}>
-                {comment.author}
-              </Typography>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
+      <List>
+        {comments.map((comment) => (
+          <ListItem key={comment.id} alignItems="flex-start">
+            <ListItemText
+              primary={comment.text}
+              secondary={`Por ${comment.user} - ${new Date(
+                comment.created_at
+              ).toLocaleString()}`}
+            />
+          </ListItem>
+        ))}
+      </List>
 
-      <Snackbar open={openSnackbar} autoHideDuration={6000} onClose={handleCloseSnackbar}>
-        <Alert onClose={handleCloseSnackbar} severity="success">
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={6000}
+        onClose={() => setOpenSnackbar(false)}
+      >
+        <Alert onClose={() => setOpenSnackbar(false)} severity="success">
           {successMessage}
         </Alert>
       </Snackbar>
@@ -115,4 +134,4 @@ const CommentsPage = () => {
   );
 };
 
-export default CommentsPage;
+export default CommentsSection;

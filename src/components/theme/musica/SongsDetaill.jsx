@@ -18,10 +18,9 @@ import {
   FavoriteBorder,
   Download,
   Comment,
+  PlayArrow,
 } from "@mui/icons-material";
 import axios from "axios";
-import CommentsPage from "./CommentsPage";
-import AudioPlayerComponent from "./AudioPlayerComponent";
 
 const SongDetailsPage = () => {
   const { songId } = useParams();
@@ -84,6 +83,7 @@ const SongDetailsPage = () => {
   return (
     <Box sx={{ padding: 4 }}>
       <Grid container spacing={4}>
+        {/* Song Details */}
         <Grid item xs={12} md={4}>
           <Card>
             <CardMedia
@@ -121,6 +121,16 @@ const SongDetailsPage = () => {
                 Descargar
               </Button>
 
+              <Button
+                variant="outlined"
+                startIcon={<PlayArrow />}
+                href={song.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Reproducir
+              </Button>
+
               <IconButton color="primary">
                 <Comment />
               </IconButton>
@@ -128,17 +138,18 @@ const SongDetailsPage = () => {
           </Card>
         </Grid>
 
+        {/* Comments Section */}
         <Grid item xs={12} md={8}>
-          <Box sx={{ marginBottom: 4 }}>
-            <AudioPlayerComponent song={song} />
-          </Box>
-
           <Box>
-            <CommentComponent songId={songId} />
+            <Typography variant="h6">Comentarios:</Typography>
+            <Typography variant="body2" color="textSecondary">
+              (Sección de comentarios en desarrollo...)
+            </Typography>
           </Box>
         </Grid>
       </Grid>
 
+      {/* Snackbar for Notifications */}
       <Snackbar
         open={openSnackbar}
         autoHideDuration={6000}
@@ -153,4 +164,5 @@ const SongDetailsPage = () => {
 };
 
 export default SongDetailsPage;
+
 

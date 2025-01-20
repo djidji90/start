@@ -40,13 +40,13 @@ const Login = () => {
       // Guardamos el token de acceso en localStorage
       localStorage.setItem("accessToken", access);
 
-      setSuccessMessage("Bienvenid@ a djidji MUSIC, ¡QUE EMPIECE LA AVENTURA!");
+      setSuccessMessage("Hola!! Bienvenid@ a djidji music");
       setOpenSnackbar(true);
 
       setFormData({ username: "", password: "" });
 
       // Redirigimos a la página de inicio o al dashboard después de un breve retraso
-      setTimeout(() => navigate("/Songs"), 1500);
+      setTimeout(() => navigate("/MainPage"), 1500);
     } catch (error) {
       if (error.response && error.response.data) {
         // Si el error es de autenticación (usuario o contraseña incorrectos)

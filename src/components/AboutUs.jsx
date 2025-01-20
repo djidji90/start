@@ -52,8 +52,8 @@ const AboutUs = () => {
               </Typography>
               <Typography variant="body1" color="textSecondary">
                 Nos imaginamos un futuro donde Djidji Music sea el puente global
-                entre artistas y oyentes, creando una comunidad musical
-                inclusiva, inspiradora y sostenible.
+                entre artistas y amantes del EcuaBeat, creando una comunidad
+                musical inclusiva, inspiradora y sostenible.
               </Typography>
             </Paper>
           </Grid>
@@ -65,14 +65,14 @@ const AboutUs = () => {
             Nuestro Equipo
           </Typography>
           <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
-            Somos un grupo de entusiastas de la música, la tecnología y la
-            creatividad, dedicados a ofrecer la mejor experiencia para ti.
+            Somos un grupo de jovenes entusiastas de la música, la tecnología y
+            la creatividad, dedicados a ofrecer la mejor experiencia para ti.
           </Typography>
           <Grid container spacing={4} justifyContent="center">
             {[
               { name: "Leoncio Machimbo", role: "CEO", img: "cat.jpg" },
               { name: "Cairo Okafor", role: "CTO", img: "nike.jpg" },
-              { name: "María Sánchez", role: "Diseñadora", img: "dog.jpg" },
+              { name: "mª Angeles Pecho", role: "Diseñadora", img: "dog.jpg" },
             ].map((member, index) => (
               <Grid item xs={12} md={4} key={index}>
                 <Card>
@@ -142,10 +142,10 @@ const AboutUs = () => {
             Puedes contactarnos a través de nuestros números de teléfono:
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
-            <strong>Teléfono: </strong>+123 456 7890
+            <strong>Teléfono: </strong>+240 555 380 241
           </Typography>
           <Typography variant="body2" color="textSecondary">
-            <strong>WhatsApp: </strong>+123 456 7890
+            <strong>WhatsApp: </strong>+240 555 380 241
           </Typography>
         </Box>
       </Container>
@@ -154,4 +154,3 @@ const AboutUs = () => {
 };
 
 export default AboutUs;
-

@@ -7,38 +7,36 @@ import {
   IconButton,
   CardMedia,
   Box,
+  Button,
 } from "@mui/material";
 import { Favorite, GetApp, Comment, PlayArrow } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
 const SongCard = ({ song, onLike, onDownload, onStream }) => {
-  const navigate = useNavigate(); // Usamos useNavigate para redirigir
+  const navigate = useNavigate();
 
-  // Maneja la redirección a la página de comentarios
+  // Redirige a la página de comentarios
   const handleCommentsRedirect = () => {
-    navigate(`/songs/${song.id}/comments`); // Asegúrate de que la ruta sea correcta
+    navigate(`/songs/${song.id}/comments`);
   };
+
+  // Asegurarnos de que la imagen sea válida
+  const imageUrl = song.image_url || 'GrillzPrint.jpg';
 
   return (
     <Card
       sx={{
-        display: "flex",
+        display: "-ms-inline-flexbox",
         flexDirection: "column",
-        borderRadius: 3,
-        boxShadow: 3,
+        borderRadius: 5,
+        boxShadow: 12,
         overflow: "hidden",
       }}
     >
       <CardMedia
         component="img"
         height="200"
-        image={
-          song.image?.startsWith("http")
-            ? song.image
-            : `http://127.0.0.1:8000/api2/media/${
-                song.image || "images/placeholder.jpg"
-              }`
-        }
+        image={imageUrl}
         alt={song.artist}
         sx={{
           objectFit: "cover",
@@ -103,9 +101,20 @@ const SongCard = ({ song, onLike, onDownload, onStream }) => {
             <PlayArrow />
           </IconButton>
         </Box>
+        {/* Botón para abrir en el reproductor externo */}
+        <Button
+          variant="outlined"
+          href={song.file_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{ color: "#3f51b5", textTransform: "none" }}
+        >
+          Abrir en Reproductor
+        </Button>
       </CardActions>
     </Card>
   );
 };
 
 export default SongCard;
+

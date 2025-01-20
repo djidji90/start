@@ -1,14 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react"; 
 import {
   AppBar,
   Toolbar,
   Typography,
-  InputBase,
   Box,
   Button,
   Menu,
   MenuItem,
   IconButton,
+  InputBase,
 } from "@mui/material";
 import { styled } from "@mui/system";
 import { Link, useNavigate } from "react-router-dom";
@@ -17,22 +17,25 @@ import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { Logout } from "@mui/icons-material";
+import { makeStyles } from "@mui/styles";
 import pato from "../assets/imagenes/pato.jpg";
+import { AuthContext } from "./hook/UseAut"; // Asegúrate de que la ruta sea correcta
 
 const Navbar = () => {
+  const classes = useStyles();
   const [searchQuery, setSearchQuery] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+  const { isAuthenticated, userName, logout } = useContext(AuthContext); // Usamos el contexto aquí
 
   const menuItems = [
     { label: "Inicio", path: "/" },
     { label: "Nosotros", path: "/AboutUs" },
     { label: "Regístrate", path: "/SingInPage" },
     { label: "Descubre", path: "/HomePage" },
-    { label: "Búsqueda", path: "/songs" },
+    { label: "Búsqueda", path: "/MainPage" },
     { label: "Tienda", path: "/" },
-    { label: "Perfil", path: "/profile" },
+    { label: "Perfil", path: "/ProfilePage "},
   ];
 
   const handleMenuClick = (event) => {
@@ -45,44 +48,30 @@ const Navbar = () => {
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      navigate(`/songs?query=${searchQuery}`);
+      navigate(`/menuItems?query=${searchQuery}`);
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    setIsAuthenticated(false);
-    navigate("/login");
+    logout(); // Llamada al logout desde el contexto
+    navigate("/");
   };
 
   return (
-    <AppBar
-      position="static"
-      sx={{
-        background: "linear-gradient(5px, 15px, orange)",
-        boxShadow: "10px 5px 40px rgba(0, 0, 0, 0.3)",
-      }}
-    >
+    <AppBar position="static" className={classes.appBar}>
       <Toolbar>
         {/* Logo */}
         <img
           src={pato}
           alt="Logo"
-          style={{ width: 50, height: "auto", marginRight: "20px", cursor: "pointer" }}
+          className={classes.logo}
           onClick={() => navigate("/")}
         />
 
         {/* Título */}
         <Typography
           variant="h6"
-          sx={{
-            flexGrow: 1,
-            fontWeight: "bold",
-            color: "white",
-            textTransform: "uppercase",
-            letterSpacing: "2px",
-            cursor: "pointer",
-          }}
+          className={classes.title}
           onClick={() => navigate("/")}
         >
           Djidji
@@ -94,7 +83,7 @@ const Navbar = () => {
           color="inherit"
           aria-label="menu"
           onClick={handleMenuClick}
-          sx={{ display: { xs: "block", sm: "none" } }}
+          className={classes.menuButton}
         >
           <MenuIcon />
         </IconButton>
@@ -107,20 +96,26 @@ const Navbar = () => {
             "aria-labelledby": "basic-button",
           }}
         >
-          {menuItems.map((item) => (
-            <MenuItem key={item.label} onClick={() => navigate(item.path)}>
-              {item.label}
-            </MenuItem>
-          ))}
+          {menuItems.map((item) => {
+            if (item.protected && !isAuthenticated) return null;
+            return (
+              <MenuItem key={item.label} onClick={() => navigate(item.path)}>
+                {item.label}
+              </MenuItem>
+            );
+          })}
         </Menu>
 
         {/* Links (pantallas grandes) */}
-        <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3 }}>
-          {menuItems.map((item) => (
-            <Link to={item.path} key={item.label} style={linkStyle}>
-              {item.label}
-            </Link>
-          ))}
+        <Box className={classes.linksContainer}>
+          {menuItems.map((item) => {
+            if (item.protected && !isAuthenticated) return null;
+            return (
+              <Link to={item.path} key={item.label} className={classes.link}>
+                {item.label}
+              </Link>
+            );
+          })}
         </Box>
 
         {/* Barra de búsqueda */}
@@ -137,33 +132,31 @@ const Navbar = () => {
           <Button
             variant="contained"
             onClick={handleSearch}
-            sx={{
-              ml: 1,
-              backgroundColor: "turquoise",
-              color: "#fff",
-              "&:hover": { backgroundColor: "sandybrown" },
-            }}
+            className={classes.searchButton}
           >
             Buscar
           </Button>
         </SearchBox>
 
         {/* Iconos adicionales */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, ml: 2 }}>
-          <IconButton color="inherit" title="Notificaciones">
-            <NotificationsIcon sx={{ color: "orange" }} />
+        <Box className={classes.iconsContainer}>
+          <IconButton color="inherit" title="Notificaciones" aria-label="notificaciones">
+            <NotificationsIcon />
           </IconButton>
-          <IconButton color="inherit" title="Cuenta">
-            <AccountCircleIcon sx={{ color: "#FF4500" }} />
+          <IconButton color="inherit" title="Cuenta" aria-label="cuenta">
+            <AccountCircleIcon />
           </IconButton>
 
-          {/* Autenticación: Cerrar sesión o Iniciar sesión */}
+          {/* Autenticación */}
           {isAuthenticated ? (
-            <Button onClick={handleLogout} color="inherit">
-              <Logout /> Cerrar sesión
-            </Button>
+            <Box className={classes.authContainer}>
+              <Typography>{`Hola, ${userName}`}</Typography>
+              <Button onClick={handleLogout} color="inherit">
+                <Logout /> Cerrar sesión
+              </Button>
+            </Box>
           ) : (
-            <Link to="/login" style={linkStyle}>Iniciar sesión</Link>
+            <Link to="/" className={classes.link}>Iniciar sesión</Link>
           )}
         </Box>
       </Toolbar>
@@ -171,20 +164,70 @@ const Navbar = () => {
   );
 };
 
-// Estilo de los enlaces
-const linkStyle = {
-  textDecoration: "none",
-  color: "#fff",
-  fontWeight: "bold",
-  fontSize: "1rem",
-  padding: "8px 16px",
-  borderRadius: "8px",
-  "&:hover": {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+// Estilos personalizados
+const useStyles = makeStyles(() => ({
+  appBar: {
+    background: "linear-gradient(5px, 15px, orange)",
+    boxShadow: "10px 5px 40px rgba(0, 0, 0, 0.3)",
   },
-};
+  logo: {
+    width: 50,
+    height: "auto",
+    marginRight: 20,
+    cursor: "pointer",
+  },
+  title: {
+    flexGrow: 1,
+    fontWeight: "bold",
+    color: "white",
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    cursor: "pointer",
+  },
+  menuButton: {
+    display: "block",
+    "@media (min-width: 600px)": {
+      display: "none",
+    },
+  },
+  linksContainer: {
+    display: "none",
+    gap: 16,
+    "@media (min-width: 600px)": {
+      display: "flex",
+    },
+  },
+  link: {
+    textDecoration: "none",
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: "1rem",
+    padding: "8px 16px",
+    borderRadius: 8,
+    "&:hover": {
+      backgroundColor: "rgba(255, 255, 255, 0.2)",
+    },
+  },
+  searchButton: {
+    marginLeft: 8,
+    backgroundColor: "turquoise",
+    color: "#fff",
+    "&:hover": { backgroundColor: "sandybrown" },
+  },
+  iconsContainer: {
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+    marginLeft: 16,
+  },
+  authContainer: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+}));
 
-// Estilización de Material-UI
+// Estilización adicional para la barra de búsqueda
 const SearchBox = styled("div")(({ theme }) => ({
   display: "flex",
   alignItems: "center",
@@ -207,3 +250,4 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 }));
 
 export default Navbar;
+
