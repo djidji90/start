@@ -3,7 +3,8 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import CartDrawer from "./components/CartDrawer";
-
+import Todo from "./todo";
+  
 import { AuthProvider } from "./components/hook/UseAut";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"; // React Query
 import AboutUs from "./components/AboutUs";
@@ -48,7 +49,7 @@ export default function App() {
               <Route path="/AboutUS" element={<AboutUs />} />
               <Route path="/SingInPage" element={<Register />} />
               <Route path="/ProfilePage" element={<ProfilePage />} />
-              <Route path="/song/:songId" element={<CommentsPage />} />
+              <Route path="Todo" element={<Todo />} />
 
               {/* Rutas protegidas */}
               <Route

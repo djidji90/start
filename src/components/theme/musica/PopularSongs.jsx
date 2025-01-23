@@ -1,123 +1,182 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  CardMedia,
-  Button,
-  CardActions,
-  Skeleton,
-  useTheme,
-  Alert,
-} from "@mui/material";
-import { Favorite, Download, PlayArrow } from "@mui/icons-material";
+import React, { useState, useEffect } from "react";
+import { Button, Box, Typography, Card, CardMedia, CardContent, Chip, CircularProgress } from "@mui/material";
+import { ArrowBack, ArrowForward } from "@mui/icons-material";
 
-const PopularSongs = ({ onLike, onDownload, onStream }) => {
-  const [popularSongs, setPopularSongs] = useState([]);
+const PokemonImageViewer = () => {
+  const [pokemonId, setPokemonId] = useState(1); // Comienza con el primer Pokémon
+  const [pokemonData, setPokemonData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const theme = useTheme();
 
-  // Fetch popular songs from the API
-  const fetchPopularSongs = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await axios.get("http://127.0.0.1:8000/api2/songs/");
-      setPopularSongs(response.data.results);
-    } catch (err) {
-      setError("No se pudieron cargar las canciones populares.");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    const fetchPokemon = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
+        const data = await response.json();
+        const types = data.types.map((typeInfo) => typeInfo.type.name);
+        const abilities = data.abilities.map((abilityInfo) => abilityInfo.ability.name);
+        setPokemonData({
+          name: data.name,
+          image: data.sprites.other["official-artwork"].front_default || data.sprites.front_default,
+          types,
+          abilities,
+          weight: data.weight,
+          height: data.height,
+        });
+      } catch (error) {
+        console.error("Error fetching Pokémon:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPokemon();
+  }, [pokemonId]);
+
+  const handleNext = () => {
+    setPokemonId(pokemonId + 1); // Avanza al siguiente Pokémon
+  };
+
+  const handlePrev = () => {
+    if (pokemonId > 1) {
+      setPokemonId(pokemonId - 1); // Retrocede al Pokémon anterior
     }
   };
 
-  useEffect(() => {
-    fetchPopularSongs();
-  }, []);
-
   return (
-    <Box sx={{ marginBottom: 4 }}>
-      <Typography variant="h5" sx={{ marginBottom: 2, fontWeight: "bold" }}>
-        Canciones populares
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: 3,
+        backgroundColor: "#f7f7f7",
+        minHeight: "100vh",
+      }}
+    >
+      <Typography variant="h4" sx={{ marginBottom: 3, fontWeight: "bold", color: "#333" }}>
+        Descubre Pokémon
       </Typography>
 
-      {/* Mostrar mensaje de error si ocurre */}
-      {error && (
-        <Box sx={{ marginBottom: 4 }}>
-          <Alert severity="error">{error}</Alert>
-        </Box>
-      )}
-
       {loading ? (
-        <Grid container spacing={2}>
-          {[...Array(6)].map((_, index) => (
-            <Grid item xs={12} sm={6} md={4} key={index}>
-              <Skeleton variant="rectangular" height={200} />
-            </Grid>
-          ))}
-        </Grid>
+        <CircularProgress />
       ) : (
-        <Grid container spacing={2}>
-          {popularSongs.map((song) => (
-            <Grid item xs={12} sm={6} md={4} key={song.id}>
-              <Card
+        pokemonData && (
+          <Card
+            sx={{
+              maxWidth: 400,
+              borderRadius: 3,
+              boxShadow: 5,
+              padding: 2,
+              backgroundColor: "#fff",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <CardMedia
+              component="img"
+              image={pokemonData.image}
+              alt={pokemonData.name}
+              sx={{
+                width: "300px",
+                height: "300px",
+                objectFit: "contain",
+                marginBottom: 2,
+              }}
+            />
+            <CardContent>
+              <Typography
+                variant="h5"
                 sx={{
-                  boxShadow: theme.shadows[3],
-                  transition: "transform 0.2s ease-in-out",
-                  ":hover": { transform: "scale(1.05)" },
+                  textTransform: "capitalize",
+                  fontWeight: "bold",
+                  textAlign: "center",
+                  color: "#3f51b5",
                 }}
               >
-                <CardMedia
-                  component="img"
-                  height="140"
-                  image={song.cover_image || "/placeholder-image.jpg"}
-                  alt={song.title}
-                />
-                <CardContent>
-                  <Typography variant="h6" component="div" noWrap>
-                    {song.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {song.artist}
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  <Button
-                    size="small"
-                    color="primary"
-                    startIcon={<Favorite />}
-                    onClick={() => onLike(song.id)}
-                  >
-                    Like
-                  </Button>
-                  <Button
-                    size="small"
-                    color="secondary"
-                    startIcon={<Download />}
-                    onClick={() => onDownload(song.id, song.title)}
-                  >
-                    Descargar
-                  </Button>
-                  <Button
-                    size="small"
-                    color="success"
-                    startIcon={<PlayArrow />}
-                    onClick={() => onStream(song.id)}
-                  >
-                    Escuchar
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+                {pokemonData.name}
+              </Typography>
+              <Box sx={{ marginTop: 2 }}>
+                <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                  Tipo:
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1, marginTop: 1 }}>
+                  {pokemonData.types.map((type) => (
+                    <Chip
+                      key={type}
+                      label={type}
+                      sx={{
+                        backgroundColor: "#e0f7fa",
+                        fontWeight: "bold",
+                        textTransform: "capitalize",
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+              <Box sx={{ marginTop: 2 }}>
+                <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                  Habilidades:
+                </Typography>
+                <ul style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                  {pokemonData.abilities.map((ability) => (
+                    <li key={ability} style={{ textTransform: "capitalize" }}>
+                      {ability}
+                    </li>
+                  ))}
+                </ul>
+              </Box>
+              <Box sx={{ marginTop: 2 }}>
+                <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                  Peso: <span style={{ fontWeight: "normal" }}>{pokemonData.weight} kg</span>
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: "bold" }}>
+                  Altura: <span style={{ fontWeight: "normal" }}>{pokemonData.height} m</span>
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        )
       )}
+
+      <Box sx={{ display: "flex", justifyContent: "space-between", width: "100%", marginTop: 4 }}>
+        <Button
+          variant="outlined"
+          onClick={handlePrev}
+          startIcon={<ArrowBack />}
+          disabled={pokemonId === 1}
+          sx={{
+            borderRadius: 3,
+            padding: "6px 12px",
+            boxShadow: 2,
+            backgroundColor: "#f1f1f1",
+            "&:hover": { backgroundColor: "#e0e0e0" },
+          }}
+        >
+          Atrás
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={handleNext}
+          endIcon={<ArrowForward />}
+          sx={{
+            borderRadius: 3,
+            padding: "6px 12px",
+            boxShadow: 2,
+            backgroundColor: "#f1f1f1",
+            "&:hover": { backgroundColor: "#e0e0e0" },
+          }}
+        >
+          Adelante
+        </Button>
+      </Box>
     </Box>
   );
 };
 
-export default PopularSongs;
+export default PokemonImageViewer;
+
+
+
+

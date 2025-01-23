@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { ArrowBack, ArrowForward, Search } from "@mui/icons-material";
 import SongCard from "./SongCard";
+import { debounce } from "lodash"; // Usaremos lodash para el debounce
 
 const SongSearchPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -108,7 +109,6 @@ const SongSearchPage = () => {
       const song = songs.find((song) => song.id === songId);
       const liked = song.likes > 0;
 
-      // Optimización: Actualizar el estado local antes de la respuesta
       setSongs((prevSongs) =>
         prevSongs.map((song) =>
           song.id === songId
@@ -164,30 +164,28 @@ const SongSearchPage = () => {
     }
   };
 
+  const debouncedSearch = debounce(handleSearch, 500); // Agregamos debounce para la búsqueda
+
   return (
     <Box sx={{ padding: 2 }}>
-      <Typography variant="h4" fontStyle={"unset"}  color="textDisabled" bgcolor={"Menu"} sx={{ marginBottom: 2 }}>
-        encuentra tus canciones favoritas
+      <Typography variant="h4" fontStyle={"unset"} color="textDisabled" bgcolor={"Menu"} sx={{ marginBottom: 2 }}>
+        Encuentra tus canciones favoritas
       </Typography>
 
-      <Box sx={{ display: "flex", marginBottom: 2, alignItems: "-moz-initial" }}>
+      <Box sx={{ display: "flex", marginBottom: 2, alignItems: "center" }}>
         <Autocomplete
           freeSolo
           options={[]}
           value={searchQuery}
           onInputChange={(e, newValue) => setSearchQuery(newValue)}
+          onChange={(e, newValue) => debouncedSearch()} // Activamos el debouncedSearch
           renderInput={(params) => (
             <TextField
               {...params}
               label="Buscar canciones o artistas"
               fullWidth
               variant="outlined"
-              sx={{
-                borderRadius: 1,
-                boxShadow: 12,
-                marginRight: 2,
-                backgroundColor: "whitesmoke",
-              }}
+              sx={{ borderRadius: 1, boxShadow: 12, marginRight: 2, backgroundColor: "whitesmoke" }}
             />
           )}
         />
@@ -195,13 +193,7 @@ const SongSearchPage = () => {
           variant="contained"
           color="primary"
           onClick={handleSearch}
-          sx={{
-            padding: "14px 20px",
-            borderRadius: 3,
-            boxShadow: 12,
-            backgroundColor: "#3f51b5",
-            "&:hover": { backgroundColor: "#303f9f" },
-          }}
+          sx={{ padding: "14px 20px", borderRadius: 3, boxShadow: 12, backgroundColor: "#3f51b5", "&:hover": { backgroundColor: "#303f9f" } }}
         >
           <Search />
         </Button>
@@ -280,4 +272,6 @@ const SongSearchPage = () => {
 };
 
 export default SongSearchPage;
+
+
   

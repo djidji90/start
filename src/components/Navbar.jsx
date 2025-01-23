@@ -32,9 +32,9 @@ const Navbar = () => {
     { label: "Inicio", path: "/" },
     { label: "Nosotros", path: "/AboutUs" },
     { label: "Regístrate", path: "/SingInPage" },
-    { label: "Descubre", path: "/HomePage" },
+    { label: "Tienda", path: "/Todo" },
     { label: "Búsqueda", path: "/MainPage" },
-    { label: "Tienda", path: "/" },
+    { label: "descubre", path: "/" },
     { label: "Perfil", path: "/ProfilePage "},
   ];
 

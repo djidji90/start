@@ -2,16 +2,13 @@ import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
-  CardMedia,
   Grid,
   CircularProgress,
   Alert,
   Button,
-  Skeleton,
   useTheme,
 } from "@mui/material";
+import NewsCard from "./NewsCard"; // Subcomponente para las tarjetas de noticias
 
 // API simulada para cargar noticias y anuncios
 const fetchMockData = async () => {
@@ -114,86 +111,26 @@ const NewsAndAdsSection = () => {
       <Grid container spacing={4}>
         {/* Noticias */}
         {data.news.length === 0 ? (
-          <Grid item xs={12}>
-            <Skeleton variant="rectangular" height={300} />
-          </Grid>
+          <Typography variant="body1" sx={{ textAlign: "center" }}>
+            No hay noticias disponibles en este momento.
+          </Typography>
         ) : (
           data.news.map((newsItem) => (
             <Grid item xs={12} sm={6} md={4} key={newsItem.id}>
-              <Card
-                sx={{
-                  boxShadow: 3,
-                  borderRadius: 2,
-                  ":hover": {
-                    boxShadow: 20,
-                    transform: "scale(1.05)",
-                  },
-                  transition: "all 0.3s ease-in-out",
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={newsItem.image}
-                  alt={newsItem.title}
-                  sx={{
-                    borderTopLeftRadius: 2,
-                    borderTopRightRadius: 2,
-                    objectFit: "cover",
-                  }}
-                />
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: "bold", color: theme.palette.primary.main }}>
-                    {newsItem.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {newsItem.description}
-                  </Typography>
-                </CardContent>
-              </Card>
+              <NewsCard newsItem={newsItem} />
             </Grid>
           ))
         )}
 
         {/* Anuncios */}
         {data.ads.length === 0 ? (
-          <Grid item xs={12}>
-            <Skeleton variant="rectangular" height={300} />
-          </Grid>
+          <Typography variant="body1" sx={{ textAlign: "center" }}>
+            No hay anuncios disponibles en este momento.
+          </Typography>
         ) : (
           data.ads.map((ad) => (
             <Grid item xs={12} key={ad.id}>
-              <Card
-                sx={{
-                  boxShadow: 3,
-                  borderRadius: 2,
-                  ":hover": {
-                    boxShadow: 20,
-                    transform: "scale(1.05)",
-                  },
-                  transition: "all 0.3s ease-in-out",
-                }}
-              >
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={ad.image}
-                  alt={ad.title}
-                  sx={{
-                    borderTopLeftRadius: 2,
-                    borderTopRightRadius: 2,
-                    objectFit: "cover",
-                  }}
-                />
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: "bold", color: theme.palette.secondary.main }}>
-                    {ad.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {ad.description}
-                  </Typography>
-                </CardContent>
-              </Card>
+              <NewsCard newsItem={ad} isAd />
             </Grid>
           ))
         )}

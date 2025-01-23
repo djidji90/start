@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Box, Grid, Typography, Snackbar, Alert, Button, useTheme } from "@mui/material";
 import SongSearchPage from "./SearchBar"; // Componente de búsqueda de canciones
 import NewsAndAdsSection from "./NewsAndAdsSection"; // Componente de noticias y anuncios
+import FunImagePage from "./PopularSongs";
 
 
 const MainPage = () => {
@@ -47,11 +48,13 @@ const MainPage = () => {
       </Box>
 
       {/* Componente de noticias y anuncios */}
+      <NewsAndAdsSection />
       <Box sx={{ marginBottom: 6 }}>
     
       </Box>
 
       {/* Componente de canciones populares */}
+<FunImagePage />
 
 
       {/* Manejo de errores global */}
