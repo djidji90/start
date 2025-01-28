@@ -21,8 +21,8 @@ const DetallesPedido = ({ pedidoId, onBack }) => {
   useEffect(() => {
     const fetchPedidoDetalles = async () => {
       try {
-        const response = await axios.get(`/api/pedidos/${pedidoId}/`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        const response = await axios.get(`http://127.0.0.1:8000/ventas/pedidos/${pedidoId}/`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         });
         setPedido(response.data);
       } catch (err) {

@@ -25,8 +25,8 @@ const DetallesProducto = ({ productoId, onBack }) => {
   useEffect(() => {
     const fetchProductoDetalles = async () => {
       try {
-        const response = await axios.get(`/api/productos/${productoId}/`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        const response = await axios.get(`http://127.0.0.1:8000/ventas/productos/${productoId}/`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         });
         setProducto(response.data);
         if (response.data.variantes.length > 0) {
@@ -53,7 +53,7 @@ const DetallesProducto = ({ productoId, onBack }) => {
           variante_id: varianteSeleccionada,
         },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         }
       );
       alert('Producto agregado al carrito exitosamente.');

@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { Routes, Route } from "react-router-dom";
-import Tienda from "./components/ventas/Tienda";
-import DetallesProducto from "./components/ventas/DetallesProducto";
-import CarritoCompras from "./components/ventas/CarritoCompras";
-import HistorialPedidos from "./components/ventas/HistorialPedidosWrapper";
-import DetallesPedido from "./components/ventas/DetallesPedidos";
+import Tienda from "./components/theme/musica/ventas/Tienda";
+import DetallesProducto from "./components/theme/musica/ventas/DetallesProducto";
+import CarritoCompras from "./components/theme/musica/ventas/CarritoCompras";
+import HistorialPedidos from "./components/theme/musica/ventas/HistorialPedidosWrapper";
+import DetallesPedido from "./components/theme/musica/ventas/DetallesPedidos";
 import { CssBaseline, Container } from "@mui/material";
 
 // Nuevos componentes de la tienda
-import ListaProductos from "./components/ventas/Productos";
-import DetallesProductoTienda from "./components/ventas/DetallesProducto";
-import ConfirmacionCompra from "./components/ventas/Pedido";
+import ListaProductos from "./components/theme/musica/ventas/Productos";
+import DetallesProductoTienda from "./components/theme/musica/ventas/DetallesProducto";
+import ConfirmacionCompra from "./components/theme/musica/ventas/Pedido";
 
 const Todo = () => {
   const [selectedProducto, setSelectedProducto] = useState(null);

@@ -21,8 +21,8 @@ const HistorialPedidos = () => {
   useEffect(() => {
     const fetchPedidos = async () => {
       try {
-        const response = await axios.get('/api/pedidos/', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        const response = await axios.get('http://127.0.0.1:8000/ventas/pedidos/', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         });
         setPedidos(response.data);
       } catch (err) {

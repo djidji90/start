@@ -25,8 +25,8 @@ const CarritoCompras = ({ onPedidoExitoso, onBack }) => {
   useEffect(() => {
     const fetchCarrito = async () => {
       try {
-        const response = await axios.get('/api/carrito/', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        const response = await axios.get('http://127.0.0.1:8000/ventas/carritos/', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         });
         setCarrito(response.data);
       } catch (err) {
@@ -43,10 +43,10 @@ const CarritoCompras = ({ onPedidoExitoso, onBack }) => {
   const actualizarCantidad = async (itemId, cantidad) => {
     try {
       const response = await axios.post(
-        `/api/carrito/${itemId}/actualizar/`,
+        `http://127.0.0.1:8000/ventas/carritos/${itemId}/actualizar/`,
         { cantidad },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         }
       );
       setCarrito(response.data);
@@ -59,10 +59,10 @@ const CarritoCompras = ({ onPedidoExitoso, onBack }) => {
   const eliminarProducto = async (itemId) => {
     try {
       const response = await axios.post(
-        `/api/carrito/eliminar_producto/`,
+        `http://127.0.0.1:8000/ventas/carritos/eliminar_producto/`,
         { item_carrito_id: itemId },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         }
       );
       setCarrito(response.data);
@@ -75,10 +75,10 @@ const CarritoCompras = ({ onPedidoExitoso, onBack }) => {
   const procederPedido = async () => {
     try {
       const response = await axios.post(
-        '/api/pedidos/crear_pedido/',
+        'http://127.0.0.1:8000/ventas/pedidos/crear_pedido/',
         {},
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         }
       );
       alert('Pedido creado exitosamente.');

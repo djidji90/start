@@ -32,7 +32,8 @@ const SongSearchPage = () => {
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
       setError("Por favor, ingresa un término de búsqueda.");
       return;
     }
@@ -44,17 +45,17 @@ const SongSearchPage = () => {
     setSuccessMessage("");
 
     try {
-      const response = await axios.get(
-        `http://127.0.0.1:8000/api2/songs/?artist=${searchQuery}&page=${currentPage}`,
+      const songResponse = await axios.get(
+        `http://127.0.0.1:8000/api2/songs/?artist=${normalizedQuery}&?title=${normalizedQuery}&page=${currentPage}`,
         { headers: getAuthHeader() }
       );
 
-      if (response.data.results.length > 0) {
-        setSongs(response.data.results);
-        setTotalPages(Math.ceil(response.data.count / 3));
+      if (songResponse.data.results.length > 0) {
+        setSongs(songResponse.data.results);
+        setTotalPages(Math.ceil(songResponse.data.count / 3));
       } else {
         const artistResponse = await axios.get(
-          `http://127.0.0.1:8000/api2/songs/?title=${searchQuery}`,
+          `http://127.0.0.1:8000/api2/songs/?title=${normalizedQuery}`,
           { headers: getAuthHeader() }
         );
 
@@ -144,7 +145,7 @@ const SongSearchPage = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${title}.WEBM`);
+      link.setAttribute("download", `${title}.webm`);
       document.body.appendChild(link);
       link.click();
     } catch {
@@ -272,6 +273,7 @@ const SongSearchPage = () => {
 };
 
 export default SongSearchPage;
+
 
 
   
