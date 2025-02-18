@@ -1,15 +1,69 @@
 import React, { useState } from "react";
-import { Box, TextField, Button, Typography, Grid, Snackbar, Alert } from "@mui/material";
+import { 
+  Box, 
+  TextField, 
+  Button, 
+  Typography, 
+  Grid, 
+  Snackbar, 
+  Alert, 
+  InputAdornment, 
+  IconButton, 
+  CircularProgress,
+  useTheme,
+  styled 
+} from "@mui/material";
+import { Visibility, VisibilityOff, Login as LoginIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { keyframes } from "@emotion/react";
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+const LoginContainer = styled(Box)(({ theme }) => ({
+  background: theme.palette.background.default,
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}));
+
+const LoginBox = styled(Box)(({ theme }) => ({
+  background: theme.palette.background.paper,
+  borderRadius: '16px',
+  padding: theme.spacing(4),
+  width: '100%',
+  maxWidth: '440px',
+  boxShadow: theme.shadows[3],
+  animation: `${fadeIn} 0.6s ease-out`,
+  transition: 'transform 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-3px)'
+  }
+}));
 
 const Login = () => {
+  const theme = useTheme();
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [ipAddress, setIpAddress] = useState(null);
   const navigate = useNavigate();
+
+  const fetchIPAddress = async () => {
+    try {
+      const response = await axios.get("https://api64.ipify.org?format=json");
+      setIpAddress(response.data.ip);
+    } catch (error) {
+      console.error("Error al obtener la IP del usuario:", error);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -17,8 +71,8 @@ const Login = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.username) newErrors.username = "El nombre de usuario es obligatorio.";
-    if (!formData.password) newErrors.password = "La contraseña es obligatoria.";
+    if (!formData.username.trim()) newErrors.username = "Nombre de usuario requerido";
+    if (!formData.password) newErrors.password = "La contraseña es obligatoria";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -33,50 +87,44 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Hacemos la solicitud de login
-      const response = await axios.post("http://127.0.0.1:8000/api/api/token/", formData);
-      const { access } = response.data; // Obtenemos solo el token de acceso
+      // Obtener la IP antes de enviar la solicitud
+      if (!ipAddress) await fetchIPAddress();
 
-      // Guardamos el token de acceso en localStorage
-      localStorage.setItem("accessToken", access);
+      const response = await axios.post("http://127.0.0.1:8000/api/api/token/", {
+        ...formData,
+        ip: ipAddress,
+      });
 
-      setSuccessMessage("Hola!! Bienvenid@ a djidji music");
+      localStorage.setItem("accessToken", response.data.access);
+      localStorage.setItem("username", formData.username);
+
+      setSuccessMessage(`Bienvenido a djidji music, ${formData.username}!`);
       setOpenSnackbar(true);
 
-      setFormData({ username: "", password: "" });
-
-      // Redirigimos a la página de inicio o al dashboard después de un breve retraso
       setTimeout(() => navigate("/MainPage"), 1500);
     } catch (error) {
-      if (error.response && error.response.data) {
-        // Si el error es de autenticación (usuario o contraseña incorrectos)
-        if (error.response.data.detail) {
-          setErrors({ general: error.response.data.detail });
-        } else {
-          setErrors(error.response.data); // Otros errores del backend
-        }
-      } else {
-        setErrors({ general: "Ocurrió un error inesperado. Intenta nuevamente." }); // Error genérico
-      }
+      const errorMessage = error.response?.data?.detail || 
+        "Error de autenticación. Verifica tus credenciales";
+      setErrors({ general: errorMessage });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCloseSnackbar = () => setOpenSnackbar(false);
-
-  const handleRegisterRedirect = () => {
-    navigate("/SingInPage"); // Cambia "/register" por la ruta de tu página de registro.
-  };
-
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", backgroundColor: "#f4f6f9" }}>
-      <Box sx={{ width: "100%", maxWidth: 400, padding: 4, backgroundColor: "#fff", borderRadius: 2, boxShadow: 3 }}>
-        <Typography variant="h4" sx={{ marginBottom: 2, color: "#1976d2" }}>
-          Iniciar Sesión
+    <LoginContainer>
+      <LoginBox>
+        <Typography variant="h4" sx={{ 
+          mb: 4,
+          fontWeight: 700,
+          color: theme.palette.text.primary,
+          textAlign: 'center'
+        }}>
+          Inicio de Sesión
         </Typography>
+
         <form onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -86,53 +134,99 @@ const Login = () => {
                 onChange={handleChange}
                 error={!!errors.username}
                 helperText={errors.username}
+                variant="outlined"
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
               />
             </Grid>
+
             <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Contraseña"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={handleChange}
                 error={!!errors.password}
                 helperText={errors.password}
+                variant="outlined"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                  sx: { borderRadius: '8px' }
+                }}
               />
             </Grid>
+
             {errors.general && (
               <Grid item xs={12}>
-                <Alert severity="error">{errors.general}</Alert>
+                <Alert 
+                  severity="error" 
+                  variant="outlined"
+                  sx={{ borderRadius: '8px', alignItems: 'center' }}
+                >
+                  {errors.general}
+                </Alert>
               </Grid>
             )}
-            <Grid item xs={12}>
-              <Button type="submit" fullWidth variant="contained" color="primary" disabled={loading}>
-                {loading ? "Cargando..." : "Iniciar Sesión"}
-              </Button>
-            </Grid>
+
             <Grid item xs={12}>
               <Button
                 fullWidth
-                variant="text"
-                color="secondary"
-                onClick={handleRegisterRedirect}
-                sx={{ marginTop: 1 }}
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={24} color="inherit" /> : <LoginIcon />}
+                sx={{
+                  py: 1.5,
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  backgroundColor: theme.palette.primary.main,
+                  '&:hover': {
+                    backgroundColor: theme.palette.primary.dark,
+                    boxShadow: theme.shadows[2]
+                  },
+                  transition: 'all 0.3s ease'
+                }}
               >
-                ¿No tienes cuenta? Regístrate aquí
+                {loading ? 'Autenticando...' : 'Ingresar'}
               </Button>
             </Grid>
           </Grid>
         </form>
-        <Snackbar open={openSnackbar} autoHideDuration={6000} onClose={handleCloseSnackbar}>
-          <Alert onClose={handleCloseSnackbar} severity="success">
+
+        <Snackbar
+          open={openSnackbar}
+          autoHideDuration={4000}
+          onClose={() => setOpenSnackbar(false)}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert 
+            severity="success" 
+            variant="filled"
+            sx={{ 
+              borderRadius: '8px',
+              boxShadow: theme.shadows[2],
+              alignItems: 'center'
+            }}
+          >
             {successMessage}
           </Alert>
         </Snackbar>
-      </Box>
-    </Box>
+      </LoginBox>
+    </LoginContainer>
   );
 };
 
 export default Login;
-
-

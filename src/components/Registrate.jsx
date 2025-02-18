@@ -7,13 +7,18 @@ import {
   Typography,
   Grid,
   Alert,
-  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  InputAdornment
 } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
 const Register = () => {
   const navigate = useNavigate();
-
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -28,7 +33,9 @@ const Register = () => {
 
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
-  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -37,8 +44,9 @@ const Register = () => {
     });
   };
 
-  const handleCloseSnackbar = () => {
-    setOpenSnackbar(false);
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    navigate("/");
   };
 
   const handleSubmit = async (e) => {
@@ -49,14 +57,7 @@ const Register = () => {
     try {
       await axios.post("http://127.0.0.1:8000/api/register/", formData);
       setSuccessMessage("Usuario registrado exitosamente. Redirigiendo a inicio de sesión...");
-      setOpenSnackbar(true);
-
-      // Redirigir al usuario a la página de inicio de sesión después de 3 segundos
-      setTimeout(() => {
-        navigate("/");
-      }, 3000);
-
-      // Limpiar el formulario
+      setOpenDialog(true);
       setFormData({
         username: "",
         email: "",
@@ -191,11 +192,20 @@ const Register = () => {
               fullWidth
               label="Contraseña"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={formData.password}
               onChange={handleChange}
               error={!!errors.password}
               helperText={errors.password}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
           </Grid>
 
@@ -204,33 +214,53 @@ const Register = () => {
               fullWidth
               label="Confirmar Contraseña"
               name="password2"
-              type="password"
+              type={showPassword2 ? "text" : "password"}
               value={formData.password2}
               onChange={handleChange}
               error={!!errors.password2}
               helperText={errors.password2}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword2(!showPassword2)}>
+                      {showPassword2 ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
           </Grid>
 
           <Grid item xs={12}>
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              color="primary"
-            >
+            <Button type="submit" fullWidth variant="contained" color="primary">
               Registrarse
             </Button>
           </Grid>
         </Grid>
       </form>
 
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        message={successMessage}
-      />
+      <Grid item xs={12}>
+  <Typography variant="body2" align="center">
+    ¿Ya tienes una cuenta?{" "}
+    <Button
+      variant="text"
+      color="primary"
+      onClick={() => navigate("/")}
+      sx={{ textTransform: "none" }}
+    >
+      Iniciar sesión
+    </Button>
+  </Typography>
+</Grid>
+
+
+      <Dialog open={openDialog} onClose={handleCloseDialog}>
+        <DialogTitle>Registro Exitoso</DialogTitle>
+        <DialogContent>{successMessage}</DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="primary">Aceptar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

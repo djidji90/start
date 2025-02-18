@@ -1,116 +1,162 @@
+import React, { useState } from 'react'; 
+import PropTypes from 'prop-types';
+import {
+  Card,
+  CardContent,
+  CardMedia,
+  Typography,
+  Button,
+  Box,
+  Tooltip,
+  useMediaQuery,
+  IconButton
+} from '@mui/material';
+import PhoneIcon from '@mui/icons-material/Phone';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import InfoIcon from '@mui/icons-material/Info';
 
-import React from "react";
-import { Card, CardContent, CardMedia, Typography, Button, Box } from "@mui/material";
-import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+const ProductoCard = ({
+  id,
+  nombre,
+  descripcion,
+  precio,
+  imagen,
+  telefonoTienda = import.meta.env.VITE_TIENDA_PHONE
+}) => {
+  const isMobile = useMediaQuery('(max-width:600px)');
+  const [imageError, setImageError] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-const ProductoCard = ({ producto }) => {
+  const handleCall = () => {
+    if (telefonoTienda) {
+      window.location.href = `tel:${telefonoTienda}`;
+    } else {
+      console.error('Número de teléfono no configurado');
+    }
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  const handleCopyID = () => {
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  // Verificar que la URL de la imagen sea válida
+  const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000"; // Usa una variable de entorno en producción
+
+  const imageUrl = imagen?.startsWith("http")
+    ? imagen
+    : `${BASE_URL}/ventas${imagen.startsWith("/") ? imagen : `/media/images/${imagen}`}`;
+  
+
   return (
     <Card
       sx={{
         maxWidth: 345,
-        borderRadius: "16px",
-        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
-        transition: "transform 0.3s, box-shadow 0.3s",
-        "&:hover": {
-          transform: "scale(1.05)",
-          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.2)",
-        },
-        overflow: "hidden",
+        borderRadius: 3,
+        boxShadow: 4,
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        backdropFilter: 'blur(10px)', // Glassmorphism effect
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        '&:hover': { transform: 'scale(1.03)' },
+        p: 2,
+        overflow: 'hidden',
+        position: 'relative'
       }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      {/* Imagen del producto */}
-      {producto.imagen ? (
+      {hovered && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            bgcolor: 'primary.main',
+            color: 'white',
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            fontSize: '0.8rem',
+            fontWeight: 'bold'
+          }}
+        >
+          ID: {id}
+        </Box>
+      )}
+
+      {!imageError && imagen ? (
         <CardMedia
           component="img"
-          height="180"
-          image={producto.imagen}
-          alt={producto.nombre}
-          sx={{
-            objectFit: "cover",
-            filter: "brightness(95%)",
-            transition: "filter 0.3s",
-            "&:hover": {
-              filter: "brightness(105%)",
-            },
-          }}
+          height="200"
+          image={imageUrl}
+          alt={nombre}
+          onError={handleImageError}
+          sx={{ objectFit: 'cover' }}
         />
       ) : (
         <Box
           sx={{
-            height: "180px",
-            backgroundColor: "#f0f0f0",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
+            height: 200,
+            bgcolor: 'grey.300',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
         >
-          <Typography variant="body2" color="text.secondary">
-            Sin imagen
-          </Typography>
+          <InfoIcon fontSize="large" color="disabled" />
         </Box>
       )}
 
-      {/* Contenido */}
       <CardContent>
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: "bold",
-            textTransform: "uppercase",
-            mb: 1,
-            color: "primary.main",
-          }}
-          gutterBottom
-        >
-          {producto.nombre}
+        <Typography variant="h6" noWrap>
+          {nombre}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          {descripcion || 'Sin descripción disponible'}
+        </Typography>
+        <Typography variant="h5" color="success.main" sx={{ mb: 2 }}>
+          {Number(precio).toLocaleString('es-ES', {
+            style: 'currency',
+            currency: 'CFA'
+          })}
         </Typography>
 
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{
-            height: "40px",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {producto.descripcion || "Sin descripción disponible"}
-        </Typography>
-
-        <Typography
-          variant="h5"
-          sx={{ mt: 2, fontWeight: "bold", color: "secondary.main" }}
-        >
-       ${producto.precio ? Number(producto.precio).toFixed(2) : "0.00"}
-
-        </Typography>
-
-        {/* Botón de agregar al carrito */}
-        <Button
-          variant="contained"
-          fullWidth
-          startIcon={<ShoppingCartIcon />}
-          sx={{
-            mt: 2,
-            backgroundColor: "primary.main",
-            color: "white",
-            fontWeight: "bold",
-            textTransform: "uppercase",
-            borderRadius: "8px",
-            "&:hover": {
-              backgroundColor: "primary.dark",
-            },
-          }}
-          onClick={() => {
-            alert(`Producto agregado: ${producto.nombre}`);
-          }}
-        >
-          Agregar al carrito
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Tooltip title={copied ? '¡Copiado!' : 'Copiar ID'} arrow>
+            <IconButton onClick={handleCopyID} color={copied ? 'success' : 'primary'}>
+              <ContentCopyIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={`Llamar a ${telefonoTienda}`} arrow>
+            <Button
+              variant="outlined"
+              startIcon={<PhoneIcon />}
+              onClick={handleCall}
+              sx={{ textTransform: 'none' }}
+            >
+              {isMobile ? 'Llamar' : 'Contacto'}
+            </Button>
+          </Tooltip>
+        </Box>
       </CardContent>
     </Card>
   );
 };
 
+ProductoCard.propTypes = {
+  id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  nombre: PropTypes.string.isRequired,
+  descripcion: PropTypes.string,
+  precio: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+  imagen: PropTypes.string,
+  telefonoTienda: PropTypes.string
+};
+
 export default ProductoCard;
+

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import axios from "axios";
 import {
   Box,
@@ -7,273 +7,552 @@ import {
   Button,
   Grid,
   CircularProgress,
-  Snackbar,
   Alert,
-  Autocomplete,
+  LinearProgress,
+  Chip,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  useTheme
 } from "@mui/material";
-import { ArrowBack, ArrowForward, Search } from "@mui/icons-material";
+import { 
+  ArrowBack, 
+  ArrowForward, 
+  Refresh, 
+  CalendarToday,
+  Search as SearchIcon
+} from "@mui/icons-material";
+import { debounce } from "lodash";
 import SongCard from "./SongCard";
-import { debounce } from "lodash"; // Usaremos lodash para el debounce
+import EventCard from './NewsCard'
 
 const SongSearchPage = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [songs, setSongs] = useState([]);
-  const [artists, setArtists] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [state, setState] = useState({
+    searchTerms: "",
+    filters: { artist: "", genre: "", title: "" },
+    songs: [],
+    events: [],
+    suggestions: [],
+    showSuggestions: false,
+    pagination: { current: 1, total: 1, pageSize: 12 },
+    status: {
+      loading: false,
+      error: null,
+      downloadProgress: 0,
+      isDownloading: false,
+      eventsLoading: false,
+      eventsError: null
+    },
+  });
 
-  const getAuthHeader = () => {
-    const accessToken = localStorage.getItem("accessToken");
-    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-  };
+  const searchController = useRef(new AbortController());
+  const eventsController = useRef(new AbortController());
+  const downloadController = useRef(null);
+  const searchContainerRef = useRef(null);
+  const theme = useTheme();
 
-  const handleSearch = async () => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) {
-      setError("Por favor, ingresa un término de búsqueda.");
+  const getAuthHeader = useCallback(() => ({
+    Authorization: `Bearer ${localStorage.getItem("accessToken")}`
+  }), []);
+
+  const errorMap = useMemo(() => ({
+    401: "Sesión expirada - Por favor vuelva a iniciar sesión",
+    403: "No tienes permiso para esta acción",
+    404: "Recurso no encontrado",
+    429: "Demasiadas solicitudes - Por favor espere",
+    ECONNABORTED: "Timeout - El servidor no respondió a tiempo",
+    "Network Error": "Error de conexión - Verifique su internet",
+  }), []);
+
+  const handleError = useCallback((error, type = 'general') => {
+    if (axios.isCancel(error)) return;
+    
+    const errorMessage = errorMap[error.response?.status] || 
+                        errorMap[error.code] || 
+                        errorMap[error.message] || 
+                        "Error desconocido";
+
+    setState(prev => ({
+      ...prev,
+      status: {
+        ...prev.status,
+        ...(type === 'events' ? { 
+          eventsError: errorMessage,
+          eventsLoading: false 
+        } : {
+          error: errorMessage,
+          loading: false
+        })
+      }
+    }));
+  }, [errorMap]);
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      eventsController.current.abort();
+      eventsController.current = new AbortController();
+
+      setState(prev => ({ 
+        ...prev, 
+        status: { ...prev.status, eventsLoading: true, eventsError: null }
+      }));
+
+      const response = await axios.get("http://127.0.0.1:8000/api2/events/", {
+        headers: getAuthHeader(),
+        signal: eventsController.current.signal
+      });
+
+      setState(prev => ({
+        ...prev,
+        events: response.data.results || [],
+        status: { ...prev.status, eventsLoading: false }
+      }));
+    } catch (error) {
+      if (!axios.isCancel(error)) handleError(error, 'events');
+    }
+  }, [getAuthHeader, handleError]);
+
+  const fetchSuggestions = useCallback(debounce(async (query) => {
+    if (!query || query.length < 2) {
+      setState(prev => ({ ...prev, suggestions: [], showSuggestions: false }));
       return;
     }
-
-    setLoading(true);
-    setError("");
-    setSongs([]);
-    setArtists([]);
-    setSuccessMessage("");
-
+  
     try {
-      const songResponse = await axios.get(
-        `http://127.0.0.1:8000/api2/songs/?artist=${normalizedQuery}&?title=${normalizedQuery}&page=${currentPage}`,
-        { headers: getAuthHeader() }
-      );
-
-      if (songResponse.data.results.length > 0) {
-        setSongs(songResponse.data.results);
-        setTotalPages(Math.ceil(songResponse.data.count / 3));
-      } else {
-        const artistResponse = await axios.get(
-          `http://127.0.0.1:8000/api2/songs/?title=${normalizedQuery}`,
-          { headers: getAuthHeader() }
-        );
-
-        if (artistResponse.data.length > 0) {
-          setArtists(artistResponse.data);
-        } else {
-          const allArtistsResponse = await axios.get(
-            `http://127.0.0.1:8000/api2/artists/`,
-            { headers: getAuthHeader() }
-          );
-          setArtists(allArtistsResponse.data);
-          if (allArtistsResponse.data.length === 0) {
-            setError("No se encontraron canciones ni artistas con ese término.");
-          }
-        }
+      const response = await axios.get("http://127.0.0.1:8000/api2/songs/suggestions/", {
+        params: { query },
+        headers: getAuthHeader(),
+        signal: searchController.current.signal
+      });
+  
+      setState(prev => ({
+        ...prev,
+        suggestions: response.data?.suggestions || [],
+        showSuggestions: true
+      }));
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        setState(prev => ({ ...prev, suggestions: [], showSuggestions: false }));
       }
-    } catch (err) {
-      handleError(err);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, 300), [getAuthHeader]);
 
-  const handleError = (err) => {
-    if (err.response) {
-      if (err.response.status === 401) {
-        setError("Tu sesión ha expirado. Por favor, inicia sesión de nuevo.");
-      } else if (err.response.status === 404) {
-        setError("No se encontraron resultados para la búsqueda.");
-      } else {
-        setError("Ocurrió un error en el servidor. Intenta nuevamente.");
-      }
-    } else if (err.request) {
-      setError("No se pudo conectar al servidor. Revisa tu conexión a Internet.");
-    } else {
-      setError("Error desconocido al realizar la búsqueda.");
-    }
-  };
-
-  const handlePageChange = (direction) => {
-    if (direction === "next" && currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-      handleSearch();
-    } else if (direction === "prev" && currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-      handleSearch();
-    }
-  };
-
-  const handleLike = async (songId) => {
+  const searchSongs = useCallback(async (page = 1, newQuery = false) => {
     try {
-      const song = songs.find((song) => song.id === songId);
-      const liked = song.likes > 0;
+      searchController.current.abort();
+      searchController.current = new AbortController();
 
-      setSongs((prevSongs) =>
-        prevSongs.map((song) =>
-          song.id === songId
-            ? { ...song, likes: liked ? song.likes - 1 : song.likes + 1 }
+      setState(prev => ({
+        ...prev,
+        status: { ...prev.status, loading: true, error: null },
+        ...(newQuery && { songs: [] }),
+      }));
+
+      const params = new URLSearchParams({
+        ...state.filters,
+        page,
+        page_size: state.pagination.pageSize,
+      });
+
+      const response = await axios.get("http://127.0.0.1:8000/api2/songs/", {
+        params,
+        signal: searchController.current.signal,
+        headers: getAuthHeader(),
+      });
+
+      setState(prev => ({
+        ...prev,
+        songs: response.data.results || [],
+        pagination: {
+          ...prev.pagination,
+          current: page,
+          total: Math.ceil((response.data.count || 0) / prev.pagination.pageSize),
+        },
+        status: { ...prev.status, loading: false },
+      }));
+    } catch (error) {
+      handleError(error);
+    }
+  }, [state.filters, state.pagination.pageSize, getAuthHeader, handleError]);
+
+  const handleSearchInput = useCallback((e) => {
+    const value = e.target.value;
+    setState(prev => ({
+      ...prev,
+      searchTerms: value,
+      filters: { ...prev.filters, artist: value },
+      showSuggestions: value.length > 1
+    }));
+    fetchSuggestions(value);
+  }, [fetchSuggestions]);
+
+  const handleSuggestionClick = useCallback((suggestion) => {
+    const searchQuery = suggestion.type === 'song' ? suggestion.title : 
+                       suggestion.type === 'artist' ? suggestion.artist : 
+                       suggestion.genre;
+  
+    setState(prev => ({
+      ...prev,
+      searchTerms: searchQuery,
+      filters: {
+        artist: suggestion.type === 'artist' ? searchQuery : '',
+        genre: suggestion.type === 'genre' ? searchQuery : '',
+        title: suggestion.type === 'song' ? searchQuery : ''
+      },
+      showSuggestions: false
+    }));
+    searchSongs(1, true);
+  }, [searchSongs]);
+
+  const handleLike = useCallback(async (songId) => {
+    const originalSongs = [...state.songs];
+    try {
+      setState(prev => ({
+        ...prev,
+        songs: prev.songs.map(song =>
+          song.id === songId 
+            ? { ...song, likes: song.likes + (song.liked ? -1 : 1), liked: !song.liked }
             : song
         )
-      );
+      }));
 
-      const response = await axios.post(
+      await axios.post(
         `http://127.0.0.1:8000/api2/songs/${songId}/like/`,
         {},
         { headers: getAuthHeader() }
       );
-
-      setSongs((prevSongs) =>
-        prevSongs.map((song) =>
-          song.id === songId ? { ...song, likes: response.data.likes } : song
-        )
-      );
-      setSuccessMessage(liked ? "Has eliminado el like." : "¡Le diste like a la canción!");
-      setOpenSnackbar(true);
-    } catch {
-      setError("Ocurrió un error al dar like. Intenta nuevamente.");
+    } catch (error) {
+      setState(prev => ({ ...prev, songs: originalSongs }));
+      handleError(error);
     }
-  };
+  }, [state.songs, getAuthHeader, handleError]);
 
-  const handleDownload = async (songId, title) => {
+  const handleDownload = useCallback(async (songId, title) => {
     try {
+      downloadController.current = new AbortController();
+      
+      setState(prev => ({
+        ...prev,
+        status: { ...prev.status, isDownloading: true, downloadProgress: 0 },
+      }));
+
       const response = await axios.get(
         `http://127.0.0.1:8000/api2/songs/${songId}/download/`,
-        { responseType: "blob", headers: getAuthHeader() }
+        {
+          responseType: "blob",
+          headers: getAuthHeader(),
+          signal: downloadController.current.signal,
+          onDownloadProgress: (progressEvent) => {
+            const percent = Math.round(
+              (progressEvent.loaded * 100) / (progressEvent.total || 1)
+            );
+      
+            setState((prev) => ({
+              ...prev,
+              status: { ...prev.status, downloadProgress: percent },
+            }));
+          },
+        }
       );
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${title}.webm`);
+      link.setAttribute("download", `${title}.mp3`);
       document.body.appendChild(link);
       link.click();
-    } catch {
-      setError("Ocurrió un error al descargar la canción.");
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setState(prev => ({
+        ...prev,
+        status: { ...prev.status, isDownloading: false, downloadProgress: 0 },
+      }));
     }
-  };
+  }, [getAuthHeader, handleError]);
 
-  const handleStream = async (songId) => {
-    try {
-      const response = await axios.get(
-        `http://127.0.0.1:8000/api2/songs/${songId}/stream/`,
-        { headers: getAuthHeader() }
-      );
-      window.open(response.data.url, "_blank");
-    } catch {
-      setError("Ocurrió un error al intentar reproducir la canción.");
-    }
-  };
+  const handlePageChange = useCallback((direction) => {
+    const newPage = direction === "next" 
+      ? state.pagination.current + 1 
+      : state.pagination.current - 1;
+    searchSongs(newPage);
+  }, [state.pagination.current, searchSongs]);
 
-  const debouncedSearch = debounce(handleSearch, 500); // Agregamos debounce para la búsqueda
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setState(prev => ({ ...prev, showSuggestions: false }));
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    fetchEvents();
+    return () => {
+      searchController.current.abort();
+      eventsController.current.abort();
+      downloadController.current?.abort();
+    };
+  }, [fetchEvents]);
 
   return (
-    <Box sx={{ padding: 2 }}>
-      <Typography variant="h4" fontStyle={"unset"} color="textDisabled" bgcolor={"Menu"} sx={{ marginBottom: 2 }}>
-        Encuentra tus canciones favoritas
+    <Box sx={{ p: 3, maxWidth: 1200, margin: "0 auto" }}>
+      <Typography variant="h4" gutterBottom sx={{ 
+        fontWeight: "bold", 
+        color: "primary.main",
+        textAlign: "center",
+        mb: 4
+      }}>
+        Encuentra tu canción favorita
       </Typography>
 
-      <Box sx={{ display: "flex", marginBottom: 2, alignItems: "center" }}>
-        <Autocomplete
-          freeSolo
-          options={[]}
-          value={searchQuery}
-          onInputChange={(e, newValue) => setSearchQuery(newValue)}
-          onChange={(e, newValue) => debouncedSearch()} // Activamos el debouncedSearch
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Buscar canciones o artistas"
-              fullWidth
-              variant="outlined"
-              sx={{ borderRadius: 1, boxShadow: 12, marginRight: 2, backgroundColor: "whitesmoke" }}
-            />
-          )}
+      {/* Buscador */}
+      <Box sx={{ position: "relative", mb: 4 }} ref={searchContainerRef}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          label="¿Qué canción tienes en mente?"
+          value={state.searchTerms}
+          onChange={handleSearchInput}
+          onKeyPress={(e) => e.key === "Enter" && searchSongs(1, true)}
+          InputProps={{
+            endAdornment: (
+              <>
+                {state.status.loading && <CircularProgress size={24} />}
+                <IconButton
+                  edge="end"
+                  onClick={() => searchSongs(1, true)}
+                  disabled={state.status.loading}
+                >
+                  <SearchIcon />
+                </IconButton>
+              </>
+            )
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+              boxShadow: 1,
+              '&:hover': { boxShadow: 3 }
+            }
+          }}
         />
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleSearch}
-          sx={{ padding: "14px 20px", borderRadius: 3, boxShadow: 12, backgroundColor: "#3f51b5", "&:hover": { backgroundColor: "#303f9f" } }}
-        >
-          <Search />
-        </Button>
+
+        {/* Sugerencias */}
+        {state.showSuggestions && state.suggestions.length > 0 && (
+          <Box sx={{
+            position: "absolute",
+            width: "100%",
+            bgcolor: "background.paper",
+            boxShadow: 3,
+            zIndex: 1,
+            maxHeight: 300,
+            overflow: "auto",
+            mt: 1,
+            borderRadius: 2
+          }}>
+            <List dense>
+              {state.suggestions.map((suggestion) => (
+                <ListItem
+                  button
+                  key={`${suggestion.type}-${suggestion.id}`}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  sx={{
+                    '&:hover': { bgcolor: "action.hover" },
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    py: 1.5
+                  }}
+                >
+                  <ListItemText
+                    primary={suggestion.display}
+                    secondary={
+                      suggestion.type === "song" 
+                        ? `${suggestion.artist} • ${suggestion.genre}`
+                        : `Tipo: ${suggestion.type}`
+                    }
+                    secondaryTypographyProps={{ variant: "caption" }}
+                  />
+                  <Chip
+                    label={suggestion.type}
+                    size="small"
+                    color={
+                      suggestion.type === "song" ? "primary" :
+                      suggestion.type === "artist" ? "secondary" : "success"
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
       </Box>
 
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
-          <CircularProgress />
+      {/* Manejo de errores */}
+      {state.status.error && (
+        <Alert 
+          severity="error"
+          sx={{ mb: 2 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => searchSongs(state.pagination.current)}
+              endIcon={<Refresh />}
+            >
+              Reintentar
+            </Button>
+          }
+        >
+          {state.status.error}
+        </Alert>
+      )}
+
+      {/* Lista de canciones */}
+      <Grid container spacing={3}>
+        {state.songs.map((song) => (
+          <Grid item xs={12} sm={6} md={4} key={song.id}>
+            <SongCard
+              song={song}
+              onLike={() => handleLike(song.id)}
+              onDownload={() => handleDownload(song.id, song.title)}
+            />
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Paginación */}
+      {state.songs.length > 0 && (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}>
+          <IconButton
+            onClick={() => handlePageChange("prev")}
+            disabled={state.pagination.current === 1 || state.status.loading}
+            sx={{ 
+              bgcolor: "primary.main", 
+              color: "white",
+              '&:hover': { bgcolor: "primary.dark" }
+            }}
+          >
+            <ArrowBack />
+          </IconButton>
+          
+          <Typography sx={{ mx: 2, alignSelf: "center" }}>
+            Página {state.pagination.current} de {state.pagination.total}
+          </Typography>
+          
+          <IconButton
+            onClick={() => handlePageChange("next")}
+            disabled={state.pagination.current === state.pagination.total}
+            sx={{ 
+              bgcolor: "primary.main", 
+              color: "white",
+              '&:hover': { bgcolor: "primary.dark" }
+            }}
+          >
+            <ArrowForward />
+          </IconButton>
         </Box>
-      ) : (
-        <Grid container spacing={2}>
-          {songs.map((song) => (
-            <Grid item xs={12} sm={6} md={4} key={song.id}>
-              <SongCard
-                song={song}
-                onLike={handleLike}
-                onDownload={handleDownload}
-                onStream={handleStream}
-              />
+      )}
+
+      {/* Eventos */}
+      <Box sx={{ mt: 6, mb: 4 }}>
+        <Typography variant="h5" gutterBottom sx={{
+          fontWeight: 'bold',
+          color: 'secondary.main',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}>
+          <CalendarToday />
+          Próximos Eventos
+        </Typography>
+
+        {state.status.eventsLoading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+            <CircularProgress size={40} />
+          </Box>
+        )}
+
+        {state.status.eventsError && (
+          <Alert 
+            severity="error"
+            sx={{ mb: 2 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={fetchEvents}
+                endIcon={<Refresh />}
+              >
+                Reintentar
+              </Button>
+            }
+          >
+            {state.status.eventsError}
+          </Alert>
+        )}
+
+        <Grid container spacing={3}>
+          {state.events.map((event) => (
+            <Grid item xs={12} sm={6} md={4} key={event.id}>
+              <EventCard event={event} />
             </Grid>
           ))}
-          {artists.length > 0 && (
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ marginTop: 3 }}>
-                Artistas encontrados:
-              </Typography>
-              <ul>
-                {artists.map((artist) => (
-                  <li key={artist.id}>{artist.name}</li>
-                ))}
-              </ul>
-            </Grid>
-          )}
         </Grid>
-      )}
 
-      {songs.length > 0 && (
-        <Box sx={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-          <Button
-            variant="outlined"
-            disabled={currentPage === 1}
-            onClick={() => handlePageChange("prev")}
-            startIcon={<ArrowBack />}
-            sx={{ borderRadius: 3, padding: "6px 12px", boxShadow: 2 }}
-          >
-            Anterior
-          </Button>
-          <Typography sx={{ alignSelf: "center" }}>
-            Página {currentPage} de {totalPages}
+        {state.events.length === 0 && !state.status.eventsLoading && (
+          <Typography sx={{ textAlign: 'center', my: 4 }}>
+            No hay eventos próximos
           </Typography>
-          <Button
-            variant="outlined"
-            disabled={currentPage === totalPages}
-            onClick={() => handlePageChange("next")}
-            endIcon={<ArrowForward />}
-            sx={{ borderRadius: 3, padding: "6px 12px", boxShadow: 2 }}
-          >
-            Siguiente
-          </Button>
+        )}
+      </Box>
+
+      {/* Descargas */}
+      {state.status.isDownloading && (
+        <Box sx={{ 
+          position: "fixed", 
+          bottom: 20, 
+          left: "50%", 
+          transform: "translateX(-50%)",
+          width: 400, 
+          bgcolor: "background.paper",
+          boxShadow: 3,
+          borderRadius: 2,
+          p: 2
+        }}>
+          <LinearProgress
+            variant="determinate"
+            value={state.status.downloadProgress}
+            sx={{ height: 8, borderRadius: 4 }}
+          />
+          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
+            <Typography variant="caption">
+              Descargando... {state.status.downloadProgress}%
+            </Typography>
+            <Button 
+              size="small" 
+              onClick={() => downloadController.current?.abort()}
+              color="error"
+            >
+              Cancelar
+            </Button>
+          </Box>
         </Box>
       )}
 
-      {error && <Alert severity="error" sx={{ marginTop: 3 }}>{error}</Alert>}
-
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={() => setOpenSnackbar(false)}
-      >
-        <Alert onClose={() => setOpenSnackbar(false)} severity="success">
-          {successMessage}
-        </Alert>
-      </Snackbar>
+      {/* Carga general */}
+      {state.status.loading && (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+          <CircularProgress size={60} thickness={4} />
+        </Box>
+      )}
     </Box>
   );
 };
 
 export default SongSearchPage;
-
-
-
-  

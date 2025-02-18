@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+
 import {
   Card,
   CardContent,
@@ -14,99 +18,112 @@ import {
 import { Favorite, GetApp, Comment, PlayArrow, Pause } from "@mui/icons-material";
 import axios from "axios";
 
-
 const SongCard = ({ song, onLike }) => {
+  
   const [audio, setAudio] = useState(null);
+  
+  const [newComment, setNewComment] = useState('');
+const [showCommentForm, setShowCommentForm] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [commentsVisible, setCommentsVisible] = useState(false);
   const [comments, setComments] = useState([]);
-  const [pulseEffect, setPulseEffect] = useState(false); // Efecto para el botón "like"
-  const [rotate, setRotate] = useState(false); // Efecto para el botón "reproducir"
+  const [pulseEffect, setPulseEffect] = useState(false);
+  const [rotate, setRotate] = useState(false);
 
-  useEffect(() => {
-    setIsLiked(song.is_liked || false);
-  }, [song]);
+ // Cambiar en SongCard:
+useEffect(() => {
+  setIsLiked(song.liked); // En vez de song.is_liked
+}, [song.liked]);
+  
+
+  
 
   useEffect(() => {
     return () => {
       if (audio) {
         audio.pause();
-        setAudio(null);
+        URL.revokeObjectURL(audio.src);
       }
     };
   }, [audio]);
 
-  const toggleComments = async () => {
-    if (!commentsVisible) {
-      try {
-        const response = await axios.get(
-          `http://127.0.0.1:8000/api2/songs/${song.id}/comments/`,
-          { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } }
-        );
-        setComments(response.data);
-        setCommentsVisible(true);
-      } catch (err) {
-        console.error("Error al obtener los comentarios:", err);
-        setSnackbar({ open: true, message: "No se pudieron cargar los comentarios.", severity: "error" });
-      }
-    } else {
-      setCommentsVisible(false);
-    }
-  };
+  const [loadingComments, setLoadingComments] = useState(false);
 
-  const handleStream = async (songId) => {
-    setRotate(true); // Activa la animación de rotación
+const toggleComments = async (e) => {
+  e.stopPropagation(); // Evitar redirección
+  if (!commentsVisible) {
+    setLoadingComments(true);
     try {
       const response = await axios.get(
-        `http://127.0.0.1:8000/api2/songs/${songId}/stream/`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }, responseType: "blob" }
-      );
+  `http://127.0.0.1:8000/api2/songs/${song.id}/comments/`,
+  { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } }
+);
 
-      const audioUrl = URL.createObjectURL(response.data);
-
-      if (audio && audio.src !== audioUrl) {
-        audio.pause();
-        setAudio(null);
-      }
-
-      const newAudio = new Audio(audioUrl);
-      newAudio.onloadeddata = () => {
-        newAudio.play().catch((err) => {
-          console.error("Error al intentar reproducir la canción:", err);
-          setSnackbar({ open: true, message: "No se pudo reproducir la canción.", severity: "error" });
-        });
-      };
-
-      setAudio(newAudio);
+      setComments(response.data);
+      setCommentsVisible(true);
     } catch (err) {
-      console.error("Error al intentar reproducir la canción:", err);
-      setSnackbar({ open: true, message: "Error al reproducir la canción.", severity: "error" });
+      console.error("Error al obtener los comentarios:", err);
+      setSnackbar({ open: true, message: "No se pudieron cargar los comentarios.", severity: "error" });
     } finally {
-      setTimeout(() => setRotate(false), 500); // Finaliza la rotación
+      setLoadingComments(false);
     }
-  };
+  } else {
+    setCommentsVisible(false);
+  }
+};
+
+
+const handleStream = async (songId) => {
+  if (audio) {
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+    setIsPlaying(!isPlaying);
+    return;
+  }
+
+  try {
+    const response = await axios.get(
+      `http://127.0.0.1:8000/api2/songs/${songId}/stream/`,
+      { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }, responseType: "blob" }
+    );
+
+    const audioUrl = URL.createObjectURL(response.data);
+    const newAudio = new Audio(audioUrl);
+    newAudio.addEventListener('ended', () => setIsPlaying(false));
+    newAudio.play();
+
+    setAudio(newAudio);
+    setIsPlaying(true);
+  } catch (err) {
+    console.error("Error al reproducir:", err);
+    setSnackbar({ open: true, message: "Error al reproducir la canción", severity: "error" });
+  }
+};
+
 
   const handlePause = () => {
     if (audio) {
       audio.pause();
-      setAudio(null);
+      setIsPlaying(false);
     }
   };
 
   const handleLike = (songId) => {
     setIsLiked((prev) => !prev);
-    setPulseEffect(true); // Activa el efecto de pulso
+    setPulseEffect(true);
     onLike(songId);
-
-    setTimeout(() => setPulseEffect(false), 600); // Finaliza el efecto después de 600ms
+    setTimeout(() => setPulseEffect(false), 600);
   };
 
   const handleDownload = async (songId, songTitle) => {
     setDownloading(true);
-    setSnackbar({ open: false, message: "", severity: "success" });
     try {
       const response = await axios.get(
         `http://127.0.0.1:8000/api2/songs/${songId}/download/`,
@@ -123,129 +140,211 @@ const SongCard = ({ song, onLike }) => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${songTitle}.webm`);
+      link.setAttribute("download", `${songTitle.replace(/[^a-z0-9]/gi, '_')}.webm`);
       document.body.appendChild(link);
       link.click();
       link.remove();
 
-      setSnackbar({ open: true, message: "Canción descargada con éxito.", severity: "success" });
+      setSnackbar({ open: true, message: "Descarga completada", severity: "success" });
     } catch (err) {
-      console.error("Error al descargar la canción:", err);
-      setSnackbar({ open: true, message: "Error al descargar la canción.", severity: "error" });
+      console.error("Error en descarga:", err);
+      setSnackbar({ open: true, message: "vuelve a descargarla en una hora", severity: "error" });
     } finally {
       setDownloading(false);
       setDownloadProgress(0);
     }
   };
 
-  const imageUrl = song.image_url || "public/Fresh From The Dairy_ Music.jpg";
+
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+  
+    try {
+      const response = await axios.post(
+        `http://127.0.0.1:8000/api2/songs/${song.id}/comments/`,
+        { content: newComment },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } }
+      );
+      
+      setComments([...comments, response.data]);
+      setNewComment('');
+      setSnackbar({ open: true, message: "Comentario publicado", severity: "success" });
+    } catch (err) {
+      console.error("Error al publicar comentario:", err);
+      setSnackbar({ open: true, message: "Error al publicar el comentario", severity: "error" });
+    }
+  };
+  
+  const handleCommentLike = async (commentId) => {
+    try {
+      await axios.post(
+        `http://127.0.0.1:8000/api2/comments/${commentId}/like/`,
+        {},
+        { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } }
+      );
+      
+      setComments(comments.map(comment => 
+        comment.id === commentId ? { 
+          ...comment, 
+          likes: comment.likes + 1,
+          user_liked: true 
+        } : comment
+      ));
+    } catch (err) {
+      console.error("Error al dar like:", err);
+    }
+  };
+  
+  const handleCommentDislike = async (commentId) => {
+    try {
+      await axios.post(
+        `http://127.0.0.1:8000/api2/comments/${commentId}/dislike/`,
+        {},
+        { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } }
+      );
+      
+      setComments(comments.map(comment => 
+        comment.id === commentId ? { 
+          ...comment, 
+          dislikes: comment.dislikes + 1,
+          user_disliked: true 
+        } : comment
+      ));
+    } catch (err) {
+      console.error("Error al dar dislike:", err);
+    }
+  };
+  
+
+  const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8000";
+  const API_PREFIX = "/api2"; // Prefijo correcto que necesitas
+  
+  const imageUrl = song.image
+    ? song.image.startsWith("http") 
+      ? song.image.replace("/media/images/", `${API_PREFIX}/media/images/`)
+      : `${BASE_URL}${API_PREFIX}/media/images/${song.image.split("/").pop()}`
+    : "/GrillzPrint.jpg";
+  
+  console.log("Valor de song.image recibido:", song.image);
+  console.log("URL de la imagen generada:", imageUrl);
+  
+  
+  
+
+console.log("URL de la imagen generada:", imageUrl);
+
 
   return (
-    <Card
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 5,
-        boxShadow: 12,
-        overflow: "hidden",
-      }}
-    >
+    <Card sx={{
+      display: "flex",
+      flexDirection: "column",
+      borderRadius: 5,
+      boxShadow: 12,
+      overflow: "hidden",
+      m: 2,
+      maxWidth: 345
+    }}>
       <CardMedia
         component="img"
         height="200"
         image={imageUrl}
-        alt={`Imagen de la canción ${song.title} por ${song.artist}`}
+        alt={`Portada de ${song.title}`}
         sx={{
           objectFit: "cover",
           transition: "transform 0.3s ease",
-          "&:hover": { transform: "scale(1.05)" },
+          "&:hover": { transform: "scale(1.05)" }
         }}
       />
-      <CardContent
-        sx={{
-          padding: 2,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-        }}
-      >
-        <Typography variant="h6" sx={{ fontWeight: 600, marginBottom: 1, color: "#333" }}>
-          Título: {song.title}
+      
+      <CardContent sx={{ padding: 2 }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
+          {song.title}
         </Typography>
-        <Typography variant="subtitle1" sx={{ color: "#777", marginBottom: 0.5 }}>
+        <Typography variant="subtitle1" color="text.secondary">
           Artista: {song.artist}
         </Typography>
-        <Typography variant="subtitle1" sx={{ color: "#777", marginBottom: 0.5 }}>
+        <Typography variant="body2" color="text.secondary">
           Género: {song.genre}
         </Typography>
-        <Typography
-          variant="body2"
-          sx={{
-            fontStyle: "italic",
-            fontSize: isLiked ? "1.5rem" : "1rem",
-            transition: "all 0.5s ease",
-            color: isLiked ? "#e91e63" : "#555",
-          }}
-        >
-          {song.likes_count} Likes
-        </Typography>
+        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center' }}>
+          <Favorite sx={{ color: isLiked ? 'error.main' : 'action.active', mr: 1 }} />
+          <Typography variant="body2" sx={{ color: isLiked ? 'error.main' : 'text.secondary' }}>
+            {song.likes_count} Me gusta
+          </Typography>
+        </Box>
       </CardContent>
-      <CardActions sx={{ justifyContent: "space-between", padding: 1 }}>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <IconButton
-            onClick={() => handleLike(song.id)}
-            sx={{
-              color: isLiked ? "#e91e63" : "primary.main",
-              "&:hover": { color: "#e91e63" },
-              animation: pulseEffect ? "pulse 0.6s ease-out" : "none",
-            }}
-          >
-            <Favorite />
-          </IconButton>
+
+      <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+        <motion.div
+  animate={{ 
+    scale: pulseEffect ? [1, 1.5, 1] : 1, // Más impacto en la animación
+    rotate: pulseEffect ? [0, -10, 10, 0] : 0, // Efecto de vibración leve
+    opacity: pulseEffect ? [1, 0.8, 1] : 1, // Efecto de parpadeo sutil
+  }}
+  transition={{ duration: 0.4, ease: "easeOut" }}
+>
+  <IconButton
+    onClick={() => {
+      handleLike(song.id);
+      setPulseEffect(true); // Activa el efecto
+      setTimeout(() => setPulseEffect(false), 400); // Desactiva después de un tiempo
+    }}
+    sx={{
+      color: isLiked ? "red" : "InfoText", // Cambio de color dinámico
+      transition: "color 0.3s ease-in-out", // Transición de color suave
+    }}
+  >
+    {isLiked ? <Favorite sx={{ filter: "drop-shadow(0px 0px 5px red)" }} /> : <FavoriteBorderIcon />}
+  </IconButton>
+</motion.div>
+
+
+
           <IconButton
             onClick={() => handleDownload(song.id, song.title)}
             disabled={downloading}
-            sx={{ color: "primary.main", "&:hover": { color: "#00796b" } }}
           >
             {downloading ? (
-              <CircularProgress size={20} variant="determinate" value={downloadProgress} />
+              <CircularProgress size={24} variant="determinate" value={downloadProgress} />
             ) : (
               <GetApp />
             )}
           </IconButton>
-          <IconButton
-            onClick={toggleComments}
-            sx={{ color: "primary.main", "&:hover": { color: "#ff9800" } }}
-          >
+
+          <IconButton onClick={toggleComments}>
             <Comment />
           </IconButton>
-          {audio ? (
-            <IconButton
-              onClick={handlePause}
-              sx={{ color: "#00796b", "&:hover": { color: "#004d40" } }}
-            >
-              <Pause />
-            </IconButton>
-          ) : (
-            <IconButton
-              onClick={() => handleStream(song.id)}
-              sx={{
-                color: "#00796b",
-                "&:hover": { color: "#004d40" },
-                animation: rotate ? "rotate 0.5s ease-out" : "none",
-              }}
-            >
-              <PlayArrow />
-            </IconButton>
-          )}
         </Box>
+
+        <IconButton
+          onClick={audio && isPlaying ? handlePause : () => handleStream(song.id)}
+          sx={{
+            color: 'primary.main',
+            animation: rotate ? 'rotate 0.5s ease-out' : isPlaying ? 'rotate 1.5s infinite linear' : 'none'
+          }}
+        >
+          {isPlaying ? <Pause /> : <PlayArrow />}
+        </IconButton>
       </CardActions>
+
+      {commentsVisible && (
+        <Box sx={{ maxHeight: 150, overflowY: 'auto', p: 2, borderTop: '1px solid rgba(0,0,0,0.12)' }}>
+           {comments.map((comment) => (
+    <Box key={comment.id} sx={{ display: 'flex', gap: 1, mb: 2 }}>
+      {/* ... */}
+    </Box>
+  ))}
+        </Box>
+      )}
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
       >
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
+        <Alert severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

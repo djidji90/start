@@ -1,5 +1,3 @@
-// Componentes/DetallesProducto.jsx
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
@@ -13,6 +11,7 @@ import {
   CardContent,
   TextField,
   Button,
+  Snackbar
 } from '@mui/material';
 
 const DetallesProducto = ({ productoId, onBack }) => {
@@ -21,6 +20,8 @@ const DetallesProducto = ({ productoId, onBack }) => {
   const [varianteSeleccionada, setVarianteSeleccionada] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
 
   useEffect(() => {
     const fetchProductoDetalles = async () => {
@@ -28,8 +29,9 @@ const DetallesProducto = ({ productoId, onBack }) => {
         const response = await axios.get(`http://127.0.0.1:8000/ventas/productos/${productoId}/`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         });
+        
         setProducto(response.data);
-        if (response.data.variantes.length > 0) {
+        if (response.data.variantes?.length > 0) {
           setVarianteSeleccionada(response.data.variantes[0].id);
         }
       } catch (err) {
@@ -45,22 +47,33 @@ const DetallesProducto = ({ productoId, onBack }) => {
 
   const agregarAlCarrito = async () => {
     try {
-      const response = await axios.post(
-        `/api/carrito/agregar_producto/`,
-        {
-          producto_id: producto.id,
-          cantidad,
-          variante_id: varianteSeleccionada,
-        },
+      const postData = {
+        producto_id: producto.id,
+        cantidad: Math.max(1, cantidad),  // Forzar mínimo 1
+        ...(varianteSeleccionada && { variante_id: varianteSeleccionada })
+      };
+
+      await axios.post(
+        'http://127.0.0.1:8000/api/carrito/agregar_producto/',  // URL absoluta
+        postData,
         {
           headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         }
       );
-      alert('Producto agregado al carrito exitosamente.');
+      
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);  // Ocultar después de 3 seg
     } catch (err) {
-      console.error('Error al agregar el producto al carrito:', err);
-      alert('No se pudo agregar el producto al carrito.');
+      console.error('Error al agregar al carrito:', err.response?.data || err);
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
     }
+  };
+
+  const precioActual = () => {
+    if (!varianteSeleccionada || !producto.variantes) return producto.precio;
+    const variante = producto.variantes.find(v => v.id === varianteSeleccionada);
+    return variante?.precio || producto.precio;
   };
 
   if (loading) {
@@ -79,12 +92,23 @@ const DetallesProducto = ({ productoId, onBack }) => {
     );
   }
 
-  if (!producto) {
-    return null;
-  }
+  if (!producto) return null;
 
   return (
     <Box>
+      {/* Notificaciones */}
+      <Snackbar open={showSuccess} autoHideDuration={3000}>
+        <Alert severity="success" sx={{ width: '100%' }}>
+          Producto agregado al carrito!
+        </Alert>
+      </Snackbar>
+
+      <Snackbar open={showError} autoHideDuration={3000}>
+        <Alert severity="error" sx={{ width: '100%' }}>
+          Error al agregar al carrito
+        </Alert>
+      </Snackbar>
+
       <Button variant="outlined" onClick={onBack} sx={{ mb: 2 }}>
         Volver a la Tienda
       </Button>
@@ -96,8 +120,9 @@ const DetallesProducto = ({ productoId, onBack }) => {
             <CardMedia
               component="img"
               height="300"
-              image={producto.imagen || '/placeholder.png'}
+              image={producto.imagen || 'https://placehold.co/400x300'}  // Imagen por defecto
               alt={producto.nombre}
+              sx={{ objectFit: 'contain' }}
             />
           </Card>
         </Grid>
@@ -111,11 +136,11 @@ const DetallesProducto = ({ productoId, onBack }) => {
             {producto.descripcion}
           </Typography>
           <Typography variant="h5" color="primary" gutterBottom>
-            ${producto.precio}
+            ${precioActual().toFixed(2)}  {/* Precio dinámico por variante */}
           </Typography>
 
           {/* Selección de variante */}
-          {producto.variantes.length > 0 && (
+          {producto.variantes?.length > 0 && (
             <Box mb={2}>
               <Typography variant="subtitle1">Variantes:</Typography>
               <TextField
@@ -123,13 +148,11 @@ const DetallesProducto = ({ productoId, onBack }) => {
                 fullWidth
                 value={varianteSeleccionada}
                 onChange={(e) => setVarianteSeleccionada(e.target.value)}
-                SelectProps={{
-                  native: true,
-                }}
+                SelectProps={{ native: true }}
               >
                 {producto.variantes.map((variante) => (
                   <option key={variante.id} value={variante.id}>
-                    {variante.nombre} - ${variante.precio}
+                    {variante.nombre} - ${variante.precio.toFixed(2)}
                   </option>
                 ))}
               </TextField>
@@ -142,14 +165,20 @@ const DetallesProducto = ({ productoId, onBack }) => {
             <TextField
               type="number"
               value={cantidad}
-              onChange={(e) => setCantidad(Number(e.target.value))}
+              onChange={(e) => setCantidad(Math.max(1, e.target.value))}
               inputProps={{ min: 1 }}
               fullWidth
             />
           </Box>
 
           {/* Botón para agregar al carrito */}
-          <Button variant="contained" color="primary" onClick={agregarAlCarrito}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={agregarAlCarrito}
+            size="large"
+            fullWidth
+          >
             Agregar al Carrito
           </Button>
         </Grid>
