@@ -1,5 +1,5 @@
 import React from "react";
-import pato from "../assets/imagenes/pato.jpg";
+import djidji from "../assets/imagenes/djidji.png";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 
@@ -198,7 +198,7 @@ const Footer = () => {
         >
           <Box
             component="img"
-            src={pato}
+            src={djidji}
             alt="Logo"
             sx={{
               width: 70,

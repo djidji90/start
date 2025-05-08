@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import axios from "axios";
+import PropTypes from "prop-types";
 import {
   Box,
   Typography,
   TextField,
-  Button,
   Grid,
   CircularProgress,
   Alert,
@@ -16,6 +16,7 @@ import {
   ListItemText,
   useTheme
 } from "@mui/material";
+import { Button } from "@mui/material";
 import { 
   ArrowBack, 
   ArrowForward, 
@@ -25,9 +26,12 @@ import {
 } from "@mui/icons-material";
 import { debounce } from "lodash";
 import SongCard from "./SongCard";
-import EventCard from './NewsCard'
+import EventCard from './NewsCard';
+import CommentDialog from "./CommentDialog";
+import { useConfig } from "../../hook/useConfig";
 
 const SongSearchPage = () => {
+  const { api } = useConfig();
   const [state, setState] = useState({
     searchTerms: "",
     filters: { artist: "", genre: "", title: "" },
@@ -42,7 +46,8 @@ const SongSearchPage = () => {
       downloadProgress: 0,
       isDownloading: false,
       eventsLoading: false,
-      eventsError: null
+      eventsError: null,
+      streamingError: null
     },
   });
 
@@ -51,9 +56,17 @@ const SongSearchPage = () => {
   const downloadController = useRef(null);
   const searchContainerRef = useRef(null);
   const theme = useTheme();
+  const filtersRef = useRef(state.filters);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    filtersRef.current = state.filters;
+  }, [state.filters]);
 
   const getAuthHeader = useCallback(() => ({
-    Authorization: `Bearer ${localStorage.getItem("accessToken")}`
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("accessToken") || ''}`
+    }
   }), []);
 
   const errorMap = useMemo(() => ({
@@ -63,6 +76,7 @@ const SongSearchPage = () => {
     429: "Demasiadas solicitudes - Por favor espere",
     ECONNABORTED: "Timeout - El servidor no respondió a tiempo",
     "Network Error": "Error de conexión - Verifique su internet",
+    STREAM_ERROR: "Formato de audio no compatible"
   }), []);
 
   const handleError = useCallback((error, type = 'general') => {
@@ -81,7 +95,7 @@ const SongSearchPage = () => {
           eventsError: errorMessage,
           eventsLoading: false 
         } : {
-          error: errorMessage,
+          [type === 'stream' ? 'streamingError' : 'error']: errorMessage,
           loading: false
         })
       }
@@ -98,8 +112,8 @@ const SongSearchPage = () => {
         status: { ...prev.status, eventsLoading: true, eventsError: null }
       }));
 
-      const response = await axios.get("http://127.0.0.1:8000/api2/events/", {
-        headers: getAuthHeader(),
+      const response = await axios.get(`${api.baseURL}/api2/events/`, {
+        ...getAuthHeader(),
         signal: eventsController.current.signal
       });
 
@@ -111,7 +125,7 @@ const SongSearchPage = () => {
     } catch (error) {
       if (!axios.isCancel(error)) handleError(error, 'events');
     }
-  }, [getAuthHeader, handleError]);
+  }, [api.baseURL, getAuthHeader, handleError]);
 
   const fetchSuggestions = useCallback(debounce(async (query) => {
     if (!query || query.length < 2) {
@@ -120,9 +134,9 @@ const SongSearchPage = () => {
     }
   
     try {
-      const response = await axios.get("http://127.0.0.1:8000/api2/songs/suggestions/", {
+      const response = await axios.get(`${api.baseURL}/api2/songs/suggestions/`, {
         params: { query },
-        headers: getAuthHeader(),
+        ...getAuthHeader(),
         signal: searchController.current.signal
       });
   
@@ -132,49 +146,163 @@ const SongSearchPage = () => {
         showSuggestions: true
       }));
     } catch (error) {
-      if (!axios.isCancel(error)) {
-        setState(prev => ({ ...prev, suggestions: [], showSuggestions: false }));
-      }
+      if (!axios.isCancel(error)) handleError(error);
     }
-  }, 300), [getAuthHeader]);
+  }, 300), [api.baseURL, getAuthHeader, handleError]);
 
   const searchSongs = useCallback(async (page = 1, newQuery = false) => {
+    const currentFilters = filtersRef.current;
+const isEmptySearch = !currentFilters.artist && 
+!currentFilters.genre && 
+!currentFilters.title;
+
+if (isEmptySearch) {
+setState(prev => ({
+...prev,
+songs: [],
+pagination: { ...prev.pagination, current: 1, total: 0 },
+status: {
+...prev.status,
+loading: false,
+error: "Por favor introduce un artista, título o género para buscar."
+}
+}));
+return;
+}
+  
     try {
       searchController.current.abort();
       searchController.current = new AbortController();
-
+  
       setState(prev => ({
         ...prev,
         status: { ...prev.status, loading: true, error: null },
-        ...(newQuery && { songs: [] }),
+        ...(newQuery && { songs: [] })
       }));
-
+  
       const params = new URLSearchParams({
-        ...state.filters,
+        ...filtersRef.current,
         page,
         page_size: state.pagination.pageSize,
       });
-
-      const response = await axios.get("http://127.0.0.1:8000/api2/songs/", {
+  
+      const response = await axios.get(`${api.baseURL}/api2/songs/`, {
         params,
         signal: searchController.current.signal,
-        headers: getAuthHeader(),
+        ...getAuthHeader()
       });
-
+  
+      const totalResults = response.data.count || 0;
       setState(prev => ({
         ...prev,
         songs: response.data.results || [],
         pagination: {
           ...prev.pagination,
           current: page,
-          total: Math.ceil((response.data.count || 0) / prev.pagination.pageSize),
+          total: Math.ceil(totalResults / prev.pagination.pageSize),
         },
-        status: { ...prev.status, loading: false },
+        status: {
+          ...prev.status, 
+          loading: false, 
+          error: totalResults === 0 ? "No se encontraron resultados" : null
+        },
       }));
     } catch (error) {
       handleError(error);
     }
-  }, [state.filters, state.pagination.pageSize, getAuthHeader, handleError]);
+  }, [api.baseURL, state.pagination.pageSize, getAuthHeader, handleError]);
+  
+
+  const handleLikeUpdate = useCallback((songId, newLikesCount, newLikedState) => {
+    setState(prev => ({
+      ...prev,
+      songs: prev.songs.map(song => 
+        song.id === songId 
+          ? { ...song, likes_count: newLikesCount, liked: newLikedState }
+          : song
+      )
+    }));
+  }, []);
+
+  const handleDownload = useCallback(async (songId, title) => {
+    try {
+      downloadController.current = new AbortController();
+      
+      setState(prev => ({
+        ...prev,
+        status: { ...prev.status, isDownloading: true, downloadProgress: 0 },
+      }));
+
+      const response = await axios.get(
+        `${api.baseURL}/api2/songs/${songId}/download/`,
+        {
+          responseType: "blob",
+          ...getAuthHeader(),
+          signal: downloadController.current.signal,
+          onDownloadProgress: (progressEvent) => {
+            const percent = Math.round(
+              (progressEvent.loaded * 100) / (progressEvent.total || 1)
+            );
+      
+            setState((prev) => ({
+              ...prev,
+              status: { ...prev.status, downloadProgress: percent },
+            }));
+          },
+        }
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${title.replace(/[^\w]/gi, '_')}.mp3`);
+      document.body.appendChild(link);
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      if (!axios.isCancel(error)) handleError(error);
+    } finally {
+      setState(prev => ({
+        ...prev,
+        status: { ...prev.status, isDownloading: false, downloadProgress: 0 },
+      }));
+    }
+  }, [api.baseURL, getAuthHeader, handleError]);
+
+  const handleStream = useCallback(async (songId) => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+
+      const response = await axios.get(
+        `${api.baseURL}/api2/songs/${songId}/stream/`,
+        { 
+          headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }, 
+          responseType: "blob",
+          signal: new AbortController().signal
+        }
+      );
+
+      const mimeType = response.headers['content-type'];
+      if (!MediaSource.isTypeSupported(mimeType)) {
+        throw new Error('STREAM_ERROR');
+      }
+
+      const audioUrl = URL.createObjectURL(response.data);
+      const newAudio = new Audio(audioUrl);
+      
+      newAudio.addEventListener('error', (e) => {
+        handleError(new Error('STREAM_ERROR'), 'stream');
+      });
+
+      audioRef.current = newAudio;
+      await newAudio.play();
+    } catch (error) {
+      handleError(error, 'stream');
+    }
+  }, [api.baseURL, handleError]);
 
   const handleSearchInput = useCallback((e) => {
     const value = e.target.value;
@@ -205,80 +333,15 @@ const SongSearchPage = () => {
     searchSongs(1, true);
   }, [searchSongs]);
 
-  const handleLike = useCallback(async (songId) => {
-    const originalSongs = [...state.songs];
-    try {
-      setState(prev => ({
-        ...prev,
-        songs: prev.songs.map(song =>
-          song.id === songId 
-            ? { ...song, likes: song.likes + (song.liked ? -1 : 1), liked: !song.liked }
-            : song
-        )
-      }));
-
-      await axios.post(
-        `http://127.0.0.1:8000/api2/songs/${songId}/like/`,
-        {},
-        { headers: getAuthHeader() }
-      );
-    } catch (error) {
-      setState(prev => ({ ...prev, songs: originalSongs }));
-      handleError(error);
-    }
-  }, [state.songs, getAuthHeader, handleError]);
-
-  const handleDownload = useCallback(async (songId, title) => {
-    try {
-      downloadController.current = new AbortController();
-      
-      setState(prev => ({
-        ...prev,
-        status: { ...prev.status, isDownloading: true, downloadProgress: 0 },
-      }));
-
-      const response = await axios.get(
-        `http://127.0.0.1:8000/api2/songs/${songId}/download/`,
-        {
-          responseType: "blob",
-          headers: getAuthHeader(),
-          signal: downloadController.current.signal,
-          onDownloadProgress: (progressEvent) => {
-            const percent = Math.round(
-              (progressEvent.loaded * 100) / (progressEvent.total || 1)
-            );
-      
-            setState((prev) => ({
-              ...prev,
-              status: { ...prev.status, downloadProgress: percent },
-            }));
-          },
-        }
-      );
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `${title}.mp3`);
-      document.body.appendChild(link);
-      link.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      handleError(error);
-    } finally {
-      setState(prev => ({
-        ...prev,
-        status: { ...prev.status, isDownloading: false, downloadProgress: 0 },
-      }));
-    }
-  }, [getAuthHeader, handleError]);
-
   const handlePageChange = useCallback((direction) => {
     const newPage = direction === "next" 
-      ? state.pagination.current + 1 
-      : state.pagination.current - 1;
-    searchSongs(newPage);
-  }, [state.pagination.current, searchSongs]);
+      ? Math.min(state.pagination.current + 1, state.pagination.total)
+      : Math.max(state.pagination.current - 1, 1);
+    
+    if (newPage !== state.pagination.current) {
+      searchSongs(newPage);
+    }
+  }, [state.pagination.current, state.pagination.total, searchSongs]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -297,8 +360,11 @@ const SongSearchPage = () => {
       searchController.current.abort();
       eventsController.current.abort();
       downloadController.current?.abort();
+      if (audioRef.current) audioRef.current.pause();
     };
   }, [fetchEvents]);
+
+  const [selectedSong, setSelectedSong] = useState(null);
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, margin: "0 auto" }}>
@@ -306,12 +372,13 @@ const SongSearchPage = () => {
         fontWeight: "bold", 
         color: "primary.main",
         textAlign: "center",
-        mb: 4
+        mb: 4,
+        fontFamily :" Pacifico, cursive"
       }}>
         Encuentra tu canción favorita
       </Typography>
 
-      {/* Buscador */}
+      {/* Sección de Búsqueda */}
       <Box sx={{ position: "relative", mb: 4 }} ref={searchContainerRef}>
         <TextField
           fullWidth
@@ -328,6 +395,7 @@ const SongSearchPage = () => {
                   edge="end"
                   onClick={() => searchSongs(1, true)}
                   disabled={state.status.loading}
+                  aria-label="Buscar canciones"
                 >
                   <SearchIcon />
                 </IconButton>
@@ -343,7 +411,7 @@ const SongSearchPage = () => {
           }}
         />
 
-        {/* Sugerencias */}
+        {/* Lista de Sugerencias */}
         {state.showSuggestions && state.suggestions.length > 0 && (
           <Box sx={{
             position: "absolute",
@@ -393,8 +461,8 @@ const SongSearchPage = () => {
         )}
       </Box>
 
-      {/* Manejo de errores */}
-      {state.status.error && (
+      {/* Manejo de Errores */}
+      {(state.status.error || state.status.streamingError) && (
         <Alert 
           severity="error"
           sx={{ mb: 2 }}
@@ -402,31 +470,69 @@ const SongSearchPage = () => {
             <Button
               color="inherit"
               size="small"
-              onClick={() => searchSongs(state.pagination.current)}
+              onClick={() => {
+                setState(prev => ({
+                  ...prev,
+                  status: { ...prev.status, 
+                    error: null,
+                    streamingError: null
+                  }
+                }));
+                searchSongs(state.pagination.current);
+              }}
               endIcon={<Refresh />}
             >
               Reintentar
             </Button>
           }
         >
-          {state.status.error}
+          {state.status.streamingError || state.status.error}
         </Alert>
       )}
 
-      {/* Lista de canciones */}
+      {/* Listado de Canciones */}
       <Grid container spacing={3}>
-        {state.songs.map((song) => (
-          <Grid item xs={12} sm={6} md={4} key={song.id}>
-            <SongCard
-              song={song}
-              onLike={() => handleLike(song.id)}
-              onDownload={() => handleDownload(song.id, song.title)}
-            />
-          </Grid>
-        ))}
-      </Grid>
+  {state.songs.map((song) => (
+    <Grid item xs={12} sm={6} md={4} key={song.id}>
+      <SongCard
+        song={{
+          ...song,
+          likes_count: song.likes_count || 0,
+          liked: song.liked || false,
+          comments_count: song.comments_count || 0
+        }}
+        onLike={handleLikeUpdate}
+        onDownload={() => handleDownload(song.id, song.title)}
+        onStream={() => handleStream(song.id)}
+        onCommentClick={() => setSelectedSong(song)}
+      />
+    </Grid>
+  ))}
+</Grid>
+      {/* Agregar este bloque después del Grid */}
+      {state.songs.length === 0 && 
+ !state.status.loading && 
+ !state.status.error && (
+  <Box sx={{
+    width: '100%',
+    textAlign: 'center',
+    py: 8,
+    border: '1px dashed',
+    borderColor: 'divider',
+    borderRadius: 2,
+    mt: 4
+  }}>
+    <SearchIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+    <Typography variant="h6" color="textSecondary">
+      Seguro te encanta la música guineana
+    </Typography>
+    <Typography variant="body1" sx={{ mt: 1, color: 'text.disabled' }}>
+      Aquí encontrarás a tus artistas favoritos... ¡suerte!
+    </Typography>
+  </Box>
+)}
 
-      {/* Paginación */}
+      {/* Controles de Paginación */}
       {state.songs.length > 0 && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4, gap: 2 }}>
           <IconButton
@@ -459,11 +565,11 @@ const SongSearchPage = () => {
         </Box>
       )}
 
-      {/* Eventos */}
+      {/* Sección de Eventos */}
       <Box sx={{ mt: 6, mb: 4 }}>
         <Typography variant="h5" gutterBottom sx={{
           fontWeight: 'bold',
-          color: 'secondary.main',
+          color: 'primary.main',
           display: 'flex',
           alignItems: 'center',
           gap: 1
@@ -512,7 +618,14 @@ const SongSearchPage = () => {
         )}
       </Box>
 
-      {/* Descargas */}
+      {/* Diálogo de Comentarios */}
+      <CommentDialog
+        songId={selectedSong?.id}
+        open={!!selectedSong}
+        onClose={() => setSelectedSong(null)}
+      />
+
+      {/* Barra de Progreso de Descarga */}
       {state.status.isDownloading && (
         <Box sx={{ 
           position: "fixed", 
@@ -545,7 +658,7 @@ const SongSearchPage = () => {
         </Box>
       )}
 
-      {/* Carga general */}
+      {/* Indicador de Carga Global */}
       {state.status.loading && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
           <CircularProgress size={60} thickness={4} />
@@ -555,4 +668,36 @@ const SongSearchPage = () => {
   );
 };
 
-export default SongSearchPage;
+// PropTypes
+SongSearchPage.propTypes = {
+  // Agregar PropTypes según necesidades
+};
+
+EventCard.propTypes = {
+  event: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    title: PropTypes.string.isRequired,
+    date: PropTypes.string.isRequired,
+    location: PropTypes.string,
+    description: PropTypes.string,
+  }).isRequired,
+};
+
+SongCard.propTypes = {
+  song: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    title: PropTypes.string.isRequired,
+    artist: PropTypes.string,
+    genre: PropTypes.string,
+    likes_count: PropTypes.number,
+    liked: PropTypes.bool,
+    comments_count: PropTypes.number,
+    image: PropTypes.string
+  }).isRequired,
+  onLike: PropTypes.func,
+  onDownload: PropTypes.func,
+  onStream: PropTypes.func,
+  onCommentClick: PropTypes.func
+};;
+
+export default React.memo(SongSearchPage);

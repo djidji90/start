@@ -1,3 +1,4 @@
+import { useConfig } from '../../../hook/useConfig';
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Grid, Typography, CircularProgress, Alert } from '@mui/material';
@@ -10,19 +11,23 @@ const CategoriaProductos = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Extraer la base URL de la API desde el hook useConfig
+  const { api } = useConfig();
+
   useEffect(() => {
     const fetchProductos = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const token = localStorage.getItem("accessToken"); // Obtener token como en Checkout.jsx
+        const token = localStorage.getItem("accessToken");
         const headers = token
           ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
           : {};
 
+        // Usar la baseURL desde la configuración
         const response = await axios.get(
-          `http://127.0.0.1:8000/ventas/productos/por_categoria?categoria_id=${id}`,
+          `${api.baseURL}/ventas/productos/por_categoria?categoria_id=${id}`,
           { headers }
         );
 
@@ -43,7 +48,7 @@ const CategoriaProductos = () => {
     };
 
     fetchProductos();
-  }, [id]);
+  }, [id, api.baseURL]); // Dependemos de la api.baseURL para evitar cambios inesperados
 
   return (
     <Box sx={{ padding: 3 }}>

@@ -1,7 +1,13 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
-}
+    "compilerOptions": {
+      "composite": true,
+      "module": "node16",
+      "moduleResolution": "node16",
+      "allowSyntheticDefaultImports": true,
+      "strict": true,
+"forceConsistentCasingInFileNames": true
+
+    },
+    "include": ["vite.config.ts"]
+  }
+  

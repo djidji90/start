@@ -20,8 +20,10 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useConfig } from '../../hook/useConfig';
 
 const CommentDialog = ({ songId, open, onClose }) => {
+  const { api } = useConfig();
   const [state, setState] = useState({
     comments: [],
     newComment: '',
@@ -32,19 +34,24 @@ const CommentDialog = ({ songId, open, onClose }) => {
   });
 
   const normalizeComment = (apiComment) => ({
-    id: apiComment.id,
-    user: apiComment.user || 'Usuario anónimo',
-    content: apiComment.content || 'Contenido no disponible',
-    date: new Date(apiComment.created_at || Date.now()),
-    isOwner: apiComment.is_user_comment || false
+    id: apiComment?.id || Date.now(),
+    user: apiComment?.user || 'Usuario anónimo',
+    content: apiComment?.content || 'Contenido no disponible',
+    date: new Date(apiComment?.created_at || Date.now()),
+    song: apiComment?.song || songId,
+    isOwner: apiComment?.is_user_comment || false
   });
 
   const loadComments = async (page = 1) => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
     try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+      
       const response = await axios.get(
-        `http://127.0.0.1:8000/api2/songs/${songId}/comments/?page=${page}`
+        `${api.baseURL}/api2/songs/${songId}/comments/`,
+        {
+          params: { page },
+          headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }
+        }
       );
 
       const results = response.data?.results?.map(normalizeComment) || [];
@@ -60,7 +67,7 @@ const CommentDialog = ({ songId, open, onClose }) => {
     } catch (error) {
       setState(prev => ({
         ...prev,
-        error: 'Error cargando comentarios',
+        error: error.response?.data?.detail || 'Error cargando comentarios',
         loading: false
       }));
     }
@@ -70,20 +77,23 @@ const CommentDialog = ({ songId, open, onClose }) => {
     e.preventDefault();
     const commentContent = (state.newComment || '').trim();
     
-    if (commentContent.length < 3) {
-      setState(prev => ({ ...prev, error: 'Mínimo 3 caracteres' }));
+    if (!commentContent) {
+      setState(prev => ({ ...prev, error: 'El comentario no puede estar vacío' }));
       return;
     }
     
-    if (commentContent.length > 500) {
-      setState(prev => ({ ...prev, error: 'Máximo 500 caracteres' }));
+    if (commentContent.length < 3) {
+      setState(prev => ({ ...prev, error: 'Mínimo 3 caracteres' }));
       return;
     }
 
     try {
       const response = await axios.post(
-        `http://127.0.0.1:8000/api2/songs/${songId}/comments/`,
-        { content: commentContent },
+        `${api.baseURL}/api2/songs/${songId}/comments/`,
+        {
+          content: commentContent,
+          song: songId // Campo requerido añadido
+        },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('accessToken')}`
@@ -101,7 +111,9 @@ const CommentDialog = ({ songId, open, onClose }) => {
     } catch (error) {
       setState(prev => ({
         ...prev,
-        error: error.response?.data?.detail || 'Error al publicar comentario'
+        error: error.response?.data?.detail || 
+             JSON.stringify(error.response?.data) || 
+             'Error al publicar comentario'
       }));
     }
   };

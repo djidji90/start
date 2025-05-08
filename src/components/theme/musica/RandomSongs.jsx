@@ -1,150 +1,243 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Grid, Box, CircularProgress, Typography, Button } from "@mui/material";
+import React, { useEffect, useCallback, useMemo, useRef, useReducer } from "react";
+import { Box, CircularProgress, Typography, Button, useTheme } from "@mui/material";
 import axios from "axios";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { EffectCoverflow, Pagination, Virtual } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/effect-coverflow";
+import "swiper/css/pagination";
 import SongCard from "./SongCard";
+import { useConfig } from "../../hook/useConfig";
 
-const getAuthHeader = () => {
-  const accessToken = localStorage.getItem("accessToken");
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+// Action Types
+const FETCH_INIT = 'FETCH_INIT';
+const FETCH_SUCCESS = 'FETCH_SUCCESS';
+const FETCH_FAILURE = 'FETCH_FAILURE';
+const UPDATE_SONG = 'UPDATE_SONG';
+
+// Reducer optimizado con validación de likes
+const songsReducer = (state, action) => {
+  switch (action.type) {
+    case FETCH_INIT:
+      return { ...state, loading: true, error: null };
+    case FETCH_SUCCESS:
+      return { ...state, loading: false, songs: action.payload };
+    case FETCH_FAILURE:
+      return { ...state, loading: false, error: action.payload };
+    case UPDATE_SONG:
+      return {
+        ...state,
+        songs: state.songs.map(song => 
+          song.id === action.payload.id ? {
+            ...song,
+            likes_count: Math.max(action.payload.likes_count, 0),
+            is_liked: action.payload.is_liked
+          } : song
+        )
+      };
+    default:
+      return state;
+  }
 };
 
-// Hook para manejar la carga de canciones
-const useFetchSongs = (page, songsPerPage, setSongs, setHasMore, setLoading, setError) => {
-  const loadingRef = useRef(false);
+// Custom hook mejorado para gestión de canciones
+const useSongsManager = (baseURL) => {
+  const [state, dispatch] = useReducer(songsReducer, {
+    songs: [],
+    loading: true,
+    error: null
+  });
+  
+  const abortController = useRef(new AbortController());
 
   const fetchSongs = useCallback(async () => {
-    if (loadingRef.current) return;
-    loadingRef.current = true;
-    setLoading(true);
-
     try {
-      const response = await axios.get("http://127.0.0.1:8000/api2/songs/random/", {
-        headers: getAuthHeader(),
-        params: { page, page_size: songsPerPage },
+      dispatch({ type: FETCH_INIT });
+      abortController.current.abort();
+      abortController.current = new AbortController();
+
+      const { data } = await axios.get(`${baseURL}/api2/songs/random/`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ''}` },
+        signal: abortController.current.signal
       });
-
-      const randomSongs = response.data?.random_songs || [];
-
-      setSongs((prev) => {
-        const uniqueSongs = [...prev, ...randomSongs].filter(
-          (song, index, self) => index === self.findIndex((s) => s.id === song.id)
-        );
-        return uniqueSongs;
-      });
-
-      setHasMore(randomSongs.length === songsPerPage);
+      
+      dispatch({ type: FETCH_SUCCESS, payload: data?.random_songs || [] });
     } catch (err) {
-      console.error("Error fetching random songs:", err);
-      setError(err.response?.data?.detail || "Error desconocido");
+      if (!axios.isCancel(err)) {
+        const errorMessage = err.response?.data?.detail || "Error al cargar canciones";
+        dispatch({ type: FETCH_FAILURE, payload: errorMessage });
+      }
     }
+  }, [baseURL]);
 
-    loadingRef.current = false;
-    setLoading(false);
-  }, [page, songsPerPage]);
-
-  return fetchSongs;
-};
-
-const RandomSongs = () => {
-  const [songs, setSongs] = useState([]); // Estado de las canciones
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchSongs = useFetchSongs(page, 3, setSongs, setHasMore, setLoading, setError);
+  const updateSongState = useCallback((updatedSong) => {
+    dispatch({ type: UPDATE_SONG, payload: updatedSong });
+  }, []);
 
   useEffect(() => {
     fetchSongs();
+    return () => abortController.current.abort();
   }, [fetchSongs]);
 
-  const loadMore = () => {
-    if (hasMore && !loading) {
-      setPage((prevPage) => prevPage + 1);
-    }
-  };
-
-  // ✅ Nueva función para manejar los likes
-  const handleLike = async (songId) => {
-    setSongs((prev) =>
-      prev.map((song) =>
-        song.id === songId
-          ? { ...song, liked: !song.liked, likes_count: song.liked ? song.likes_count - 1 : song.likes_count + 1 }
-          : song
-      )
-    );
-
-    try {
-      const response = await axios.post(
-        `http://127.0.0.1:8000/api2/songs/${songId}/like/`,
-        {},
-        { headers: getAuthHeader() }
-      );
-
-      // ⚠️ Solo actualiza el número de likes si la API devuelve el valor actualizado
-      if (response.data?.likes_count !== undefined) {
-        setSongs((prev) =>
-          prev.map((song) =>
-            song.id === songId ? { ...song, likes_count: response.data.likes_count } : song
-          )
-        );
-      }
-    } catch (err) {
-      console.error("Error al dar like:", err);
-    }
-  };
-
-  if (loading && page === 1) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-        <CircularProgress size={60} />
-        <Typography variant="body1" color="textSecondary" sx={{ marginTop: 2 }}>
-          Cargando canciones...
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "50vh" }}>
-        <Typography variant="h6" color="error">{error}</Typography>
-      </Box>
-    );
-  }
-
-  if (songs.length === 0) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "50vh" }}>
-        <Typography variant="h6">No se encontraron canciones aleatorias.</Typography>
-      </Box>
-    );
-  }
-
-  return (
-    <Box>
-      <Grid container spacing={3} padding={3} justifyContent="center">
-        {songs.map((song) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={song.id}>
-            <SongCard song={song} onLike={handleLike} />
-          </Grid>
-        ))}
-      </Grid>
-
-      {hasMore ? (
-        <Box sx={{ textAlign: "center", marginTop: 3 }}>
-          <Button variant="contained" onClick={loadMore} disabled={loading}>
-            {loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : "Cargar más canciones"}
-          </Button>
-        </Box>
-      ) : (
-        <Box sx={{ textAlign: "center", marginTop: 3 }}>
-          <Typography variant="h6" color="textSecondary">¡No hay más canciones para mostrar!</Typography>
-        </Box>
-      )}
-    </Box>
-  );
+  return { ...state, fetchSongs, updateSongState };
 };
 
-export default RandomSongs;
+// Componente principal optimizado
+const RandomSongs = () => {
+  const { api } = useConfig();
+  const theme = useTheme();
+  const { songs, loading, error, fetchSongs, updateSongState } = useSongsManager(api.baseURL);
 
+  // Configuración de Swiper memoizada
+  const swiperConfig = useMemo(() => ({
+    effect: "coverflow",
+    grabCursor: true,
+    centeredSlides: true,
+    slidesPerView: "auto",
+    coverflowEffect: {
+      rotate: 35,
+      stretch: -15,
+      depth: 100,
+      modifier: 1,
+      slideShadows: false,
+    },
+    pagination: { 
+      clickable: true,
+      dynamicBullets: true 
+    },
+    breakpoints: {
+      320: { slidesPerView: 1, spaceBetween: 10 },
+      768: { slidesPerView: 2, spaceBetween: 20 },
+      1024: { slidesPerView: 3, spaceBetween: 30 },
+    },
+    modules: [EffectCoverflow, Pagination, Virtual]
+  }), []);
+
+  // Manejador de likes/unlikes optimizado
+  const handleLikeToggle = useCallback((songId, currentLikes, isLiked) => {
+    const newCount = isLiked 
+      ? Math.max(currentLikes - 1, 0)
+      : currentLikes + 1;
+    
+    updateSongState({
+      id: songId,
+      likes_count: newCount,
+      is_liked: !isLiked
+    });
+  }, [updateSongState]);
+
+  // Renderizado de SongCard memoizado
+  const renderSongCard = useCallback((song) => (
+    <SongCard
+      key={song.id}
+      song={song}
+      onLikeToggle={handleLikeToggle}
+    />
+  ), [handleLikeToggle]);
+
+  // Gestión de estados de renderizado
+  const renderState = useMemo(() => {
+    if (loading) return 'loading';
+    if (error) return 'error';
+    if (!songs.length) return 'empty';
+    return 'content';
+  }, [loading, error, songs.length]);
+
+  // Componentes de estado memoizados
+  const stateComponents = useMemo(() => ({
+    loading: (
+      <Box sx={styles.loadingContainer(theme)}>
+        <CircularProgress size={60} thickness={4} />
+        <Typography variant="h6" sx={{ mt: 3, color: 'text.secondary' }}>
+          Cargando recomendaciones...
+        </Typography>
+      </Box>
+    ),
+    error: (
+      <Box sx={styles.errorContainer(theme)}>
+        <Typography variant="h6" color="error" sx={{ mb: 3 }}>
+          {error}
+        </Typography>
+        <Button 
+          variant="contained"
+          onClick={fetchSongs}
+          sx={styles.button(theme)}
+        >
+          Reintentar
+        </Button>
+      </Box>
+    ),
+    empty: (
+      <Box sx={styles.emptyContainer(theme)}>
+        <Typography variant="h6" sx={{ mb: 3, color: 'text.secondary' }}>
+          No hay canciones disponibles
+        </Typography>
+        <Button 
+          variant="outlined"
+          onClick={fetchSongs}
+          sx={styles.button(theme)}
+        >
+          Recargar
+        </Button>
+      </Box>
+    ),
+    content: (
+      <Swiper {...swiperConfig}>
+        {songs.map(song => (
+          <SwiperSlide key={song.id} style={{ width: 'auto', marginRight: '30px' }}>
+            {renderSongCard(song)}
+          </SwiperSlide>
+        ))}
+      </Swiper>
+    )
+  }), [error, fetchSongs, songs, swiperConfig, renderSongCard, theme]);
+
+  return stateComponents[renderState];
+};
+
+// Estilos optimizados
+const styles = {
+  loadingContainer: theme => ({
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "60vh",
+    flexDirection: "column",
+    backgroundColor: theme.palette.background.default
+  }),
+  errorContainer: theme => ({
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "50vh",
+    flexDirection: "column",
+    padding: theme.spacing(4),
+    borderRadius: theme.shape.borderRadius,
+    backgroundColor: theme.palette.background.paper,
+    textAlign: 'center'
+  }),
+  emptyContainer: theme => ({
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "50vh",
+    flexDirection: "column",
+    padding: theme.spacing(4),
+    borderRadius: theme.shape.borderRadius,
+    backgroundColor: theme.palette.background.paper
+  }),
+  button: theme => ({
+    px: 4,
+    py: 1.5,
+    borderRadius: '8px',
+    fontWeight: 600,
+    textTransform: 'none',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: theme.shadows[3]
+    }
+  })
+};
+
+export default React.memo(RandomSongs);

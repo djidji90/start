@@ -15,7 +15,7 @@ import {
 import { Facebook, Twitter, Instagram, WhatsApp } from "@mui/icons-material";
 
 const teamMembers = [
-  { name: "Leoncio Machimbo", role: "CEO", img: "cat.jpg" },
+  { name: "Leoncio Machimbo", role: "CEO", img: "astro.png" },
   { name: "Cairo Okafor", role: "CTO", img: "nike.jpg" },
   { name: "Mª Angeles Pecho", role: "Diseñadora", img: "dog.jpg" },
 ];

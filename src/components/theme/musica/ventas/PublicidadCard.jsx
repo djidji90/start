@@ -18,13 +18,18 @@ const PublicidadCard = ({
   ...props 
 }) => {
   const [imgError, setImgError] = useState(false);
+  
+  // Normalizar URL de imagen
+  const normalizedImage = imagen?.includes('/media/') 
+    ? imagen.replace('/media/', '/ventas/media/') 
+    : imagen;
 
   return (
     <StyledCard {...props}>
       <Box className="image-container">
         <CardMedia
           component="img"
-          image={imgError ? '/default-sponsor.png' : imagen}
+          image={imgError ? '/default-sponsor.png' : normalizedImage}
           alt={`Logo ${titulo}`}
           className="card-media"
           onError={() => setImgError(true)}
@@ -37,7 +42,7 @@ const PublicidadCard = ({
             className="link-button"
             aria-label={`Visitar sitio de ${titulo}`}
           >
-            <OpenInNew sx={{ color: 'white', fontSize: 30 }} />
+            <OpenInNew sx={iconStyle} />
           </IconButton>
         </Box>
       </Box>
@@ -52,25 +57,34 @@ const PublicidadCard = ({
   );
 };
 
+// Estilos modernizados con glassmorphism y transiciones suaves
 const StyledCard = styled(Card)(({ theme }) => ({
   width: '100%',
   height: '100%',
-  maxWidth: 350,
+  maxWidth: 380,
   margin: theme.spacing(1),
-  borderRadius: '16px',
+  borderRadius: '24px',
   overflow: 'hidden',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  boxShadow: theme.shadows[4],
+  transition: 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
+  boxShadow: theme.shadows[6],
   position: 'relative',
   display: 'flex',
   flexDirection: 'column',
+  background: 'rgba(255, 255, 255, 0.05)',
+  backdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
   
   '&:hover': {
-    transform: 'translateY(-5px)',
-    boxShadow: theme.shadows[8],
+    transform: 'translateY(-8px)',
+    boxShadow: theme.shadows[12],
     
     '.hover-overlay': {
-      opacity: 1
+      opacity: 1,
+      backdropFilter: 'blur(8px)'
+    },
+    
+    '.card-media': {
+      transform: 'scale(1.05)'
     }
   },
   
@@ -78,15 +92,15 @@ const StyledCard = styled(Card)(({ theme }) => ({
     position: 'relative',
     overflow: 'hidden',
     aspectRatio: '16/9',
-    flex: 1
+    flex: 1,
+    backgroundColor: theme.palette.background.default
   },
   
   '.card-media': {
     width: '100%',
     height: '100%',
-    objectFit: 'contain',
-    transition: 'transform 0.3s ease',
-    backgroundColor: theme.palette.background.default
+    objectFit: 'cover',
+    transition: 'transform 0.4s ease'
   },
   
   '.hover-overlay': {
@@ -95,43 +109,34 @@ const StyledCard = styled(Card)(({ theme }) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0,
-    transition: 'opacity 0.3s ease'
-  },
-  
-  '.link-button': {
-    backdropFilter: 'blur(4px)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     transition: 'all 0.3s ease',
-    
-    '&:hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-      transform: 'scale(1.1)'
-    }
+    background: 'rgba(0, 0, 0, 0.3)'
   }
 }));
 
 const StyledCardContent = styled(CardContent)(({ theme }) => ({
   position: 'relative',
-  padding: theme.spacing(2),
-  backgroundColor: theme.palette.background.paper,
+  padding: theme.spacing(3),
+  backgroundColor: 'transparent',
   
   '.title-text': {
-    fontWeight: 600,
-    color: theme.palette.text.primary,
+    fontWeight: 700,
+    color: theme.palette.common.white,
     position: 'relative',
-    zIndex: 1,
+    zIndex: 2,
     textAlign: 'center',
     lineHeight: 1.3,
     minHeight: 60,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    wordBreak: 'break-word'
+    wordBreak: 'break-word',
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+    fontSize: '1.25rem'
   },
   
   '.gradient-overlay': {
@@ -139,16 +144,23 @@ const StyledCardContent = styled(CardContent)(({ theme }) => ({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '40%',
-    background: `linear-gradient(to top, ${theme.palette.background.paper} 20%, transparent)`,
-    pointerEvents: 'none'
+    height: '100%',
+    background: `linear-gradient(to top, ${theme.palette.primary.dark} 20%, transparent)`,
+    pointerEvents: 'none',
+    opacity: 0.8
   }
 }));
 
+const iconStyle = {
+  color: 'white', 
+  fontSize: '2rem',
+  filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
+};
+
 PublicidadCard.propTypes = {
-  imagen: PropTypes.string.isRequired,
-  titulo: PropTypes.string.isRequired,
-  enlace: PropTypes.string.isRequired
+  imagen: PropTypes.string,
+  titulo: PropTypes.string,
+  enlace: PropTypes.string
 };
 
 export default PublicidadCard;

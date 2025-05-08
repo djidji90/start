@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import MenuIcon from "@mui/icons-material/Menu";
-import pato from "../assets/imagenes/pato.jpg";
+import djidji from "../assets/imagenes/djidji.png";
 
 
 const Navbar = () => {
@@ -42,7 +42,7 @@ const Navbar = () => {
         {/* Logo y título */}
         <TitleContainer>
           <Logo
-            src={pato}
+            src={djidji}
             alt="Logo"
             onClick={() => navigate("/")}
           />
