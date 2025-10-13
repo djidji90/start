@@ -9,6 +9,7 @@ import { AuthProvider } from "./components/hook/UseAut";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
+
 // Configuración de React Query
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +31,7 @@ const ProfilePage = lazy(() => import("./components/theme/musica/UserProfile"));
 const MainPage = lazy(() => import("./components/theme/musica/MainPage"));
 const CategoriaProductos = lazy(() => import("./components/theme/musica/ventas/CategoriaProductos"));
 const ProtectedRoute = lazy(() => import("./components/theme/musica/ProtectedRoute"));
+const TechStyleHub = lazy(() =>import("./components/TechStyleHub") );
 
 // Componente de carga
 const LoadingSpinner = () => (
@@ -106,6 +108,7 @@ export default function App() {
                 <Route path="/SingInPage" element={<Register />} />
                 <Route path="/ProfilePage" element={<ProfilePage />} />
                 <Route path="/Todo/*" element={<Todo />} />
+                <Route path="/TechStyleHub" element={<TechStyleHub />} />
                 
                 <Route
                   path="/song/:songId"

@@ -139,53 +139,59 @@ const ProductoCard = ({
         )}
 
         <CardContent>
-          <Typography variant="h6" noWrap>
-            {nombre}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {descripcion || 'Sin descripción disponible'}
-          </Typography>
-          <Typography variant="h5" color="success.main" sx={{ mb: 2 }}>
-            {Number(precio).toLocaleString('es-ES', {
-              style: 'currency',
-              currency: 'CFA'
-            })}
-          </Typography>
+  <Typography variant="h6" noWrap>
+    {nombre}
+  </Typography>
 
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            gap: 1
-          }}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title={copied ? '¡Copiado!' : 'Copiar ID'} arrow>
-                <IconButton onClick={handleCopyID} color={copied ? 'success' : 'primary'}>
-                  <ContentCopyIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Ver detalles" arrow>
-                <IconButton 
-                  onClick={() => setShowDetails(true)} 
-                  color="primary"
-                >
-                  <InfoIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-            
-            <Tooltip title={`Llamar a ${api.tiendaNumber}`} arrow>
-              <Button
-                variant="outlined"
-                startIcon={<PhoneIcon />}
-                onClick={handleCall}
-                sx={{ textTransform: 'none' }}
-              >
-                {isMobile ? 'Llamar' : 'Contacto'}
-              </Button>
-            </Tooltip>
-          </Box>
-        </CardContent>
+  {/* Descripción eliminada del card */}
+  {/* 
+  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+    {descripcion || 'Sin descripción disponible'}
+  </Typography> 
+  */}
+
+  <Typography variant="h5" color="success.main" sx={{ mb: 2 }}>
+    {Number(precio).toLocaleString('es-ES', {
+      style: 'currency',
+      currency: 'CFA'
+    })}
+  </Typography>
+
+  <Box sx={{ 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    gap: 1
+  }}>
+    <Box sx={{ display: 'flex', gap: 1 }}>
+      <Tooltip title={copied ? '¡Copiado!' : 'Copiar ID'} arrow>
+        <IconButton onClick={handleCopyID} color={copied ? 'success' : 'primary'}>
+          <ContentCopyIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Ver detalles" arrow>
+        <IconButton 
+          onClick={() => setShowDetails(true)} 
+          color="primary"
+        >
+          <InfoIcon />
+        </IconButton>
+      </Tooltip>
+    </Box>
+    
+    <Tooltip title={`Llamar a ${api.tiendaNumber}`} arrow>
+      <Button
+        variant="outlined"
+        startIcon={<PhoneIcon />}
+        onClick={handleCall}
+        sx={{ textTransform: 'none' }}
+      >
+        {isMobile ? 'Llamar' : 'Contacto'}
+      </Button>
+    </Tooltip>
+  </Box>
+</CardContent>
+
       </Card>
 
       {/* Modal de detalles */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -27,6 +27,8 @@ const SongCard = ({ song, onLikeToggle }) => {
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [rotate, setRotate] = useState(false);
   const [showCommentsDialog, setShowCommentsDialog] = useState(false);
+  const [cancelTokenSource, setCancelTokenSource] = useState(null);
+  const abortControllerRef = useRef(new AbortController());
 
   useEffect(() => {
     return () => {
@@ -34,8 +36,12 @@ const SongCard = ({ song, onLikeToggle }) => {
         audio.pause();
         URL.revokeObjectURL(audio.src);
       }
+      if (cancelTokenSource) {
+        cancelTokenSource.cancel("Operación cancelada por el usuario");
+      }
+      abortControllerRef.current.abort();
     };
-  }, [audio]);
+  }, [audio, cancelTokenSource]);
 
   const handleStream = async (songId) => {
     if (audio) {
@@ -49,9 +55,18 @@ const SongCard = ({ song, onLikeToggle }) => {
     }
 
     try {
+      const newAbortController = new AbortController();
+      abortControllerRef.current = newAbortController;
+
       const response = await axios.get(
         `${baseURL}/api2/songs/${songId}/stream/`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }, responseType: "blob" }
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`
+          },
+          responseType: "blob",
+          signal: newAbortController.signal
+        }
       );
 
       const audioUrl = URL.createObjectURL(response.data);
@@ -62,8 +77,16 @@ const SongCard = ({ song, onLikeToggle }) => {
       setAudio(newAudio);
       setIsPlaying(true);
     } catch (err) {
-      console.error("Error al reproducir:", err);
-      setSnackbar({ open: true, message: "Error al reproducir la canción", severity: "error" });
+      if (!axios.isCancel(err)) {
+        console.error("Error al reproducir:", err);
+        setSnackbar({
+          open: true,
+          message: err.response?.status === 401
+            ? "Debes iniciar sesión para reproducir"
+            : "Error al reproducir la canción",
+          severity: "error"
+        });
+      }
     }
   };
 
@@ -77,13 +100,21 @@ const SongCard = ({ song, onLikeToggle }) => {
   const handleDownload = async (songId, songTitle) => {
     setDownloading(true);
     try {
+      const source = axios.CancelToken.source();
+      setCancelTokenSource(source);
+
       const response = await axios.get(
         `${baseURL}/api2/songs/${songId}/download/`,
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`
+          },
           responseType: "blob",
+          cancelToken: source.token,
           onDownloadProgress: (progressEvent) => {
-            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
             setDownloadProgress(progress);
           },
         }
@@ -95,22 +126,35 @@ const SongCard = ({ song, onLikeToggle }) => {
       link.setAttribute("download", `${songTitle.replace(/[^a-z0-9]/gi, '_')}.webm`);
       document.body.appendChild(link);
       link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 100);
       link.remove();
 
-      setSnackbar({ open: true, message: "Descarga completada", severity: "success" });
+      setSnackbar({
+        open: true,
+        message: "Descarga completada",
+        severity: "success"
+      });
     } catch (err) {
-      console.error("Error en descarga:", err);
-      setSnackbar({ open: true, message: "Vuelve a intentarlo en una hora", severity: "error" });
+      if (!axios.isCancel(err)) {
+        console.error("Error en descarga:", err);
+        setSnackbar({
+          open: true,
+          message: err.response?.status === 401
+            ? "Debes iniciar sesión para descargar"
+            : "Vuelve a intentarlo en una hora",
+          severity: "error"
+        });
+      }
     } finally {
       setDownloading(false);
       setDownloadProgress(0);
+      setCancelTokenSource(null);
     }
   };
 
   const cleanBaseURL = baseURL?.replace(/\/$/, '');
-  
-  let imageUrl = "/GrillzPrint.jpg";
-  
+  let imageUrl = "/djidji.png";
+
   if (song.image) {
     if (song.image.startsWith("http")) {
       const imagePath = song.image.replace(
@@ -123,7 +167,7 @@ const SongCard = ({ song, onLikeToggle }) => {
       imageUrl = `${cleanBaseURL}/api2/media/images/${fileName}`;
     }
   }
-  
+
   return (
     <Card sx={{
       display: "flex",
@@ -145,7 +189,7 @@ const SongCard = ({ song, onLikeToggle }) => {
           "&:hover": { transform: "scale(1.05)" }
         }}
       />
-      
+
       <CardContent sx={{ padding: 2 }}>
         <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
           {song.title}
@@ -167,12 +211,16 @@ const SongCard = ({ song, onLikeToggle }) => {
             onLikeToggle={(id) => onLikeToggle(id, song.likes_count, song.is_liked)}
           />
 
-          <IconButton 
-            onClick={() => handleDownload(song.id, song.title)} 
+          <IconButton
+            onClick={() => handleDownload(song.id, song.title)}
             disabled={downloading}
           >
             {downloading ? (
-              <CircularProgress size={24} variant="determinate" value={downloadProgress} />
+              <CircularProgress
+                size={24}
+                variant="determinate"
+                value={downloadProgress}
+              />
             ) : (
               <GetApp />
             )}
@@ -194,6 +242,7 @@ const SongCard = ({ song, onLikeToggle }) => {
           }}
         >
           {isPlaying ? <Pause /> : <PlayArrow />}
+          
         </IconButton>
       </CardActions>
 
@@ -202,7 +251,11 @@ const SongCard = ({ song, onLikeToggle }) => {
         autoHideDuration={6000}
         onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
       >
-        <Alert severity={snackbar.severity} sx={{ width: '100%' }}>
+        <Alert
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+          variant="filled"
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
@@ -216,4 +269,4 @@ const SongCard = ({ song, onLikeToggle }) => {
   );
 };
 
-export default SongCard;
+export default React.memo(SongCard);

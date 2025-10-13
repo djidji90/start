@@ -15,7 +15,7 @@ const FETCH_SUCCESS = 'FETCH_SUCCESS';
 const FETCH_FAILURE = 'FETCH_FAILURE';
 const UPDATE_SONG = 'UPDATE_SONG';
 
-// Reducer optimizado con validación de likes
+// Reducer optimizado
 const songsReducer = (state, action) => {
   switch (action.type) {
     case FETCH_INIT:
@@ -40,7 +40,7 @@ const songsReducer = (state, action) => {
   }
 };
 
-// Custom hook mejorado para gestión de canciones
+// Custom hook mejorado con cancelación de solicitudes
 const useSongsManager = (baseURL) => {
   const [state, dispatch] = useReducer(songsReducer, {
     songs: [],
@@ -75,8 +75,9 @@ const useSongsManager = (baseURL) => {
   }, []);
 
   useEffect(() => {
+    const controller = abortController.current;
     fetchSongs();
-    return () => abortController.current.abort();
+    return () => controller.abort();
   }, [fetchSongs]);
 
   return { ...state, fetchSongs, updateSongState };
@@ -113,20 +114,31 @@ const RandomSongs = () => {
     modules: [EffectCoverflow, Pagination, Virtual]
   }), []);
 
-  // Manejador de likes/unlikes optimizado
+  // Manejador de likes optimizado con rollback
   const handleLikeToggle = useCallback((songId, currentLikes, isLiked) => {
-    const newCount = isLiked 
-      ? Math.max(currentLikes - 1, 0)
-      : currentLikes + 1;
+    const originalLikes = currentLikes;
+    const originalLikedState = isLiked;
     
-    updateSongState({
-      id: songId,
-      likes_count: newCount,
-      is_liked: !isLiked
-    });
+    try {
+      const newCount = isLiked 
+        ? Math.max(currentLikes - 1, 0)
+        : currentLikes + 1;
+      
+      updateSongState({
+        id: songId,
+        likes_count: newCount,
+        is_liked: !isLiked
+      });
+    } catch (err) {
+      updateSongState({
+        id: songId,
+        likes_count: originalLikes,
+        is_liked: originalLikedState
+      });
+    }
   }, [updateSongState]);
 
-  // Renderizado de SongCard memoizado
+  // Renderizado optimizado de SongCards
   const renderSongCard = useCallback((song) => (
     <SongCard
       key={song.id}
@@ -162,6 +174,7 @@ const RandomSongs = () => {
           variant="contained"
           onClick={fetchSongs}
           sx={styles.button(theme)}
+          aria-label="Reintentar carga de canciones"
         >
           Reintentar
         </Button>
@@ -176,6 +189,7 @@ const RandomSongs = () => {
           variant="outlined"
           onClick={fetchSongs}
           sx={styles.button(theme)}
+          aria-label="Recargar canciones"
         >
           Recargar
         </Button>

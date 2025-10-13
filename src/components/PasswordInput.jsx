@@ -1,4 +1,3 @@
-// components/PasswordInput.jsx
 import React from "react";
 import PropTypes from "prop-types";
 import { TextField, IconButton, InputAdornment } from "@mui/material";
@@ -22,7 +21,7 @@ const PasswordInput = React.memo(({
     value={value}
     onChange={onChange}
     error={!!error}
-    helperText={helperText}
+    helperText={typeof helperText === "string" ? helperText : ""}
     InputProps={{
       endAdornment: (
         <InputAdornment position="end">
@@ -41,7 +40,7 @@ const PasswordInput = React.memo(({
 
 PasswordInput.propTypes = {
   name: PropTypes.string.isRequired,
-  label: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,  // o usa ReactNode si lo deseas
   value: PropTypes.string.isRequired,
   onChange: PropTypes.func.isRequired,
   show: PropTypes.bool.isRequired,

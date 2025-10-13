@@ -716,6 +716,8 @@ const closeButtonStyle = {
 const SectionTitle = ({ title, withDivider }) => (
   <Typography variant="h3" sx={{ 
     mb: 6,
+fontSize: { xs: '2rem', md: '2.75rem' },
+FontFace: 'Poppins',
     fontWeight: 600,
     color: 'text.primary',
     textAlign: 'center',
@@ -723,7 +725,7 @@ const SectionTitle = ({ title, withDivider }) => (
     '&::after': withDivider ? {
       content: '""',
       display: 'block',
-      width: 100,
+      width: 10,
       height: 4,
       bgcolor: 'primary.main',
       mx: 'auto',

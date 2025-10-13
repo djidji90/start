@@ -18,19 +18,23 @@ const LikeManager = ({ songId, initialLikes, initialLiked, onLikeUpdate }) => {
   }, [initialLikes, initialLiked]);
 
   const handleLike = async () => {
+    // Guardar estado actual antes de la actualización optimista
+    const originalLiked = liked;
+    const originalLikes = likes;
+    
     try {
       setLoading(true);
       setError(null);
       
-      // Optimistic update
-      const newLikedState = !liked;
-      const newLikesCount = newLikedState ? likes + 1 : likes - 1;
+      // Actualización optimista
+      const newLikedState = !originalLiked;
+      const newLikesCount = newLikedState ? originalLikes + 1 : originalLikes - 1;
       
       setLiked(newLikedState);
       setLikes(newLikesCount);
       onLikeUpdate?.(songId, newLikesCount, newLikedState);
 
-      // API call
+      // Llamada a la API
       await axios.post(
         `${api.baseURL}/api2/songs/${songId}/like/`,
         {},
@@ -41,15 +45,15 @@ const LikeManager = ({ songId, initialLikes, initialLiked, onLikeUpdate }) => {
         }
       );
     } catch (error) {
-      // Rollback on error
-      setLiked(initialLiked);
-      setLikes(initialLikes);
-      onLikeUpdate?.(songId, initialLikes, initialLiked);
+      // Revertir cambios en caso de error
+      setLiked(originalLiked);
+      setLikes(originalLikes);
+      onLikeUpdate?.(songId, originalLikes, originalLiked);
       
       const errorMessage = error.response?.status === 401
         ? 'Debes iniciar sesión para dar like'
         : 'Error al actualizar el like';
-        
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
