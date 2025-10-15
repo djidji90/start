@@ -1,16 +1,27 @@
-// Permite importar cualquier archivo JSX
+// shims.d.ts
+
+// Permite importar archivos .jsx como módulos válidos
 declare module "*.jsx" {
-  import type { FC } from "react";
-  const component: FC<any>;
-  export default component;
+  const value: any;
+  export default value;
+}
+
+// Permite importar archivos .ts, .tsx sin errores adicionales
+declare module "*.tsx" {
+  const value: any;
+  export default value;
 }
 
 // Permite importar archivos CSS
-declare module "*.css";
+declare module "*.css" {
+  const content: { [className: string]: string };
+  export default content;
+}
 
-// Permite importar imágenes si las usas en React
+// Para imágenes y assets estáticos
 declare module "*.png";
 declare module "*.jpg";
 declare module "*.jpeg";
 declare module "*.gif";
 declare module "*.svg";
+declare module "*.webp";
