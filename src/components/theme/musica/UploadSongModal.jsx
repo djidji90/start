@@ -286,6 +286,7 @@ const UploadSongModal = ({ open, onClose, onUploadSuccess }) => {
       resetForm();
       onClose();
     }
+     
   };
 
   const handleFeedbackClose = () => {

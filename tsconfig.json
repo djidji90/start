@@ -1,13 +1,16 @@
 {
-    "compilerOptions": {
-      "composite": true,
-      "module": "node16",
-      "moduleResolution": "node16",
-      "allowSyntheticDefaultImports": true,
-      "strict": true,
-"forceConsistentCasingInFileNames": true
-
-    },
-    "include": ["vite.config.ts"]
-  }
-  
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["vite.config.ts", "src", "src/shims.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}

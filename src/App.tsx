@@ -9,6 +9,8 @@ import { AuthProvider } from "./components/hook/UseAut";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
+// 🔹 Solución al error "Cannot find module for './styles.css'"
+declare module "*.css";
 
 // Configuración de React Query
 const queryClient = new QueryClient({
@@ -16,22 +18,21 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 60 * 1000, // 1 minuto
       refetchOnWindowFocus: false,
-      retry: 2
-    }
-  }
+      retry: 2,
+    },
+  },
 });
 
-// Componentes estáticos
+// Componentes cargados dinámicamente
 const Todo = lazy(() => import("./todo"));
 const AboutUs = lazy(() => import("./components/AboutUs"));
 const Login = lazy(() => import("./components/Loginn"));
 const Register = lazy(() => import("./components/Registrate"));
-const SongDetailsPage = lazy(() => import("./components/theme/musica/SongsDetaill"));
 const ProfilePage = lazy(() => import("./components/theme/musica/UserProfile"));
 const MainPage = lazy(() => import("./components/theme/musica/MainPage"));
 const CategoriaProductos = lazy(() => import("./components/theme/musica/ventas/CategoriaProductos"));
 const ProtectedRoute = lazy(() => import("./components/theme/musica/ProtectedRoute"));
-const TechStyleHub = lazy(() =>import("./components/TechStyleHub") );
+const TechStyleHub = lazy(() => import("./components/TechStyleHub"));
 
 // Componente de carga
 const LoadingSpinner = () => (
@@ -66,18 +67,18 @@ const LoadingSpinner = () => (
 );
 
 export default function App() {
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setCartOpen] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e) => {
+    const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.ready.then((registration) => {
+      navigator.serviceWorker.ready.then((_registration) => {
         Notification.requestPermission();
       });
     }
@@ -98,7 +99,7 @@ export default function App() {
           <BrowserRouter>
             <CartDrawer cartItems={cartItems} isOpen={isCartOpen} toggleDrawer={toggleCart} />
             <Navbar />
-            
+
             <Suspense fallback={<LoadingSpinner />}>
               <Routes>
                 <Route path="/" element={<Login />} />
@@ -109,18 +110,18 @@ export default function App() {
                 <Route path="/ProfilePage" element={<ProfilePage />} />
                 <Route path="/Todo/*" element={<Todo />} />
                 <Route path="/TechStyleHub" element={<TechStyleHub />} />
-                
+
                 <Route
                   path="/song/:songId"
                   element={
                     <ProtectedRoute>
-                      <SongDetailsPage />
+                      <MainPage />
                     </ProtectedRoute>
                   }
                 />
               </Routes>
             </Suspense>
-            
+
             <Footer />
           </BrowserRouter>
         </ThemeProviderWrapper>
