@@ -1,20 +1,25 @@
 {
-    "short_name": "djidji music",
-    "name": "djidji music ecuabeats Web",
-    "icons": [
-      {
-        "src": "/logo192.png",
-        "type": "image/png",
-        "sizes": "192x192"
-      },
-      {
-        "src": "/logo512.png",
-        "type": "image/png",
-        "sizes": "512x512"
-      }
-    ],
-    "start_url": "/",
-    "display": "standalone",
-    "theme_color": "#1976d2",
-    "background_color": "#ffffff"
-  }
+  "short_name": "DjidjiMusic",
+  "name": "DjidjiMusic - Streaming y tienda musical",
+  "icons": [
+    {
+      "src": "/logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/logo384.png",
+      "type": "image/png",
+      "sizes": "384x384"
+    },
+    {
+      "src": "/logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#FF4D4D",
+  "background_color": "#1E1E1E"
+}

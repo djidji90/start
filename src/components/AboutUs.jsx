@@ -25,7 +25,8 @@ const AboutUs = () => {
     <Box sx={{ backgroundColor: "#f4f4f9", minHeight: "100vh", py: 8 }}>
       <Container>
         {/* Encabezado */}
-        <Box textAlign="center" mb={6}>
+        <Box textAlign="cenev
+        ter" mb={6}>
           <Typography variant="h2" fontWeight={700} gutterBottom>
             Sobre Nosotros
           </Typography>

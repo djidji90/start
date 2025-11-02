@@ -24,3 +24,13 @@ node_modules
 *.sw?
 datos.jsx
 Dato
+# OS files
+.DS_Store
+# Build outputs
+dist/
+
+# Log files
+*.log
+
+# OS files
+.DS_Store

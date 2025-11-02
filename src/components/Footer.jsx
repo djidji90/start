@@ -42,11 +42,11 @@ const Footer = () => {
   }, []);
 
   const socialLinks = [
-    { icon: <Facebook />, name: "Facebook", color: "#1877F2", url:"https://facebook.com/mtv" },
+    { icon: <Facebook />, name: "Facebook", color: "#1877F2", url:"https://www.facebook.com/profile.php?id=61583244630732" },
     { icon: <Telegram />, name: "Telegram", color: "#0088CC", url: "https://t.me/LeoMachimbo" },
-    { icon: <Twitter />, name: "Twitter", color: "#1DA1F2", url: "https://twitter.com/spotify" },
-    { icon: <Instagram />, name: "Instagram", color: "#E4405F", url: "https://instagram.com/spotify" },
-    { icon: <YouTube />, name: "YouTube", color: "#FF0000", url: "https://youtube.com/c/spotify" },
+    { icon: <Twitter />, name: "Twitter", color: "#1DA1F2", url: "https://x.com/MachimboLeon" },
+    { icon: <Instagram />, name: "Instagram", color: "#E4405F", url: "https://www.instagram.com/djidjimusic/" },
+    { icon: <YouTube />, name: "YouTube", color: "#FF0000", url: "https://www.youtube.com/@leonciomachimbo" },
     { icon: <WhatsApp />, name: "WhatsApp", color: "#25D366", url: "https://wa.me/240555380241"},
   ];
 
