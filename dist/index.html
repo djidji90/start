@@ -4,46 +4,99 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <title>DjidjiMusic - Streaming y tienda musical</title>
+    <title>DjidjiMusic - Música Ecuatoguineana, Streaming y Tienda Digital</title>
 
     <!-- Manifest PWA -->
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Favicon - ACTUALIZADO CON TU LOGO REAL -->
+    <!-- Favicon y Apple Icon -->
     <link rel="icon" href="/djidji.png" type="image/png" />
-
-    <!-- Iconos para Apple Touch - ACTUALIZADO CON TU LOGO REAL -->
     <link rel="apple-touch-icon" href="/djidji.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/djidji.png" />
-    
+
     <!-- Configuración iOS -->
     <meta name="apple-mobile-web-app-title" content="DjidjiMusic" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
 
-    <!-- Tema de la app - Mantener para navegadores que lo soportan -->
-    <meta name="theme-color" content="#FF4D4D" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-    
-    <!-- Soporte para Microsoft -->
-    <meta name="msapplication-TileColor" content="#FF4D4D" />
+    <!-- Tema de la app -->
+    <meta
+      name="theme-color"
+      content="#FF4D4D"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: dark)"
+    />
 
-    <!-- Open Graph para redes y SEO - ACTUALIZADO CON TU LOGO REAL -->
+    <!-- SEO principal -->
+    <meta
+      name="description"
+      content="DjidjiMusic es la primera plataforma de streaming y tienda musical especializada en la música ecuatoguineana. Descubre el mejor Eua-Beat, artistas locales y compra tus canciones favoritas online."
+    />
+    <meta
+      name="keywords"
+      content="DjidjiMusic, música ecuatoguineana, Guinea Ecuatorial, Eua-Beat, artistas de Malabo, streaming africano, tienda musical, afrobeat, cultura ecuatoguineana"
+    />
+    <meta name="author" content="DjidjiMusic" />
+
+    <!-- SEO local (geolocalización) -->
+    <meta name="geo.region" content="GQ" />
+    <meta name="geo.placename" content="Malabo" />
+    <meta name="geo.position" content="3.7500;8.7833" />
+    <meta name="ICBM" content="3.7500, 8.7833" />
+
+    <!-- Open Graph (Facebook, WhatsApp, etc.) -->
     <meta property="og:title" content="DjidjiMusic" />
-    <meta property="og:description" content="Busca, escucha y compra música online desde tu PWA." />
+    <meta
+      property="og:description"
+      content="Descubre, escucha y compra música ecuatoguineana. El hogar del Eua-Beat."
+    />
     <meta property="og:image" content="/djidji.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://tusitio.com" />
 
-    <!-- Twitter Card - ACTUALIZADO CON TU LOGO REAL -->
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="DjidjiMusic" />
-    <meta name="twitter:description" content="Busca, escucha y compra música online desde tu PWA." />
+    <meta
+      name="twitter:description"
+      content="Escucha y compra música ecuatoguineana en la primera plataforma del país."
+    />
     <meta name="twitter:image" content="/djidji.png" />
 
-    <!-- Descripción para SEO -->
-    <meta name="description" content="DjidjiMusic - todo el Eua-Beat en un solo lugar Descubre, escucha y compra tu música favorita." />
-    <script type="module" crossorigin src="/assets/index-Bc769idg.js"></script>
+    <!-- JSON-LD: Datos estructurados para Google -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": ["MusicStore", "MusicStreamingService"],
+        "name": "DjidjiMusic",
+        "url": "https://djidjimusic.com",
+        "description": "Plataforma de streaming y tienda musical especializada en música ecuatoguineana y Eua-Beat.",
+        "image": "https://djidjimusic.com/djidji.png",
+        "sameAs": [
+          "https://facebook.com/DjidjiMusic",
+          "https://instagram.com/DjidjiMusic",
+          "https://twitter.com/DjidjiMusic"
+        ],
+        "address": {
+          "@type": "PostalAddress",
+          "addressCountry": "GQ",
+          "addressLocality": "Malabo"
+        },
+        "genre": "Música ecuatoguineana",
+        "offers": {
+          "@type": "Offer",
+          "category": "Streaming y compra de música digital"
+        }
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-B3Ul6iBb.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-C0lSWadz.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
 
