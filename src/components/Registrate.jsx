@@ -189,7 +189,11 @@ const Register = () => {
     setIsSubmitting(true);
     
     try {
-      const response = await axios.post(`${api.baseURL}/api/register/`, formData);
+     api.baseURL = "https://djibackend-production.up.railway.app";
+
+const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
+
+
       
       setSuccessMessage("¡Registro exitoso! Redirigiendo...");
       setOpenDialog(true);

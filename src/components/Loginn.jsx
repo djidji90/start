@@ -92,10 +92,11 @@
         // Obtener la IP antes de enviar la solicitud
         if (!ipAddress) await fetchIPAddress();
 
-        const response = await axios.post(`${api.baseURL}/api/api/token/`, {
-          ...formData,
-          ip: ipAddress,
-        });
+        const response = await axios.post(`${api.baseURL}musica/api/token/`, {
+  ...formData,
+  ip: ipAddress,
+});
+
 
         localStorage.setItem("accessToken", response.data.access);
         localStorage.setItem("username", formData.username);
