@@ -19,6 +19,13 @@ import {
   InputAdornment,
   Link
 } from "@mui/material";
+import { 
+  CheckCircle, 
+  Security, 
+  Gavel, 
+  PrivacyTip, 
+  Warning 
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useConfig } from "./hook/useConfig"; 
 import PasswordInput from "./PasswordInput";
@@ -29,6 +36,169 @@ const genderOptions = [
   { value: "O", label: "Otro" },
 ];
 
+// Componente de Términos y Condiciones
+const TermsAndConditions = ({ open, onClose, onAccept }) => {
+  return (
+    <Dialog 
+      open={open} 
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      scroll="paper"
+      sx={{
+        '& .MuiDialog-paper': {
+          maxHeight: '80vh'
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        bgcolor: 'primary.main', 
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        <Gavel />
+        Términos y Condiciones de Uso - DjiMusic
+      </DialogTitle>
+      
+      <DialogContent sx={{ p: 3 }}>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom color="primary">
+            🎵 Bienvenido a DjiMusic
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Última actualización: {new Date().toLocaleDateString()}
+          </Typography>
+        </Box>
+
+        {/* Sección 1: Aceptación */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            <CheckCircle color="primary" sx={{ mr: 1, fontSize: 20 }} />
+            1. Aceptación de Términos
+          </Typography>
+          <Typography variant="body2" paragraph>
+            Al registrarte en DjiMusic, aceptas cumplir con estos términos y condiciones. 
+            Si no estás de acuerdo con alguno de estos términos, no podrás utilizar nuestros servicios.
+          </Typography>
+        </Box>
+
+        {/* Sección 2: Uso del Servicio */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            <Security color="primary" sx={{ mr: 1, fontSize: 20 }} />
+            2. Uso del Servicio
+          </Typography>
+          <Typography variant="body2" paragraph>
+            • Debes ser mayor de 13 años para utilizar el servicio (o contar con autorización parental)
+          </Typography>
+          <Typography variant="body2" paragraph>
+            • El contenido es para uso personal, no para redistribución comercial
+          </Typography>
+          <Typography variant="body2" paragraph>
+            • No puedes: vulnerar derechos de autor, realizar ingeniería inversa, sobrecargar los servidores
+          </Typography>
+        </Box>
+
+        {/* Sección 3: Contenido y Derechos */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            <Gavel color="primary" sx={{ mr: 1, fontSize: 20 }} />
+            3. Contenido y Derechos de Autor
+          </Typography>
+          <Typography variant="body2" paragraph>
+            DjiMusic respeta los derechos de propiedad intelectual. Los usuarios son responsables 
+            del contenido que suben y deben contar con los derechos necesarios para compartirlo.
+          </Typography>
+          <Typography variant="body2" paragraph>
+            Al subir contenido, otorgas a DjiMusic una licencia no exclusiva para almacenar, 
+            reproducir y distribuir dicho contenido dentro de la plataforma.
+          </Typography>
+        </Box>
+
+        {/* Sección 4: Privacidad */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            <PrivacyTip color="primary" sx={{ mr: 1, fontSize: 20 }} />
+            4. Privacidad y Datos
+          </Typography>
+          <Typography variant="body2" paragraph>
+            Tu privacidad es importante. Recopilamos y utilizamos tu información personal 
+            según lo establecido en nuestra Política de Privacidad.
+          </Typography>
+          <Typography variant="body2">
+            Podemos recopilar: información de registro, datos de uso, preferencias musicales, 
+            y datos técnicos necesarios para el funcionamiento del servicio.
+          </Typography>
+        </Box>
+
+        {/* Sección 5: Limitaciones */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            <Warning color="warning" sx={{ mr: 1, fontSize: 20 }} />
+            5. Limitaciones de Responsabilidad
+          </Typography>
+          <Typography variant="body2" paragraph>
+            DjiMusic no se hace responsable por interrupciones del servicio por mantenimiento 
+            o causas externas, contenido subido por usuarios que infrinja derechos de autor, 
+            o uso indebido de la plataforma por parte de usuarios.
+          </Typography>
+        </Box>
+
+        {/* Sección 6: Modificaciones */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            🔄 6. Modificaciones de Términos
+          </Typography>
+          <Typography variant="body2">
+            Nos reservamos el derecho de modificar estos términos en cualquier momento. 
+            Las modificaciones serán notificadas y el uso continuado del servicio implica 
+            la aceptación de los nuevos términos.
+          </Typography>
+        </Box>
+
+        {/* Contacto */}
+        <Box sx={{ 
+          p: 2, 
+          bgcolor: 'grey.50', 
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'grey.200',
+          mt: 3
+        }}>
+          <Typography variant="subtitle2" gutterBottom>
+            📧 Contacto
+          </Typography>
+          <Typography variant="body2">
+            Para preguntas sobre estos términos:{" "}
+            <strong>legal@djimusic.com</strong>
+          </Typography>
+        </Box>
+      </DialogContent>
+      
+      <DialogActions sx={{ p: 3, gap: 1 }}>
+        <Button 
+          onClick={onClose}
+          variant="outlined"
+          color="inherit"
+        >
+          Cerrar
+        </Button>
+        <Button 
+          onClick={onAccept}
+          variant="contained"
+          color="primary"
+          startIcon={<CheckCircle />}
+        >
+          Aceptar Términos
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// Componente Principal Register
 const Register = () => {
   const navigate = useNavigate();
   const { api } = useConfig();
@@ -57,6 +227,10 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showPassword2, setShowPassword2] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Nuevos estados para el modal de términos
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [hasReadTerms, setHasReadTerms] = useState(false);
 
   const validateField = useCallback((name, value) => {
     const validations = {
@@ -175,6 +349,25 @@ const Register = () => {
     }));
   }, [formData, validateField]);
 
+  // Funciones para manejar el modal de términos
+  const handleOpenTerms = useCallback((e) => {
+    e.preventDefault();
+    setTermsModalOpen(true);
+  }, []);
+
+  const handleCloseTerms = useCallback(() => {
+    setTermsModalOpen(false);
+  }, []);
+
+  const handleAcceptTerms = useCallback(() => {
+    setHasReadTerms(true);
+    setFormData(prev => ({
+      ...prev,
+      terms_accepted: true
+    }));
+    setTermsModalOpen(false);
+  }, []);
+
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     
@@ -189,11 +382,8 @@ const Register = () => {
     setIsSubmitting(true);
     
     try {
-     api.baseURL = "https://djibackend-production.up.railway.app";
-
-const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
-
-
+      api.baseURL = "https://djibackend-production.up.railway.app";
+      const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
       
       setSuccessMessage("¡Registro exitoso! Redirigiendo...");
       setOpenDialog(true);
@@ -478,6 +668,7 @@ const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
             />
           </Grid>
 
+          {/* SECCIÓN ACTUALIZADA DE TÉRMINOS */}
           <Grid item xs={12}>
             <FormControlLabel
               control={
@@ -490,13 +681,34 @@ const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
                 />
               }
               label={
-                <span>
-                  Acepto los{' '}
-                  <Link href="/terms" color="primary">
-                    términos y condiciones
-                  </Link>
-                  <span style={{ color: 'red' }}>*</span>
-                </span>
+                <Box>
+                  <span>
+                    He leído y acepto los{' '}
+                    <Link 
+                      component="button" 
+                      type="button"
+                      onClick={handleOpenTerms}
+                      color="primary"
+                      sx={{ 
+                        textDecoration: 'underline',
+                        fontSize: 'inherit',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      términos y condiciones
+                    </Link>
+                    <span style={{ color: 'red' }}>*</span>
+                  </span>
+                  {hasReadTerms && (
+                    <Typography 
+                      variant="caption" 
+                      color="success.main"
+                      sx={{ display: 'block', mt: 0.5 }}
+                    >
+                      ✅ Has leído y aceptado los términos y condiciones
+                    </Typography>
+                  )}
+                </Box>
               }
             />
             <FieldError error={errors.terms_accepted} touched={touched.terms_accepted} />
@@ -524,6 +736,7 @@ const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
         </Button>
       </Typography>
 
+      {/* Modal de éxito */}
       <Dialog 
         open={openDialog} 
         onClose={() => setOpenDialog(false)}
@@ -544,6 +757,7 @@ const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
         </DialogActions>
       </Dialog>
 
+      {/* Modal de carga */}
       <Dialog open={isSubmitting} disablePortal>
         <DialogContent sx={{ textAlign: 'center', p: 4 }}>
           <CircularProgress />
@@ -552,6 +766,13 @@ const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
           </Typography>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Términos y Condiciones */}
+      <TermsAndConditions
+        open={termsModalOpen}
+        onClose={handleCloseTerms}
+        onAccept={handleAcceptTerms}
+      />
     </Box>
   );
 };
