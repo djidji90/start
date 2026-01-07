@@ -3,7 +3,7 @@ import axios from "axios";
 
 // VITE_API_URL viene del archivo .env de Vite
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/",
+  baseURL: import.meta.env.VITE_API_URL || "https://api.djidjimusic.com/",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
