@@ -1,12 +1,13 @@
 import axios from "axios"; // Import normal, no uses la ruta directa de node_modules
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "https://api.example.com/",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
 
 // Interceptor global para manejar errores
 api.interceptors.response.use(
