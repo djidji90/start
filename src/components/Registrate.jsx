@@ -172,7 +172,7 @@ const TermsAndConditions = ({ open, onClose, onAccept }) => {
           </Typography>
           <Typography variant="body2">
             Para preguntas sobre estos términos:{" "}
-            <strong>legal@djimusic.com</strong>
+            <strong>machimboleoncio@gmail.com</strong>
           </Typography>
         </Box>
       </DialogContent>

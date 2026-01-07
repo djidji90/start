@@ -177,7 +177,7 @@ const TermsAndConditions = ({ open, onClose, onAccept }) => {
             📧 Contacto
           </Typography>
           <Typography variant="body2">
-            Para consultas sobre estos términos y nuestra política de privacidad: <strong>legal@djimusic.com</strong>
+            Para consultas sobre estos términos y nuestra política de privacidad: <strong>machimboleoncio@gmail.com</strong>
           </Typography>
         </Box>
       </DialogContent>

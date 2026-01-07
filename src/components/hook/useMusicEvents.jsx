@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from './apia';
+import { api } from './apiConfig';
 
 export const useMusicEvents = (eventId = null) => {
   const [data, setData] = useState(null);

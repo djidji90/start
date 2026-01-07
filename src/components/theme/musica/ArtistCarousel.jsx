@@ -136,7 +136,7 @@ const ArtistCarouselReact = () => {
         Nuestros Artistas Destacados
       </Typography>
       <Typography variant="body1" sx={{ mb: 4, color: "text.secondary" }}>
-        Descubre el talento excepcional que forma parte de Mi Musical
+        
       </Typography>
 
       {loading ? (

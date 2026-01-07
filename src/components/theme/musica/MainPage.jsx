@@ -1,243 +1,297 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  IconButton,
-  LinearProgress,
-  TextField,
-  Typography,
+import React, { useState, useEffect, useRef } from "react";
+import { 
+  Box, 
+  Container, 
+  Typography, 
+  Paper,
   useTheme,
-  styled,
-  Avatar,
-  Tooltip,
-  CircularProgress,
-   // <- asegúrate que está esta línea
-} from '@mui/material';
-import { Grid } from '@mui/material';
-
-import Alert from "@mui/material/Alert";
-import Snackbar from "@mui/material/Snackbar";
-
-import SongSearchPage from "./SearchBar";
-import RandomSongs from "./RandomSongs";
-import FunImagePage from "./PopularSongs";
-import SongCard from "./SongCard";
-import CommentsSection from "./CommentsPage";
-import UploadSongModal from "./UploadSongModal"; // Importa el modal
+  useMediaQuery,
+  Fade
+} from "@mui/material";
+import SearchBar from "../../../components/search/SearchBar";
+import SearchResults from "../../../components/search/SearchResults";
+import { useSearch } from "../../../components/hook/services/useSearch";
+import SongCarousel from "../../../songs/SongCarousel";
+import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
+import PopularSongs from "../../../components/theme/musica/PopularSongs";
 
 const MainPage = () => {
-  const [error, setError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [selectedSong, setSelectedSong] = useState(null);
-  const [commentsVisible, setCommentsVisible] = useState(false);
-  const [userInteracted, setUserInteracted] = useState(false);
-
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [songs, setSongs] = useState([]); // Opcional: si quieres manejar listado aquí
-
-  const mainContainerRef = useRef(null);
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Manejar la interacción inicial del usuario
-  const handleUserInteraction = () => {
-    if (!userInteracted) {
-      setUserInteracted(true);
-    }
-  };
+  const { 
+    query,
+    setQuery,
+    structuredResults = { songs: [], artists: [], suggestions: [] }, 
+    loading, 
+    error, 
+    closeResults,
+    isOpen: hookIsOpen
+  } = useSearch();
 
+  const [showResults, setShowResults] = useState(false);
+  const [selectedSongs, setSelectedSongs] = useState([]);
+
+  const searchBarRef = useRef(null);
+  const resultsRef = useRef(null);
+
+  /* -------------------- CANCIONES INICIALES -------------------- */
   useEffect(() => {
-    const container = mainContainerRef.current;
-
-    const events = ["click", "touchstart", "keydown"];
-    const handleInteraction = () => handleUserInteraction();
-
-    events.forEach((event) => {
-      container.addEventListener(event, handleInteraction, { once: true });
-    });
-
-    return () => {
-      events.forEach((event) => {
-        container.removeEventListener(event, handleInteraction);
-      });
-    };
+    setSelectedSongs([
+      { 
+        id: 1, 
+        title: "Malo", 
+        artist: "Jordi", 
+        genre: "Hip Hop", 
+        duration: 180,
+        cover: null
+      },
+      { 
+        id: 2, 
+        title: "Badeko Ya Basy", 
+        artist: "Franco", 
+        genre: "Rumba", 
+        duration: 240,
+        cover: null
+      },
+      { 
+        id: 3, 
+        title: "FD", 
+        artist: "DDD", 
+        genre: "Pop", 
+        duration: 210,
+        cover: null
+      }
+    ]);
   }, []);
 
-  // Función para manejar el streaming seguro
-  const handleStream = (songId) => {
-    if (!userInteracted) {
-      displayError(
-        "Por favor haz clic en cualquier parte de la página para activar la reproducción"
-      );
-      return;
+  /* -------------------- CONTROL DE RESULTADOS -------------------- */
+  useEffect(() => {
+    const hasResults =
+      structuredResults?.songs?.length > 0 ||
+      structuredResults?.artists?.length > 0;
+
+    if (hookIsOpen || (hasResults && query.length >= 2)) {
+      setShowResults(true);
+    } else {
+      setShowResults(false);
     }
-    // Lógica de streaming aquí
+  }, [hookIsOpen, structuredResults, query]);
+
+  /* -------------------- CLICK FUERA -------------------- */
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        showResults &&
+        searchBarRef.current &&
+        !searchBarRef.current.contains(e.target) &&
+        resultsRef.current &&
+        !resultsRef.current.contains(e.target)
+      ) {
+        handleCloseResults();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
+  }, [showResults]);
+
+  const handleCloseResults = () => {
+    setShowResults(false);
+    closeResults?.();
   };
 
-  // Resto de handlers (debes implementar)
-  const handleLike = (songId) => {
-    // ...
-  };
-  const handleDownload = (songId, title) => {
-    // ...
+  /* -------------------- SELECCIÓN DE CANCIONES -------------------- */
+  const handleSelectResult = (item, type) => {
+    if (type === "song") {
+      setSelectedSongs(prev => [
+        {
+          ...item,
+          id: `${item.id}-${Date.now()}`,
+          title: item.title || "Sin título",
+          artist: item.artist || "Artista desconocido",
+          genre: item.genre || "Desconocido",
+          cover: item.cover || null
+        },
+        ...prev
+      ]);
+    }
+
+    if (type === "artist") {
+      setSelectedSongs([
+        { 
+          id: Date.now(), 
+          title: `${item.name} - Hit 1`, 
+          artist: item.name,
+          genre: "Artista",
+          duration: 180,
+          cover: null
+        },
+        { 
+          id: Date.now() + 1, 
+          title: `${item.name} - Hit 2`, 
+          artist: item.name,
+          genre: "Artista",
+          duration: 200,
+          cover: null
+        }
+      ]);
+    }
+
+    handleCloseResults();
   };
 
-  const handleCommentClick = (song) => {
-    setSelectedSong(song);
-    setCommentsVisible(true);
-  };
-
-  const closeComments = () => {
-    setSelectedSong(null);
-    setCommentsVisible(false);
-  };
-
-  const displayError = (message) => {
-    setError(true);
-    setErrorMessage(message);
-  };
-
-  const handleRetry = () => {
-    setError(false);
-    setErrorMessage("");
-  };
-
-  // Nuevo: abrir modal subir canción
-  const openUploadModal = () => {
-    setUploadModalOpen(true);
-  };
-  const closeUploadModal = () => {
-    setUploadModalOpen(false);
-  };
-
-  // Nuevo: cuando se suba una canción, actualizamos estado o refrescamos listado
-  const onUploadSuccess = (newSong) => {
-    // Si tienes lógica para refrescar listado, agrégala aquí.
-    // Por ejemplo, si manejas songs aquí:
-    setSongs((prev) => [newSong, ...prev]);
-
-    // También puedes mostrar mensaje o hacer otras acciones
-  };
-
+  /* ============================ RENDER ============================ */
   return (
-    <Box
-      ref={mainContainerRef}
-      sx={{
-        padding: 4,
-        backgroundColor: theme.palette.background.paper,
-        minHeight: "100vh",
-      }}
-      tabIndex="0"
-      role="button"
-    >
-      {/* Botón para abrir modal subir canción */}
-      <Box sx={{ mb: 4, textAlign: "right" }}>
-        <Button variant="contained" color="primary" onClick={openUploadModal}>
-          sube tu Nueva cancìon
-        </Button>
-      </Box>
-
-      {/* Modal para subir canción */}
-      <UploadSongModal
-        open={uploadModalOpen}
-        onClose={closeUploadModal}
-        onUploadSuccess={onUploadSuccess}
-      />
-
-      {/* Contenido principal */}
-      <Box sx={{ marginBottom: 4 }}>
-        <SongSearchPage
-          onLike={handleLike}
-          onDownload={handleDownload}
-          onStream={handleStream}
-          userInteracted={userInteracted}
-        />
-      </Box>
-
-      <Box sx={{ marginTop: 6, marginBottom: 6 }}>
-        <Typography
-          variant="h4"
-          sx={{
-            fontFamily: "Pacifico, cursive",
-            textAlign: "center",
-            fontWeight: "bold",
-            marginBottom: 3,
-            color: "primary.main",
-          }}
-        >
-          Descubre nuevas canciones
-        </Typography>
-
-        <RandomSongs
-          onLike={handleLike}
-          onDownload={handleDownload}
-          onStream={handleStream}
-          onCommentClick={handleCommentClick}
-          userInteracted={userInteracted}
-          songs={songs} // si RandomSongs acepta canciones como prop
-        />
-      </Box>
-
-      <FunImagePage userInteracted={userInteracted} />
-
-      {/* Sección de errores */}
-      {error && (
-        <Box sx={{ textAlign: "center", marginTop: 3 }}>
-          <Alert severity="error">{errorMessage}</Alert>
-          <Button
-            onClick={handleRetry}
-            sx={{
-              marginTop: 2,
-              backgroundColor: theme.palette.secondary.main,
-              "&:hover": { backgroundColor: theme.palette.secondary.dark },
+    <Box sx={{
+      minHeight: "100vh",
+      backgroundColor: "#ffffff",
+      pt: { xs: 3, md: 6 },
+      pb: 8
+    }}>
+      <Container maxWidth="lg">
+        {/* HEADER MINIMALISTA */}
+        <Box sx={{ 
+          textAlign: "center", 
+          mb: { xs: 4, md: 6 },
+          px: { xs: 2, sm: 0 }
+        }}>
+          <Typography 
+            variant="h1"
+            sx={{ 
+              fontSize: { xs: "2.5rem", md: "3.5rem" },
+              fontWeight: 300,
+              color: "#1a1a1a",
+              letterSpacing: "-0.02em",
+              fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
+              mb: 1
             }}
-            variant="contained"
           >
-            Intentar nuevamente
-          </Button>
+            djidjimusic
+          </Typography>
+          <Typography 
+            variant="subtitle1"
+            sx={{ 
+              color: "#666",
+              fontWeight: 300,
+              fontSize: "1.1rem"
+            }}
+          >
+            {/* Espacio intencionalmente vacío para minimalismo */}
+          </Typography>
         </Box>
-      )}
 
-      {/* Sección de comentarios */}
-      {commentsVisible && selectedSong && (
-        <Box
-          sx={{
-            padding: 3,
-            backgroundColor: "#f9f9f9",
-            borderRadius: 2,
-            marginTop: 4,
-            boxShadow: 4,
+        {/* BÚSQUEDA */}
+        <Box 
+          ref={searchBarRef} 
+          sx={{ 
+            maxWidth: 600, 
+            mx: "auto", 
+            mb: 8,
+            position: "relative" 
           }}
         >
-          <Typography variant="h6" sx={{ marginBottom: 2 }}>
-            Comentarios para: {selectedSong.title} - {selectedSong.artist}
-          </Typography>
-          <Button
-            onClick={closeComments}
-            sx={{ marginBottom: 2 }}
-            variant="contained"
-            color="primary"
+          <Paper 
+            elevation={0}
+            sx={{ 
+              borderRadius: "12px",
+              backgroundColor: "#fafafa",
+              border: "1px solid #eaeaea",
+              overflow: "hidden",
+              transition: "border-color 0.2s ease",
+              "&:hover": {
+                borderColor: "#d0d0d0"
+              }
+            }}
           >
-            Cerrar comentarios
-          </Button>
-          <CommentsSection songId={selectedSong.id} />
-        </Box>
-      )}
+            <SearchBar
+              query={query}
+              onQueryChange={setQuery}
+              loading={loading}
+              autoFocus={!isMobile}
+            />
+          </Paper>
 
-      {/* Snackbar de error */}
-      <Snackbar
-        open={error}
-        autoHideDuration={6000}
-        onClose={() => setError(false)}
-      >
-        <Alert onClose={() => setError(false)} severity="error">
-          {errorMessage}
-        </Alert>
-      </Snackbar>
+          {/* RESULTADOS DE BÚSQUEDA */}
+          {showResults && (
+            <Fade in timeout={200}>
+              <Box 
+                ref={resultsRef}
+                sx={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  zIndex: 1000,
+                  mt: 1
+                }}
+              >
+                <SearchResults
+                  results={structuredResults}
+                  loading={loading}
+                  error={error}
+                  isOpen={showResults}
+                  onClose={handleCloseResults}
+                  onSelect={handleSelectResult}
+                />
+              </Box>
+            </Fade>
+          )}
+        </Box>
+
+        {/* ARTIST CAROUSEL CON ESTILO INSTAGRAM */}
+        <Box sx={{ mb: 8 }}>
+          <ArtistCarousel />
+        </Box>
+
+        {/* CONTENIDO PRINCIPAL */}
+        <Box sx={{ mb: 8 }}>
+          {selectedSongs.length > 0 ? (
+            <>
+              <Box sx={{ mb: 4 }}>
+                <Typography 
+                  variant="h6"
+                  sx={{ 
+                    color: "#1a1a1a",
+                    fontWeight: 400,
+                    fontSize: "1.25rem",
+                    mb: 2
+                  }}
+                >
+                  {/* Título intencionalmente vacío */}
+                </Typography>
+                
+                <SongCarousel
+                  songs={selectedSongs}
+                  title={null}
+                />
+              </Box>
+            </>
+          ) : (
+            <Box sx={{ 
+              textAlign: "center", 
+              py: 8 
+            }}>
+              <Typography 
+                variant="h6"
+                sx={{ 
+                  color: "#888",
+                  fontWeight: 300,
+                  fontSize: "1.1rem"
+                }}
+              >
+                {/* Mensaje intencionalmente vacío */}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
+        {/* POPULAR SONGS */}
+        <Box>
+          <PopularSongs />
+        </Box>
+      </Container>
     </Box>
   );
 };

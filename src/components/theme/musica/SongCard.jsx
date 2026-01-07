@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -12,7 +11,7 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { Favorite, GetApp, Comment, PlayArrow, Pause } from "@mui/icons-material";
+import { GetApp, Comment, PlayArrow, Pause } from "@mui/icons-material";
 import axios from "axios";
 import { useConfig } from "../../hook/useConfig";
 import CommentDialog from "./CommentDialog";
@@ -20,253 +19,222 @@ import LikeManager from "./LikeManager";
 
 const SongCard = ({ song, onLikeToggle }) => {
   const { api: { baseURL } } = useConfig();
-  const [audio, setAudio] = useState(null);
+
+  const audioRef = useRef(null);
+  const abortRef = useRef(null);
+  const cancelDownloadRef = useRef(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-  const [rotate, setRotate] = useState(false);
-  const [showCommentsDialog, setShowCommentsDialog] = useState(false);
-  const [cancelTokenSource, setCancelTokenSource] = useState(null);
-  const abortControllerRef = useRef(new AbortController());
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
+  /* ================= CLEANUP ================= */
   useEffect(() => {
     return () => {
-      if (audio) {
-        audio.pause();
-        URL.revokeObjectURL(audio.src);
-      }
-      if (cancelTokenSource) {
-        cancelTokenSource.cancel("Operación cancelada por el usuario");
-      }
-      abortControllerRef.current.abort();
+      audioRef.current?.pause();
+      audioRef.current = null;
+      abortRef.current?.abort();
+      cancelDownloadRef.current?.cancel();
     };
-  }, [audio, cancelTokenSource]);
+  }, []);
 
-  const handleStream = async (songId) => {
-    if (audio) {
+  /* ================= STREAM ================= */
+  const handleStream = useCallback(async () => {
+    if (audioRef.current) {
       if (isPlaying) {
-        audio.pause();
+        audioRef.current.pause();
+        setIsPlaying(false);
       } else {
-        audio.play();
+        audioRef.current.play();
+        setIsPlaying(true);
       }
-      setIsPlaying(!isPlaying);
       return;
     }
 
     try {
-      const newAbortController = new AbortController();
-      abortControllerRef.current = newAbortController;
+      abortRef.current = new AbortController();
 
-      const response = await axios.get(
-        `${baseURL}/api2/songs/${songId}/stream/`,
+      const { data } = await axios.get(
+        `${baseURL}/api2/songs/${song.id}/stream/`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           },
           responseType: "blob",
-          signal: newAbortController.signal
+          signal: abortRef.current.signal,
         }
       );
 
-      const audioUrl = URL.createObjectURL(response.data);
-      const newAudio = new Audio(audioUrl);
-      newAudio.addEventListener('ended', () => setIsPlaying(false));
-      newAudio.play();
+      const url = URL.createObjectURL(data);
+      const audio = new Audio(url);
 
-      setAudio(newAudio);
+      audio.onended = () => setIsPlaying(false);
+      audio.onerror = () => {
+        setIsPlaying(false);
+        setSnackbar({
+          open: true,
+          message: "Error al reproducir la canción",
+          severity: "error",
+        });
+      };
+
+      audioRef.current = audio;
+      await audio.play();
       setIsPlaying(true);
     } catch (err) {
       if (!axios.isCancel(err)) {
-        console.error("Error al reproducir:", err);
         setSnackbar({
           open: true,
-          message: err.response?.status === 401
-            ? "Debes iniciar sesión para reproducir"
-            : "Error al reproducir la canción",
-          severity: "error"
+          message:
+            err.response?.status === 401
+              ? "Debes iniciar sesión para reproducir"
+              : "No se pudo reproducir",
+          severity: "error",
         });
       }
     }
-  };
+  }, [baseURL, song.id, isPlaying]);
 
-  const handlePause = () => {
-    if (audio) {
-      audio.pause();
-      setIsPlaying(false);
-    }
-  };
+  /* ================= DOWNLOAD ================= */
+  const handleDownload = useCallback(async () => {
+    if (downloading) return;
 
-  const handleDownload = async (songId, songTitle) => {
     setDownloading(true);
-    try {
-      const source = axios.CancelToken.source();
-      setCancelTokenSource(source);
+    cancelDownloadRef.current = axios.CancelToken.source();
 
-      const response = await axios.get(
-        `${baseURL}/api2/songs/${songId}/download/`,
+    try {
+      const { data } = await axios.get(
+        `${baseURL}/api2/songs/${song.id}/download/`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           },
           responseType: "blob",
-          cancelToken: source.token,
-          onDownloadProgress: (progressEvent) => {
-            const progress = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            setDownloadProgress(progress);
+          cancelToken: cancelDownloadRef.current.token,
+          onDownloadProgress: (e) => {
+            if (e.total) {
+              setDownloadProgress(Math.round((e.loaded * 100) / e.total));
+            }
           },
         }
       );
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = URL.createObjectURL(data);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `${songTitle.replace(/[^a-z0-9]/gi, '_')}.webm`);
-      document.body.appendChild(link);
+      link.download = `${song.title.replace(/[^a-z0-9]/gi, "_")}.webm`;
       link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-      link.remove();
+      URL.revokeObjectURL(url);
 
       setSnackbar({
         open: true,
         message: "Descarga completada",
-        severity: "success"
+        severity: "success",
       });
     } catch (err) {
       if (!axios.isCancel(err)) {
-        console.error("Error en descarga:", err);
         setSnackbar({
           open: true,
-          message: err.response?.status === 401
-            ? "Debes iniciar sesión para descargar"
-            : "Vuelve a intentarlo en una hora",
-          severity: "error"
+          message:
+            err.response?.status === 401
+              ? "Inicia sesión para descargar"
+              : "Error en la descarga",
+          severity: "error",
         });
       }
     } finally {
       setDownloading(false);
       setDownloadProgress(0);
-      setCancelTokenSource(null);
     }
-  };
+  }, [baseURL, song.id, song.title, downloading]);
 
-  const cleanBaseURL = baseURL?.replace(/\/$/, '');
-  let imageUrl = "/djidji.png";
+  /* ================= IMAGE ================= */
+  const cleanBaseURL = baseURL?.replace(/\/$/, "");
+  const imageUrl = song.image
+    ? song.image.startsWith("http")
+      ? song.image.replace(
+          `${cleanBaseURL}/media/`,
+          `${cleanBaseURL}/api2/media/`
+        )
+      : `${cleanBaseURL}/api2/media/images/${song.image.split("/").pop()}`
+    : "/djidji.png";
 
-  if (song.image) {
-    if (song.image.startsWith("http")) {
-      const imagePath = song.image.replace(
-        `${baseURL.replace(/\/$/, '')}/media/`,
-        `${cleanBaseURL}/api2/media/`
-      );
-      imageUrl = imagePath;
-    } else {
-      const fileName = song.image.split("/").pop();
-      imageUrl = `${cleanBaseURL}/api2/media/images/${fileName}`;
-    }
-  }
-
+  /* ================= RENDER ================= */
   return (
-    <Card sx={{
-      display: "flex",
-      flexDirection: "column",
-      borderRadius: 5,
-      boxShadow: 12,
-      overflow: "hidden",
-      m: 2,
-      maxWidth: 345
-    }}>
+    <Card sx={{ maxWidth: 345, m: 2, borderRadius: 4, boxShadow: 10 }}>
       <CardMedia
         component="img"
         height="200"
         image={imageUrl}
-        alt={`Portada de ${song.title}`}
-        sx={{
-          objectFit: "cover",
-          transition: "transform 0.3s ease",
-          "&:hover": { transform: "scale(1.05)" }
-        }}
+        alt={song.title}
       />
 
-      <CardContent sx={{ padding: 2 }}>
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
+      <CardContent>
+        <Typography variant="h6" fontWeight={700}>
           {song.title}
         </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          Artista: {song.artist}
-        </Typography>
         <Typography variant="body2" color="text.secondary">
-          Género: {song.genre}
+          {song.artist} · {song.genre}
         </Typography>
       </CardContent>
 
-      <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+      <CardActions sx={{ justifyContent: "space-between" }}>
+        <Box>
           <LikeManager
             songId={song.id}
             initialLikes={song.likes_count}
             initialLiked={song.is_liked}
-            onLikeToggle={(id) => onLikeToggle(id, song.likes_count, song.is_liked)}
+            onLikeToggle={onLikeToggle}
           />
 
-          <IconButton
-            onClick={() => handleDownload(song.id, song.title)}
-            disabled={downloading}
-          >
+          <IconButton onClick={handleDownload} disabled={downloading}>
             {downloading ? (
-              <CircularProgress
-                size={24}
-                variant="determinate"
-                value={downloadProgress}
-              />
+              <CircularProgress size={22} value={downloadProgress} />
             ) : (
               <GetApp />
             )}
           </IconButton>
 
-          <IconButton onClick={() => setShowCommentsDialog(true)}>
+          <IconButton onClick={() => setCommentsOpen(true)}>
             <Comment />
-            <Typography variant="caption" sx={{ ml: 0.5 }}>
+            <Typography variant="caption" ml={0.5}>
               {song.comments_count}
             </Typography>
           </IconButton>
         </Box>
 
         <IconButton
-          onClick={audio && isPlaying ? handlePause : () => handleStream(song.id)}
-          sx={{
-            color: 'primary.main',
-            animation: rotate ? 'rotate 0.5s ease-out' : isPlaying ? 'rotate 1.5s infinite linear' : 'none'
-          }}
+          color="primary"
+          onClick={handleStream}
         >
           {isPlaying ? <Pause /> : <PlayArrow />}
-          
         </IconButton>
       </CardActions>
 
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
       >
-        <Alert
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-          variant="filled"
-        >
+        <Alert severity={snackbar.severity} variant="filled">
           {snackbar.message}
         </Alert>
       </Snackbar>
 
       <CommentDialog
         songId={song.id}
-        open={showCommentsDialog}
-        onClose={() => setShowCommentsDialog(false)}
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
       />
     </Card>
   );
 };
 
 export default React.memo(SongCard);
+  
