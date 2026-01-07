@@ -2,7 +2,7 @@
 
 import axios from "axios";
 
-const BASE_URL = "http://127.0.0.1:8000/api2";
+const BASE_URL = "https://api.djidjimusic.com/api2";
 
 export const fetchSongDetails = async (songId) => {
   const response = await axios.get(`${BASE_URL}/songs/${songId}/`);
