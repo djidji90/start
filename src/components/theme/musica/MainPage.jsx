@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
   Box, 
   Container, 
@@ -6,7 +6,9 @@ import {
   Paper,
   useTheme,
   useMediaQuery,
-  Fade
+  Fade,
+  Alert,
+  Snackbar
 } from "@mui/material";
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
@@ -22,54 +24,78 @@ const MainPage = () => {
   const { 
     query,
     setQuery,
-    structuredResults = { songs: [], artists: [], suggestions: [] }, 
+    structuredResults = { songs: [], artists: [], genres: [] },
+    results = [],
     loading, 
     error, 
     closeResults,
-    isOpen: hookIsOpen
+    isOpen: hookIsOpen,
+    searchMetrics,
+    retrySearch
   } = useSearch();
 
   const [showResults, setShowResults] = useState(false);
   const [selectedSongs, setSelectedSongs] = useState([]);
+  const [showCacheNotification, setShowCacheNotification] = useState(false);
 
   const searchBarRef = useRef(null);
   const resultsRef = useRef(null);
+
+  /* -------------------- FUNCIÓN PARA IDs ÚNICOS -------------------- */
+  const generateUniqueId = useCallback(() => {
+    return `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }, []);
 
   /* -------------------- CANCIONES INICIALES -------------------- */
   useEffect(() => {
     setSelectedSongs([
       { 
-        id: 1, 
+        id: generateUniqueId(),
         title: "Malo", 
         artist: "Jordi", 
         genre: "Hip Hop", 
         duration: 180,
-        cover: null
+        cover: null,
+        audioUrl: null
       },
       { 
-        id: 2, 
+        id: generateUniqueId(),
         title: "Badeko Ya Basy", 
         artist: "Franco", 
         genre: "Rumba", 
         duration: 240,
-        cover: null
+        cover: null,
+        audioUrl: null
       },
       { 
-        id: 3, 
+        id: generateUniqueId(),
         title: "FD", 
         artist: "DDD", 
         genre: "Pop", 
         duration: 210,
-        cover: null
+        cover: null,
+        audioUrl: null
       }
     ]);
-  }, []);
+  }, [generateUniqueId]);
+
+  /* -------------------- NOTIFICACIÓN DE CACHÉ -------------------- */
+  useEffect(() => {
+    if (searchMetrics?.fromCache) {
+      setShowCacheNotification(true);
+      const timer = setTimeout(() => {
+        setShowCacheNotification(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchMetrics]);
 
   /* -------------------- CONTROL DE RESULTADOS -------------------- */
   useEffect(() => {
     const hasResults =
       structuredResults?.songs?.length > 0 ||
-      structuredResults?.artists?.length > 0;
+      structuredResults?.artists?.length > 0 ||
+      structuredResults?.genres?.length > 0;
 
     if (hookIsOpen || (hasResults && query.length >= 2)) {
       setShowResults(true);
@@ -104,42 +130,99 @@ const MainPage = () => {
 
   /* -------------------- SELECCIÓN DE CANCIONES -------------------- */
   const handleSelectResult = (item, type) => {
+    console.log('Item seleccionado:', { item, type });
+    
+    // Verificar si ya existe una canción similar
+    const isDuplicate = (newSong) => {
+      return selectedSongs.some(existingSong => 
+        existingSong.title === newSong.title && 
+        existingSong.artist === newSong.artist
+      );
+    };
+
     if (type === "song") {
-      setSelectedSongs(prev => [
-        {
-          ...item,
-          id: `${item.id}-${Date.now()}`,
-          title: item.title || "Sin título",
-          artist: item.artist || "Artista desconocido",
-          genre: item.genre || "Desconocido",
-          cover: item.cover || null
-        },
-        ...prev
-      ]);
+      const newSong = {
+        id: item.id || generateUniqueId(),
+        title: item.title || "Sin título",
+        artist: item.artist || "Artista desconocido",
+        genre: item.genre || "Desconocido",
+        duration: 180,
+        cover: null,
+        audioUrl: null
+      };
+
+      if (!isDuplicate(newSong)) {
+        setSelectedSongs(prev => [newSong, ...prev]);
+      } else {
+        console.log('Canción ya existe en la lista');
+      }
     }
 
     if (type === "artist") {
-      setSelectedSongs([
+      const newSongs = [
         { 
-          id: Date.now(), 
-          title: `${item.name} - Hit 1`, 
-          artist: item.name,
+          id: generateUniqueId(), 
+          title: `${item.name || 'Artista'} - Hit 1`, 
+          artist: item.name || 'Artista',
           genre: "Artista",
           duration: 180,
-          cover: null
+          cover: null,
+          audioUrl: null
         },
         { 
-          id: Date.now() + 1, 
-          title: `${item.name} - Hit 2`, 
-          artist: item.name,
+          id: generateUniqueId(), 
+          title: `${item.name || 'Artista'} - Hit 2`, 
+          artist: item.name || 'Artista',
           genre: "Artista",
           duration: 200,
-          cover: null
+          cover: null,
+          audioUrl: null
         }
-      ]);
+      ];
+
+      // Filtrar duplicados
+      const uniqueNewSongs = newSongs.filter(song => !isDuplicate(song));
+      if (uniqueNewSongs.length > 0) {
+        setSelectedSongs(prev => [...uniqueNewSongs, ...prev]);
+      }
+    }
+
+    if (type === "genre") {
+      const newSongs = [
+        { 
+          id: generateUniqueId(), 
+          title: `Canción ${item.name || 'Género'} 1`, 
+          artist: "Varios artistas",
+          genre: item.name || 'Género',
+          duration: 180,
+          cover: null,
+          audioUrl: null
+        },
+        { 
+          id: generateUniqueId(), 
+          title: `Canción ${item.name || 'Género'} 2`, 
+          artist: "Varios artistas",
+          genre: item.name || 'Género',
+          duration: 200,
+          cover: null,
+          audioUrl: null
+        }
+      ];
+
+      const uniqueNewSongs = newSongs.filter(song => !isDuplicate(song));
+      if (uniqueNewSongs.length > 0) {
+        setSelectedSongs(prev => [...uniqueNewSongs, ...prev]);
+      }
     }
 
     handleCloseResults();
+  };
+
+  /* -------------------- MANEJO DE ERRORES -------------------- */
+  const handleRetrySearch = () => {
+    if (error && query.trim().length >= 2) {
+      retrySearch();
+    }
   };
 
   /* ============================ RENDER ============================ */
@@ -151,86 +234,44 @@ const MainPage = () => {
       pb: 8
     }}>
       <Container maxWidth="lg">
-        {/* HEADER MINIMALISTA */}
-        <Box sx={{ 
-          textAlign: "center", 
-          mb: { xs: 4, md: 6 },
-          px: { xs: 2, sm: 0 }
-        }}>
+        {/* HEADER */}
+        <Box sx={{ textAlign: "center", mb: { xs: 4, md: 6 } }}>
           <Typography 
             variant="h1"
             sx={{ 
               fontSize: { xs: "2.5rem", md: "3.5rem" },
               fontWeight: 300,
               color: "#1a1a1a",
-              letterSpacing: "-0.02em",
               fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
-              mb: 1
             }}
           >
             djidjimusic
-          </Typography>
-          <Typography 
-            variant="subtitle1"
-            sx={{ 
-              color: "#666",
-              fontWeight: 300,
-              fontSize: "1.1rem"
-            }}
-          >
-            {/* Espacio intencionalmente vacío para minimalismo */}
           </Typography>
         </Box>
 
         {/* BÚSQUEDA */}
         <Box 
           ref={searchBarRef} 
-          sx={{ 
-            maxWidth: 600, 
-            mx: "auto", 
-            mb: 8,
-            position: "relative" 
-          }}
+          sx={{ maxWidth: 600, mx: "auto", mb: 8, position: "relative" }}
         >
-          <Paper 
-            elevation={0}
-            sx={{ 
-              borderRadius: "12px",
-              backgroundColor: "#fafafa",
-              border: "1px solid #eaeaea",
-              overflow: "hidden",
-              transition: "border-color 0.2s ease",
-              "&:hover": {
-                borderColor: "#d0d0d0"
-              }
-            }}
-          >
+          <Paper elevation={0} sx={{ borderRadius: "12px", bgcolor: "#fafafa" }}>
             <SearchBar
               query={query}
               onQueryChange={setQuery}
               loading={loading}
               autoFocus={!isMobile}
+              placeholder="Buscar canciones, artistas, géneros..."
             />
           </Paper>
 
-          {/* RESULTADOS DE BÚSQUEDA */}
+          {/* RESULTADOS */}
           {showResults && (
             <Fade in timeout={200}>
-              <Box 
-                ref={resultsRef}
-                sx={{
-                  position: "absolute",
-                  top: "100%",
-                  left: 0,
-                  right: 0,
-                  zIndex: 1000,
-                  mt: 1
-                }}
-              >
+              <Box ref={resultsRef} sx={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000, mt: 1 }}>
                 <SearchResults
                   results={structuredResults}
                   loading={loading}
-                  error={error}
+                  error={error?.message}
                   isOpen={showResults}
                   onClose={handleCloseResults}
                   onSelect={handleSelectResult}
@@ -240,50 +281,36 @@ const MainPage = () => {
           )}
         </Box>
 
-        {/* ARTIST CAROUSEL CON ESTILO INSTAGRAM */}
+        {/* ESTADÍSTICAS */}
+        {query.trim().length >= 2 && (
+          <Box sx={{ maxWidth: 600, mx: "auto", mb: 4, textAlign: "center" }}>
+            {loading && <Typography variant="caption" sx={{ color: "#00838F" }}>Buscando...</Typography>}
+            {searchMetrics && !loading && (
+              <Typography variant="caption" sx={{ color: "#006064" }}>
+                {results.length} resultados • {searchMetrics.time}ms
+                {searchMetrics.fromCache && " • (desde caché)"}
+              </Typography>
+            )}
+            {error && (
+              <Typography variant="caption" sx={{ color: "#d32f2f", cursor: 'pointer' }} onClick={handleRetrySearch}>
+                Error: {error.message} • Click para reintentar
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* ARTIST CAROUSEL */}
         <Box sx={{ mb: 8 }}>
           <ArtistCarousel />
         </Box>
 
-        {/* CONTENIDO PRINCIPAL */}
+        {/* SONG CAROUSEL */}
         <Box sx={{ mb: 8 }}>
-          {selectedSongs.length > 0 ? (
-            <>
-              <Box sx={{ mb: 4 }}>
-                <Typography 
-                  variant="h6"
-                  sx={{ 
-                    color: "#1a1a1a",
-                    fontWeight: 400,
-                    fontSize: "1.25rem",
-                    mb: 2
-                  }}
-                >
-                  {/* Título intencionalmente vacío */}
-                </Typography>
-                
-                <SongCarousel
-                  songs={selectedSongs}
-                  title={null}
-                />
-              </Box>
-            </>
-          ) : (
-            <Box sx={{ 
-              textAlign: "center", 
-              py: 8 
-            }}>
-              <Typography 
-                variant="h6"
-                sx={{ 
-                  color: "#888",
-                  fontWeight: 300,
-                  fontSize: "1.1rem"
-                }}
-              >
-                {/* Mensaje intencionalmente vacío */}
-              </Typography>
-            </Box>
+          {selectedSongs.length > 0 && (
+            <SongCarousel
+              songs={selectedSongs}
+              title={null}
+            />
           )}
         </Box>
 
@@ -291,6 +318,13 @@ const MainPage = () => {
         <Box>
           <PopularSongs />
         </Box>
+
+        {/* NOTIFICACIÓN CACHÉ */}
+        <Snackbar open={showCacheNotification} autoHideDuration={2000} onClose={() => setShowCacheNotification(false)}>
+          <Alert severity="info" sx={{ bgcolor: '#E0F7FA', color: '#006064' }}>
+            📦 Resultados desde caché • {searchMetrics?.time}ms
+          </Alert>
+        </Snackbar>
       </Container>
     </Box>
   );

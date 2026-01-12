@@ -84,7 +84,7 @@ const SongCarousel = ({ songs = [], title }) => {
       >
         {songs.map((song, index) => (
           <Box
-            key={song.id || index}
+            key={`${song.id}-${index}-${song.title || ''}-${song.artist || ''}`} // 🔥 KEY ÚNICO COMPUESTO
             sx={{
               minWidth: {
                 xs: "85%",

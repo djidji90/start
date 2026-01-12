@@ -1,4 +1,4 @@
-// src/hooks/useSearch.js
+// src/hooks/useSearch.js - VERSIÓN COMPATIBLE
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 export const useSearch = () => {
@@ -7,129 +7,220 @@ export const useSearch = () => {
   const [structuredResults, setStructuredResults] = useState({
     songs: [],
     artists: [],
-    suggestions: []
+    genres: []
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [status, setStatus] = useState('idle'); // idle | searching | success | error
+  const [status, setStatus] = useState('idle');
   const [searchMetrics, setSearchMetrics] = useState(null);
+
+  const apiConfig = useRef({
+    // Configuración basada en tu backend Django
+    baseUrl: window.location.hostname === 'localhost' || 
+             window.location.hostname === '127.0.0.1'
+      ? 'https://api.djidjimusic.com/api2'
+      : 'https://api.djidjimusic.com/api2',
+    timeout: 8000,
+    cacheDuration: 300000 // 5 minutos
+  });
 
   const debounceTimer = useRef(null);
   const cache = useRef(new Map());
   const searchStartTime = useRef(0);
+  const abortController = useRef(null);
 
-  // Limpiar cache viejo (más de 5 minutos)
-  useEffect(() => {
-    const cleanupOldCache = () => {
-      const now = Date.now();
-      for (const [key, value] of cache.current.entries()) {
-        if (now - value.timestamp > 5 * 60 * 1000) {
-          cache.current.delete(key);
-        }
-      }
-    };
-
-    const interval = setInterval(cleanupOldCache, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Calcular puntuación de relevancia
-  const calculateRelevanceScore = useCallback((item, searchQuery) => {
-    const queryLower = searchQuery.toLowerCase();
-    let score = 0;
+  // Transformar resultados COMPATIBLE con tus vistas
+  const transformResults = useCallback((apiData, searchQuery, isLegacy = false) => {
+    console.log('🔄 Transformando datos API (compatibilidad):', {
+      isLegacy,
+      hasSuggestions: !!apiData.suggestions,
+      isArray: Array.isArray(apiData),
+      data: apiData
+    });
     
-    if (item.title?.toLowerCase().includes(queryLower)) score += 10;
-    if (item.artist?.toLowerCase().includes(queryLower)) score += 8;
-    if (item.name?.toLowerCase().includes(queryLower)) score += 8;
-    if (item.display?.toLowerCase().includes(queryLower)) score += 5;
-    if (item.likes_count > 0) score += Math.min(item.likes_count / 100, 5);
-    if (item.type === 'song') score += 2;
-    if (item.type === 'artist') score += 1;
-    
-    return score;
-  }, []);
-
-  // Transformar y priorizar resultados con estructura dual
-  const transformAndPrioritizeResults = useCallback((songs, suggestions, searchQuery) => {
     const structured = {
       songs: [],
       artists: [],
-      suggestions: []
+      genres: []
     };
 
     const allItems = [];
     
-    // Procesar canciones
-    if (songs && Array.isArray(songs)) {
-      structured.songs = songs.map(song => ({
-        id: song.id,
-        title: song.title || 'Sin título',
-        artist: song.artist || 'Artista desconocido',
-        genre: song.genre,
-        duration: song.duration,
-        likes_count: song.likes_count || 0,
-        type: 'song',
-        display: `${song.title || 'Sin título'} - ${song.artist || 'Artista desconocido'}`,
-        raw: song,
-        priority: 1,
-        score: calculateRelevanceScore(song, searchQuery)
-      }));
-      allItems.push(...structured.songs);
+    // ============================================
+    // 1. PARA VISTA LEGACY (array directo)
+    // ============================================
+    if (isLegacy) {
+      if (Array.isArray(apiData)) {
+        apiData.forEach((item, index) => {
+          const songItem = {
+            id: `legacy-${index}-${Date.now()}`,
+            type: 'song',
+            title: item.title || 'Sin título',
+            artist: item.artist || 'Artista desconocido',
+            genre: item.genre || 'Sin género',
+            display: `${item.title || 'Sin título'} - ${item.artist || 'Artista desconocido'}`,
+            score: 0, // Legacy no tiene score
+            exact_match: false,
+            raw: item,
+            timestamp: Date.now(),
+            isLegacyResult: true
+          };
+          
+          structured.songs.push(songItem);
+          allItems.push(songItem);
+        });
+      }
     }
-
-    // Procesar sugerencias
-    if (suggestions && Array.isArray(suggestions)) {
-      suggestions.forEach(suggestion => {
-        const type = suggestion.type || 'suggestion';
+    
+    // ============================================
+    // 2. PARA VISTA MODERNA (con suggestions)
+    // ============================================
+    else if (apiData.suggestions && Array.isArray(apiData.suggestions)) {
+      apiData.suggestions.forEach((item, index) => {
+        const type = item.type || 'song';
         
-        if (type === 'artist') {
-          const artistItem = {
-            ...suggestion,
-            id: suggestion.id || `artist-${Date.now()}-${Math.random()}`,
-            name: suggestion.name || suggestion.display || 'Artista',
-            type: 'artist',
-            priority: 2,
-            score: calculateRelevanceScore(suggestion, searchQuery)
-          };
-          structured.artists.push(artistItem);
-          allItems.push(artistItem);
-        } else {
-          const suggestionItem = {
-            ...suggestion,
-            id: suggestion.id || `suggestion-${Date.now()}-${Math.random()}`,
-            display: suggestion.display || suggestion.title || suggestion.name || 'Sugerencia',
-            type: 'suggestion',
-            priority: 3,
-            score: calculateRelevanceScore(suggestion, searchQuery)
-          };
-          structured.suggestions.push(suggestionItem);
-          allItems.push(suggestionItem);
+        const baseItem = {
+          id: item.id || `temp-${index}-${Date.now()}`,
+          type: type,
+          title: item.title || 'Sin título',
+          artist: item.artist || 'Artista desconocido',
+          genre: item.genre || 'Sin género',
+          name: item.name || item.title || 'Sin nombre',
+          display: item.display || `${item.title || item.name || ''} - ${item.artist || ''}`,
+          score: item.score || 0,
+          exact_match: item.exact_match || false,
+          raw: item,
+          timestamp: Date.now()
+        };
+
+        // Organizar por tipo según tu backend
+        switch (type) {
+          case 'song':
+            structured.songs.push(baseItem);
+            allItems.push(baseItem);
+            break;
+            
+          case 'artist':
+            structured.artists.push({
+              ...baseItem,
+              name: item.name || item.artist || 'Artista',
+              // song_count viene de búsqueda completa, no de suggestions
+            });
+            allItems.push(baseItem);
+            break;
+            
+          case 'genre':
+            structured.genres.push({
+              ...baseItem,
+              name: item.name || item.genre || 'Género'
+            });
+            allItems.push(baseItem);
+            break;
         }
       });
     }
+    
+    // ============================================
+    // 3. PARA BÚSQUEDA COMPLETA (si implementas)
+    // ============================================
+    else if (apiData.results) {
+      const { songs = [], artists = [], genres = [] } = apiData.results;
+      
+      songs.forEach(song => {
+        const songItem = {
+          id: song.id,
+          type: 'song',
+          title: song.title || 'Sin título',
+          artist: song.artist || 'Artista desconocido',
+          genre: song.genre || 'Sin género',
+          display: `${song.title} - ${song.artist}`,
+          score: 0,
+          raw: song,
+          timestamp: Date.now()
+        };
+        structured.songs.push(songItem);
+        allItems.push(songItem);
+      });
+      
+      artists.forEach(artist => {
+        const artistItem = {
+          id: artist.id || `artist-${artist.name}`,
+          type: 'artist',
+          name: artist.name || 'Artista',
+          display: `${artist.name} (artista)`,
+          score: 0,
+          raw: artist,
+          timestamp: Date.now()
+        };
+        structured.artists.push(artistItem);
+        allItems.push(artistItem);
+      });
+      
+      genres.forEach(genre => {
+        const genreItem = {
+          id: genre.id || `genre-${genre.name}`,
+          type: 'genre',
+          name: genre.name || 'Género',
+          display: `${genre.name} (género)`,
+          score: 0,
+          raw: genre,
+          timestamp: Date.now()
+        };
+        structured.genres.push(genreItem);
+        allItems.push(genreItem);
+      });
+    }
 
-    // Ordenar cada categoría por puntuación
-    structured.songs.sort((a, b) => b.score - a.score);
-    structured.artists.sort((a, b) => b.score - a.score);
-    structured.suggestions.sort((a, b) => b.score - a.score);
-
-    // Ordenar array plano por prioridad y puntuación
-    allItems.sort((a, b) => {
-      if (a.priority !== b.priority) {
-        return a.priority - b.priority;
-      }
-      return b.score - a.score;
-    });
+    // Ordenar (si hay score, sino por orden de llegada)
+    structured.songs.sort((a, b) => (b.score || 0) - (a.score || 0));
+    structured.artists.sort((a, b) => (b.score || 0) - (a.score || 0));
+    structured.genres.sort((a, b) => (b.score || 0) - (a.score || 0));
+    allItems.sort((a, b) => (b.score || 0) - (a.score || 0));
 
     return { structured, allItems };
-  }, [calculateRelevanceScore]);
+  }, []);
 
-  // Función principal de búsqueda
-  const search = useCallback(async (searchQuery, forceRefresh = false) => {
+  // Función para hacer peticiones compatibles
+  const makeRequest = useCallback(async (url, options = {}) => {
+    abortController.current = new AbortController();
+    const timeoutId = setTimeout(() => abortController.current.abort(), apiConfig.current.timeout);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: abortController.current.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(options.headers || {})
+        }
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      return { 
+        success: false, 
+        error: error.name === 'AbortError' 
+          ? new Error('La búsqueda tardó demasiado')
+          : error 
+      };
+    }
+  }, []);
+
+  // Función principal COMPATIBLE con tus endpoints
+  const search = useCallback(async (searchQuery, forceRefresh = false, options = {}) => {
     if (!searchQuery || searchQuery.trim().length < 2) {
       setResults([]);
-      setStructuredResults({ songs: [], artists: [], suggestions: [] });
+      setStructuredResults({ songs: [], artists: [], genres: [] });
       setIsOpen(false);
       setStatus('idle');
       setSearchMetrics(null);
@@ -137,16 +228,15 @@ export const useSearch = () => {
     }
 
     const trimmedQuery = searchQuery.trim();
-    const cacheKey = trimmedQuery.toLowerCase();
+    const cacheKey = `search:${trimmedQuery.toLowerCase()}:${options.endpoint || 'suggestions'}`;
 
-    // Verificar cache (si no es forzado)
+    // Verificar cache
     if (!forceRefresh && cache.current.has(cacheKey)) {
       const cachedData = cache.current.get(cacheKey);
       const cacheAge = Date.now() - cachedData.timestamp;
       
-      // Usar cache si tiene menos de 30 segundos
-      if (cacheAge < 30000) {
-        console.log('📦 Usando cache para:', trimmedQuery);
+      if (cacheAge < apiConfig.current.cacheDuration) {
+        console.log('📦 Usando cache:', trimmedQuery);
         setResults(cachedData.allItems);
         setStructuredResults(cachedData.structured);
         setIsOpen(true);
@@ -156,7 +246,7 @@ export const useSearch = () => {
       }
     }
 
-    console.log('🔍 Iniciando búsqueda para:', trimmedQuery);
+    console.log('🔍 Iniciando búsqueda:', trimmedQuery);
     searchStartTime.current = Date.now();
     setLoading(true);
     setError(null);
@@ -164,70 +254,86 @@ export const useSearch = () => {
     setIsOpen(true);
 
     try {
-      const token = localStorage.getItem('accessToken');
+      const { 
+        endpoint = 'suggestions', 
+        limit = 8, 
+        types = 'song',
+        useLegacyFormat = false 
+      } = options;
       
-      // Configurar headers comunes
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      };
+      let url;
+      let isLegacyCall = false;
 
-      // Hacer las dos peticiones en paralelo con timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const [songsResponse, suggestionsResponse] = await Promise.all([
-        fetch(`https://api.djidjimusic.com/api2/songs/?search=${encodeURIComponent(trimmedQuery)}&limit=7`, {
-          headers,
-          signal: controller.signal
-        }),
-        fetch(`https://api.djidjimusic.com/api2/suggestions/?query=${encodeURIComponent(trimmedQuery)}`, {
-          headers,
-          signal: controller.signal
-        })
-      ]);
-
-      clearTimeout(timeoutId);
-
-      // Verificar errores HTTP
-      if (!songsResponse.ok) {
-        throw new Error(`Error en canciones: ${songsResponse.status}`);
+      // ============================================
+      // CONSTRUIR URL SEGÚN TU BACKEND
+      // ============================================
+      if (endpoint === 'legacy-suggestions') {
+        // Para: /api2/songs/search/suggestions/?q=query&limit=8
+        url = `${apiConfig.current.baseUrl}/songs/search/suggestions/?q=${encodeURIComponent(trimmedQuery)}&limit=${limit}`;
+        isLegacyCall = true;
+        console.log('🔗 Llamando a endpoint LEGACY');
+        
+      } else if (endpoint === 'suggestions') {
+        // Para: /api2/suggestions/?query=texto&limit=8&types=song,artist,genre
+        const params = new URLSearchParams({
+          query: trimmedQuery,
+          limit: Math.min(limit, 20),
+          types: types
+        });
+        url = `${apiConfig.current.baseUrl}/suggestions/?${params.toString()}`;
+        console.log('🔗 Llamando a endpoint MODERNO (suggestions)');
+        
+      } else if (endpoint === 'search-suggestions') {
+        // Para: /api2/search/suggestions/?query=texto
+        const params = new URLSearchParams({
+          query: trimmedQuery,
+          limit: Math.min(limit, 20),
+          types: types
+        });
+        url = `${apiConfig.current.baseUrl}/search/suggestions/?${params.toString()}`;
+        console.log('🔗 Llamando a endpoint MODERNO (search/suggestions)');
+        
+      } else {
+        // Por defecto, usar suggestions
+        const params = new URLSearchParams({
+          query: trimmedQuery,
+          limit: Math.min(limit, 20),
+          types: types
+        });
+        url = `${apiConfig.current.baseUrl}/suggestions/?${params.toString()}`;
       }
-      if (!suggestionsResponse.ok) {
-        throw new Error(`Error en sugerencias: ${suggestionsResponse.status}`);
+
+      console.log('🌐 URL final:', url);
+
+      // Hacer la petición
+      const { success, data, error: requestError } = await makeRequest(url);
+
+      if (!success) {
+        throw requestError;
       }
 
-      // Procesar respuestas
-      const songsData = await songsResponse.json();
-      const suggestionsData = await suggestionsResponse.json();
+      console.log('📊 Respuesta de API:', data);
 
-      console.log('📊 Datos recibidos:', {
-        canciones: songsData.results?.length || 0,
-        sugerencias: suggestionsData.suggestions?.length || 0
-      });
-
-      // Transformar y priorizar resultados
-      const { structured, allItems } = transformAndPrioritizeResults(
-        songsData.results,
-        suggestionsData.suggestions,
-        trimmedQuery
-      );
+      // Transformar resultados según el tipo de endpoint
+      const { structured, allItems } = transformResults(data, trimmedQuery, isLegacyCall);
 
       // Calcular métricas
       const searchTime = Date.now() - searchStartTime.current;
       const metrics = {
         time: searchTime,
         fromCache: false,
-        cached: false,
         query: trimmedQuery,
         totalResults: allItems.length,
         songs: structured.songs.length,
         artists: structured.artists.length,
-        suggestions: structured.suggestions.length,
-        searchTime: `${searchTime}ms`
+        genres: structured.genres.length,
+        searchTime: `${searchTime}ms`,
+        endpoint: endpoint,
+        isLegacy: isLegacyCall,
+        apiResponse: data._metadata || {}
       };
 
-      console.log('🎯 Métricas de búsqueda:', metrics);
+      console.log('🎯 Métricas:', metrics);
 
       // Actualizar estado
       setResults(allItems);
@@ -240,25 +346,31 @@ export const useSearch = () => {
         allItems,
         structured,
         metrics,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        endpoint,
+        params: { limit, types }
       });
 
     } catch (err) {
       console.error('❌ Error en búsqueda:', err);
       
       let errorMessage = 'Error al buscar. Intenta nuevamente.';
+      let errorType = 'unknown';
       
       if (err.name === 'AbortError') {
         errorMessage = 'La búsqueda tardó demasiado. Revisa tu conexión.';
-      } else if (err.message.includes('status')) {
+        errorType = 'timeout';
+      } else if (err.message.includes('NetworkError') || err.message.includes('Failed to fetch')) {
+        errorMessage = 'Error de conexión. Verifica tu internet.';
+        errorType = 'network';
+      } else if (err.message.includes('HTTP')) {
         errorMessage = `Error del servidor: ${err.message}`;
-      } else if (!navigator.onLine) {
-        errorMessage = 'Sin conexión a internet. Verifica tu red.';
+        errorType = 'http';
       }
 
-      setError(errorMessage);
+      setError({ message: errorMessage, type: errorType, original: err });
       setResults([]);
-      setStructuredResults({ songs: [], artists: [], suggestions: [] });
+      setStructuredResults({ songs: [], artists: [], genres: [] });
       setStatus('error');
 
       // Intentar usar cache si hay error
@@ -267,14 +379,16 @@ export const useSearch = () => {
         const cachedData = cache.current.get(cacheKey);
         setResults(cachedData.allItems);
         setStructuredResults(cachedData.structured);
-        setStatus('success');
+        setStatus('partial-success');
+        setError(null);
       }
     } finally {
       setLoading(false);
+      abortController.current = null;
     }
-  }, [transformAndPrioritizeResults]);
+  }, [makeRequest, transformResults]);
 
-  // Debounce automático
+  // Debounce automático (mismo que antes)
   useEffect(() => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -284,16 +398,19 @@ export const useSearch = () => {
     
     if (trimmedQuery.length < 2) {
       setResults([]);
-      setStructuredResults({ songs: [], artists: [], suggestions: [] });
+      setStructuredResults({ songs: [], artists: [], genres: [] });
       setIsOpen(false);
       setStatus('idle');
       setSearchMetrics(null);
       return;
     }
 
+    const debounceTime = trimmedQuery.length < 4 ? 500 : 350;
+
     debounceTimer.current = setTimeout(() => {
-      search(trimmedQuery);
-    }, 350);
+      // Por defecto usa el endpoint 'suggestions' (moderno)
+      search(trimmedQuery, false, { endpoint: 'suggestions' });
+    }, debounceTime);
 
     return () => {
       if (debounceTimer.current) {
@@ -302,43 +419,103 @@ export const useSearch = () => {
     };
   }, [query, search]);
 
-  // Función para forzar una nueva búsqueda (ignorar cache)
-  const forceSearch = useCallback(() => {
+  // Función específica para compatibilidad legacy
+  const searchLegacy = useCallback((searchQuery, limit = 8) => {
+    if (searchQuery.trim().length >= 2) {
+      search(searchQuery.trim(), false, { 
+        endpoint: 'legacy-suggestions',
+        limit,
+        useLegacyFormat: true 
+      });
+    }
+  }, [search]);
+
+  // Búsqueda por tipo compatible
+  const searchByType = useCallback((searchQuery, type = 'song', limit = 8) => {
+    if (searchQuery.trim().length >= 2) {
+      const types = type === 'all' ? 'song,artist,genre' : type;
+      search(searchQuery.trim(), false, { 
+        endpoint: 'suggestions',
+        types,
+        limit 
+      });
+    }
+  }, [search]);
+
+  // Resto de funciones (igual que antes)
+  const forceSearch = useCallback((options = {}) => {
+    if (query.trim().length >= 2) {
+      search(query.trim(), true, options);
+    }
+  }, [query, search]);
+
+  const clearSearch = useCallback(() => {
+    setQuery('');
+    setResults([]);
+    setStructuredResults({ songs: [], artists: [], genres: [] });
+    setError(null);
+    setIsOpen(false);
+    setStatus('idle');
+    setSearchMetrics(null);
+    
+    if (abortController.current) {
+      abortController.current.abort();
+    }
+  }, []);
+
+  const closeResults = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  const retrySearch = useCallback(() => {
     if (query.trim().length >= 2) {
       search(query.trim(), true);
     }
   }, [query, search]);
 
-  // Limpiar búsqueda
-  const clearSearch = useCallback(() => {
-    setQuery('');
-    setResults([]);
-    setStructuredResults({ songs: [], artists: [], suggestions: [] });
-    setError(null);
-    setIsOpen(false);
-    setStatus('idle');
-    setSearchMetrics(null);
-  }, []);
-
-  // Cerrar resultados
-  const closeResults = useCallback(() => {
-    setIsOpen(false);
-  }, []);
-
-  // Stats de cache
   const cacheStats = useMemo(() => {
+    const now = Date.now();
+    const entries = Array.from(cache.current.entries());
+    
     return {
       size: cache.current.size,
-      keys: Array.from(cache.current.keys())
+      entries: entries.map(([key, value]) => ({
+        key: key.substring(0, 30) + '...',
+        age: Math.round((now - value.timestamp) / 1000),
+        results: value.allItems.length,
+        endpoint: value.endpoint || 'suggestions',
+        isLegacy: key.includes('legacy-suggestions')
+      }))
     };
+  }, []);
+
+  const clearCache = useCallback((key = null) => {
+    if (key) {
+      cache.current.delete(key);
+    } else {
+      cache.current.clear();
+    }
+  }, []);
+
+  // Método para diagnóstico/debug
+  const debugSearch = useCallback(async (testQuery = "test") => {
+    try {
+      const url = `${apiConfig.current.baseUrl}/debug/suggestions/`;
+      const response = await fetch(url);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Debug error:', error);
+      return { status: 'error', error: error.message };
+    }
   }, []);
 
   return {
     // Estado
     query,
     setQuery,
-    results,                    // Array plano para SearchBar
-    structuredResults,          // Objeto estructurado para MainPage
+    results,
+    structuredResults,
     loading,
     error,
     isOpen,
@@ -347,15 +524,32 @@ export const useSearch = () => {
     cacheStats,
     
     // Acciones
-    search,                     // Exportada explícitamente
-    clearSearch,
-    closeResults,
-    forceSearch,
+    search,                     // Búsqueda moderna (default)
+    searchLegacy,              // Búsqueda legacy específica
+    searchByType,              // Búsqueda por tipo
+    forceSearch,               // Forzar búsqueda (ignorar cache)
+    clearSearch,               // Limpiar búsqueda
+    closeResults,              // Cerrar resultados
+    retrySearch,               // Reintentar búsqueda fallida
+    clearCache,                // Limpiar cache
+    debugSearch,               // Para diagnóstico
     
-    // Helpers
+    // Helpers computados
     hasResults: results.length > 0,
     isValidQuery: query.trim().length >= 2,
-    isEmptyResults: !loading && !error && results.length === 0 && query.trim().length >= 2
+    isEmptyResults: !loading && !error && results.length === 0 && query.trim().length >= 2,
+    hasSongs: structuredResults.songs.length > 0,
+    hasArtists: structuredResults.artists.length > 0,
+    hasGenres: structuredResults.genres.length > 0,
+    isLegacyResult: results.some(item => item.isLegacyResult),
+    
+    // Grupos de resultados
+    groupedResults: {
+      topResults: results.slice(0, 3),
+      songs: structuredResults.songs,
+      artists: structuredResults.artists,
+      genres: structuredResults.genres
+    }
   };
 };
 

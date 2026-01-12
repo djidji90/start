@@ -1,4 +1,4 @@
-// src/components/PlayerContext.jsx - VERSIÓN EXACTA CON STREAM MANAGER
+// src/components/PlayerContext.jsx - VERSIÓN CORREGIDA PARA PAUSA
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { audioEngine } from "../audio/engine/AudioEngine";
 import { streamManager } from "../audio/engine/StreamManager";
@@ -9,12 +9,65 @@ export const PlayerProvider = ({ children }) => {
   const [currentSong, setCurrentSong] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState({ current: 0, duration: 0 });
-  const [volume, setVolume] = useState(audioEngine?.getVolume?.() || 0.7);
+  const [volume, setVolume] = useState(0.7);
   const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [lastValidUrl, setLastValidUrl] = useState(null);
   
-  // Refs para prevenir memory leaks
+  // 🔥 NUEVO: Estado de carga por canción específica
+  const [songLoadingStates, setSongLoadingStates] = useState({});
+  
+  // 🔥 REF para acceso directo al elemento de audio
+  const audioElementRef = useRef(null);
+  
+  // 🔥 Función para actualizar estado de carga de una canción
+  const updateSongLoadingState = (songId, loadingState) => {
+    setSongLoadingStates(prev => ({
+      ...prev,
+      [songId]: {
+        ...prev[songId],
+        ...loadingState,
+        lastUpdated: Date.now()
+      }
+    }));
+  };
+  
+  // 🔥 Función para obtener estado de carga de una canción
+  const getSongLoadingState = (songId) => {
+    const state = songLoadingStates[songId];
+    if (!state) {
+      return {
+        isLoading: false,
+        progress: 0,
+        stage: 'none',
+        message: '',
+        lastUpdated: 0
+      };
+    }
+    
+    // Limpiar estados muy viejos (más de 10 segundos)
+    if (Date.now() - state.lastUpdated > 10000 && !state.isLoading) {
+      return {
+        isLoading: false,
+        progress: 0,
+        stage: 'none',
+        message: '',
+        lastUpdated: 0
+      };
+    }
+    
+    return state;
+  };
+  
+  // 🔥 Función para verificar si una canción está cargando
+  const isSongLoading = (songId) => {
+    return getSongLoadingState(songId).isLoading;
+  };
+  
+  // 🔥 Función para obtener progreso de carga de una canción
+  const getSongLoadingProgress = (songId) => {
+    return getSongLoadingState(songId).progress;
+  };
+
   const isMountedRef = useRef(true);
   const cleanupPerformedRef = useRef(false);
   const audioEngineAvailableRef = useRef(!!audioEngine);
@@ -37,19 +90,54 @@ export const PlayerProvider = ({ children }) => {
       // Configurar callbacks solo si las funciones existen
       if (typeof audioEngine.onPlay === 'function') {
         audioEngine.onPlay = () => {
-          if (isMountedRef.current) setIsPlaying(true);
+          console.log('[PlayerContext] AudioEngine onPlay callback');
+          if (isMountedRef.current) {
+            setIsPlaying(true);
+            // 🔥 Actualizar estado cuando empieza a reproducir
+            if (currentSong) {
+              updateSongLoadingState(currentSong.id, {
+                isLoading: false,
+                progress: 100,
+                stage: 'playing',
+                message: 'Reproduciendo'
+              });
+            }
+          }
         };
       }
 
       if (typeof audioEngine.onPause === 'function') {
         audioEngine.onPause = () => {
-          if (isMountedRef.current) setIsPlaying(false);
+          console.log('[PlayerContext] AudioEngine onPause callback');
+          if (isMountedRef.current) {
+            setIsPlaying(false);
+            // 🔥 Actualizar estado cuando se pausa
+            if (currentSong) {
+              updateSongLoadingState(currentSong.id, {
+                isLoading: false,
+                progress: 100,
+                stage: 'paused',
+                message: 'Pausado'
+              });
+            }
+          }
         };
       }
 
       if (typeof audioEngine.onEnd === 'function') {
         audioEngine.onEnd = () => {
-          if (isMountedRef.current) setIsPlaying(false);
+          console.log('[PlayerContext] AudioEngine onEnd callback');
+          if (isMountedRef.current) {
+            setIsPlaying(false);
+            if (currentSong) {
+              updateSongLoadingState(currentSong.id, {
+                isLoading: false,
+                progress: 100,
+                stage: 'ended',
+                message: 'Finalizado'
+              });
+            }
+          }
         };
       }
 
@@ -64,17 +152,55 @@ export const PlayerProvider = ({ children }) => {
           console.error("[PlayerContext] Audio error:", msg);
           if (isMountedRef.current) {
             setError(msg || 'Error desconocido en el reproductor');
-            setIsLoading(false);
+            if (currentSong) {
+              updateSongLoadingState(currentSong.id, {
+                isLoading: false,
+                progress: 0,
+                stage: 'error',
+                message: 'Error cargando audio'
+              });
+            }
+          }
+        };
+      }
+
+      // 🔥 Callback personalizado para carga progresiva
+      if (typeof audioEngine.onLoading === 'function') {
+        audioEngine.onLoading = (progressPercent, stage, message) => {
+          if (isMountedRef.current && currentSong) {
+            updateSongLoadingState(currentSong.id, {
+              isLoading: progressPercent < 100,
+              progress: progressPercent,
+              stage: stage || 'loading_audio',
+              message: message || 'Cargando audio...'
+            });
           }
         };
       }
 
       // Cargar volumen inicial si está disponible
       if (typeof audioEngine.getVolume === 'function') {
-        const initialVolume = audioEngine.getVolume();
-        if (isMountedRef.current && initialVolume !== null && initialVolume !== undefined) {
-          setVolume(initialVolume);
+        try {
+          const initialVolume = audioEngine.getVolume();
+          if (isMountedRef.current && 
+              initialVolume !== null && 
+              initialVolume !== undefined &&
+              typeof initialVolume === 'number') {
+            setVolume(initialVolume);
+          }
+        } catch (err) {
+          console.warn('[PlayerContext] Error obteniendo volumen inicial:', err);
         }
+      }
+
+      // 🔥 Intentar obtener referencia directa al elemento audio
+      try {
+        if (audioEngine.audioElement) {
+          audioElementRef.current = audioEngine.audioElement;
+          console.log('[PlayerContext] Referencia a audioElement obtenida');
+        }
+      } catch (err) {
+        console.warn('[PlayerContext] No se pudo obtener audioElement:', err.message);
       }
 
     } catch (err) {
@@ -154,18 +280,41 @@ export const PlayerProvider = ({ children }) => {
     }
 
     try {
+      // 🔥 Actualizar estado de carga
+      updateSongLoadingState(songId, {
+        isLoading: true,
+        progress: 10,
+        stage: 'fetching_url',
+        message: 'Solicitando URL de audio...'
+      });
+
       // Verificar disponibilidad de streamManager
       if (!streamManager || typeof streamManager.getAudio !== 'function') {
         console.warn('[PlayerContext] streamManager no disponible, usando fallback');
         
-        // Fallback: usar URL de prueba o estructura mock
-        // Esto evita el error "Empty src attribute"
+        updateSongLoadingState(songId, {
+          progress: 30,
+          message: 'StreamManager no disponible, usando fallback...'
+        });
+        
+        // Fallback: usar URL de prueba
         const fallbackUrl = `https://api.djidjimusic.com/api2/stream/${songId}/`;
         console.log(`[PlayerContext] Usando URL fallback: ${fallbackUrl.substring(0, 50)}...`);
+        
+        updateSongLoadingState(songId, {
+          progress: 40,
+          message: 'URL fallback obtenida'
+        });
+        
         return fallbackUrl;
       }
 
-      // USAR EL STREAM MANAGER - MÉTODO PRINCIPAL getAudio
+      // 🔥 USAR EL STREAM MANAGER
+      updateSongLoadingState(songId, {
+        progress: 20,
+        message: 'Conectando con StreamManager...'
+      });
+      
       console.log(`[PlayerContext] Solicitando audio a StreamManager para: ${songId}`);
       const audioUrl = await streamManager.getAudio(songId);
       
@@ -174,12 +323,23 @@ export const PlayerProvider = ({ children }) => {
         throw new Error("No se pudo obtener URL de audio");
       }
 
+      updateSongLoadingState(songId, {
+        progress: 60,
+        message: 'URL obtenida, validando...'
+      });
+
       // Validar que sea una URL válida
       if (!validateAudioUrl(audioUrl)) {
         throw new Error("URL de audio inválida obtenida del StreamManager");
       }
 
       console.log(`[PlayerContext] URL obtenida exitosamente: ${audioUrl.substring(0, 50)}...`);
+      
+      updateSongLoadingState(songId, {
+        progress: 80,
+        message: 'URL validada correctamente'
+      });
+      
       return audioUrl;
 
     } catch (err) {
@@ -187,6 +347,14 @@ export const PlayerProvider = ({ children }) => {
         songId,
         error: err.message,
         stack: err.stack
+      });
+      
+      // Actualizar estado de error
+      updateSongLoadingState(songId, {
+        isLoading: false,
+        progress: 0,
+        stage: 'error',
+        message: `Error: ${err.message}`
       });
       
       // Mensajes de error más amigables
@@ -232,83 +400,217 @@ export const PlayerProvider = ({ children }) => {
     }
 
     setError(null);
-    setIsLoading(true);
     
+    // 🔥 INICIAR CARGA CON FEEDBACK VISUAL
+    updateSongLoadingState(song.id, {
+      isLoading: true,
+      progress: 0,
+      stage: 'init',
+      message: 'Iniciando reproducción...'
+    });
+
     try {
-      // Obtener URL segura usando StreamManager
+      // 1. Obtener URL segura usando StreamManager
+      updateSongLoadingState(song.id, {
+        progress: 15,
+        message: 'Obteniendo URL de audio...'
+      });
+      
       const audioUrl = await getSecureAudioUrl(song.id);
       
       if (!validateAudioUrl(audioUrl)) {
         throw new Error("URL de audio inválida obtenida");
       }
 
-      // Actualizar estado antes de cargar
+      // 2. Actualizar canción actual
       setCurrentSong(song);
       
-      // Cargar audio - NO auto-play para evitar bloqueos del navegador
+      // 3. Cargar audio - NO auto-play para evitar bloqueos del navegador
+      updateSongLoadingState(song.id, {
+        progress: 70,
+        stage: 'loading_audio',
+        message: 'Cargando audio en el reproductor...'
+      });
+      
       console.log(`[PlayerContext] Cargando audio: ${audioUrl.substring(0, 50)}...`);
       await audioEngine.load(audioUrl, false); // false = no auto-play
       
-      // Reproducir manualmente después de cargar
-      // Esto respeta las políticas de auto-play del navegador
-      if (typeof audioEngine.play === 'function') {
-        audioEngine.play().catch(playError => {
-          console.warn('[PlayerContext] Auto-play bloqueado por el navegador:', playError);
-          // El usuario necesitará interactuar manualmente
-          if (isMountedRef.current) {
-            setError('Haz clic en el botón de reproducir para iniciar la canción');
-          }
-        });
-      }
-      
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
+      // 4. Audio cargado, listo para reproducir
+      updateSongLoadingState(song.id, {
+        isLoading: false,
+        progress: 100,
+        stage: 'ready',
+        message: 'Listo para reproducir'
+      });
+
+      // 5. Reproducir después de breve pausa para mejor experiencia
+      setTimeout(() => {
+        if (isMountedRef.current && typeof audioEngine.play === 'function') {
+          audioEngine.play().catch(playError => {
+            console.warn('[PlayerContext] Auto-play bloqueado por el navegador:', playError);
+            // El usuario necesitará interactuar manualmente
+            if (isMountedRef.current) {
+              setError('Haz clic en el botón de reproducir para iniciar la canción');
+              updateSongLoadingState(song.id, {
+                isLoading: false,
+                progress: 100,
+                stage: 'ready',
+                message: 'Haz clic para reproducir'
+              });
+            }
+          });
+        }
+      }, 300);
 
     } catch (err) {
       console.error("[PlayerContext] Error reproduciendo canción:", err);
       
-      // Mensajes de error amigables
-      let userMessage = err.message;
-      
-      if (err.message.includes('Sesión expirada') || err.message.includes('token')) {
-        userMessage = 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.';
-        // Limpiar tokens
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-      } else if (err.message.includes('429')) {
-        userMessage = 'Demasiadas solicitudes. Por favor espera un momento.';
-      } else if (err.message.includes('404')) {
-        userMessage = 'Esta canción no está disponible en este momento.';
-      } else if (err.message.includes('Empty src') || err.message.includes('MEDIA_ELEMENT_ERROR')) {
-        userMessage = 'Error en la fuente de audio. La canción no puede reproducirse.';
-      }
-      
       if (isMountedRef.current) {
-        setError(userMessage);
-        setIsLoading(false);
+        setError(err.message || 'Error al reproducir');
+        updateSongLoadingState(song.id, {
+          isLoading: false,
+          progress: 0,
+          stage: 'error',
+          message: 'Error cargando audio'
+        });
+        
         setCurrentSong(null);
       }
     }
   };
 
-  // Funciones wrapper con validación de disponibilidad
-  const pause = () => {
-    if (audioEngineAvailableRef.current && typeof audioEngine.pause === 'function') {
-      audioEngine.pause();
+  /**
+   * Toggle play/pause con feedback visual - VERSIÓN MEJORADA
+   */
+  const togglePlay = () => {
+    console.log('[PlayerContext] togglePlay llamado, estado actual:', { 
+      isPlaying, 
+      currentSong: currentSong?.title,
+      audioEngineAvailable: audioEngineAvailableRef.current 
+    });
+    
+    if (!audioEngineAvailableRef.current || !currentSong) {
+      console.warn('[PlayerContext] No se puede togglePlay: audioEngine no disponible o no hay canción');
+      return;
+    }
+
+    try {
+      if (isPlaying) {
+        // 🔥 INTENTAR MÚLTIPLES FORMAS DE PAUSAR
+        
+        // 1. Intentar con audioEngine.pause() si existe
+        if (typeof audioEngine.pause === 'function') {
+          console.log('[PlayerContext] Intentando pausar con audioEngine.pause()');
+          audioEngine.pause();
+        }
+        
+        // 2. Intentar directamente con el elemento de audio si tenemos referencia
+        if (audioElementRef.current && typeof audioElementRef.current.pause === 'function') {
+          console.log('[PlayerContext] Intentando pausar directamente con audioElement.pause()');
+          audioElementRef.current.pause();
+        }
+        
+        // 3. Intentar buscar elementos audio en el DOM
+        const audioElements = document.querySelectorAll('audio');
+        if (audioElements.length > 0) {
+          console.log(`[PlayerContext] Encontrados ${audioElements.length} elementos audio, pausando todos`);
+          audioElements.forEach(audio => {
+            if (typeof audio.pause === 'function') {
+              audio.pause();
+            }
+          });
+        }
+        
+        // 🔥 ACTUALIZAR ESTADO INMEDIATAMENTE (no depender de callbacks)
+        setIsPlaying(false);
+        updateSongLoadingState(currentSong.id, {
+          isLoading: false,
+          progress: 100,
+          stage: 'paused',
+          message: 'Pausado'
+        });
+        
+        console.log('[PlayerContext] Estado actualizado a pausado');
+        
+      } else {
+        // Reanudar reproducción
+        console.log('[PlayerContext] Intentando reanudar reproducción');
+        
+        updateSongLoadingState(currentSong.id, {
+          isLoading: true,
+          progress: 0,
+          stage: 'resuming',
+          message: 'Reanudando...'
+        });
+        
+        if (typeof audioEngine.play === 'function') {
+          audioEngine.play().then(() => {
+            console.log('[PlayerContext] audioEngine.play() exitoso');
+            if (isMountedRef.current) {
+              setIsPlaying(true);
+              updateSongLoadingState(currentSong.id, {
+                isLoading: false,
+                progress: 100,
+                stage: 'playing',
+                message: 'Reproduciendo'
+              });
+            }
+          }).catch(playError => {
+            console.warn('[PlayerContext] Error en audioEngine.play():', playError);
+            
+            // 🔥 INTENTAR FORMAS ALTERNATIVAS DE PLAY
+            
+            // 1. Intentar directamente con el elemento de audio
+            if (audioElementRef.current && typeof audioElementRef.current.play === 'function') {
+              console.log('[PlayerContext] Intentando play directamente con audioElement');
+              audioElementRef.current.play().then(() => {
+                setIsPlaying(true);
+                updateSongLoadingState(currentSong.id, {
+                  isLoading: false,
+                  progress: 100,
+                  stage: 'playing',
+                  message: 'Reproduciendo'
+                });
+              }).catch(err => {
+                console.warn('[PlayerContext] Error en audioElement.play():', err);
+              });
+            }
+            
+            // 2. Intentar con elementos audio en DOM
+            const audioElements = document.querySelectorAll('audio');
+            if (audioElements.length > 0) {
+              console.log(`[PlayerContext] Intentando play con ${audioElements.length} elementos audio`);
+              audioElements.forEach(audio => {
+                if (typeof audio.play === 'function') {
+                  audio.play().catch(e => console.warn('Error en audio.play():', e));
+                }
+              });
+            }
+            
+            updateSongLoadingState(currentSong.id, {
+              isLoading: false,
+              message: 'Error reanudando'
+            });
+          });
+        } else {
+          console.warn('[PlayerContext] audioEngine.play no es una función');
+          updateSongLoadingState(currentSong.id, {
+            isLoading: false,
+            message: 'Error: función play no disponible'
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[PlayerContext] Error en togglePlay:', err);
     }
   };
 
-  const togglePlay = () => {
-    if (audioEngineAvailableRef.current && typeof audioEngine.toggle === 'function') {
-      audioEngine.toggle();
-    } else if (audioEngineAvailableRef.current) {
-      // Fallback manual
-      if (isPlaying) {
-        if (typeof audioEngine.pause === 'function') audioEngine.pause();
-      } else {
-        if (typeof audioEngine.play === 'function') audioEngine.play();
-      }
+  // Funciones wrapper con validación de disponibilidad
+  const pause = () => {
+    console.log('[PlayerContext] pause() llamado');
+    if (audioEngineAvailableRef.current && typeof audioEngine.pause === 'function') {
+      audioEngine.pause();
+      setIsPlaying(false); // Actualizar estado inmediatamente
     }
   };
 
@@ -326,9 +628,16 @@ export const PlayerProvider = ({ children }) => {
     const validVolume = Math.max(0, Math.min(1, value));
     
     if (audioEngineAvailableRef.current && typeof audioEngine.setVolume === 'function') {
-      const newVolume = audioEngine.setVolume(validVolume);
-      if (isMountedRef.current && newVolume !== null && newVolume !== undefined) {
-        setVolume(newVolume);
+      try {
+        const newVolume = audioEngine.setVolume(validVolume);
+        if (isMountedRef.current && 
+            newVolume !== null && 
+            newVolume !== undefined &&
+            typeof newVolume === 'number') {
+          setVolume(newVolume);
+        }
+      } catch (err) {
+        console.warn('[PlayerContext] Error cambiando volumen:', err);
       }
     } else {
       // Fallback: solo actualizar estado local
@@ -336,6 +645,10 @@ export const PlayerProvider = ({ children }) => {
         setVolume(validVolume);
       }
     }
+  };
+
+  const clearError = () => {
+    setError(null);
   };
 
   // Limpiar error después de un tiempo
@@ -359,8 +672,14 @@ export const PlayerProvider = ({ children }) => {
     progress,
     volume,
     error,
-    isLoading,
     lastValidUrl,
+    
+    // 🔥 Estado de carga por canción
+    songLoadingStates,
+    getSongLoadingState,
+    updateSongLoadingState,
+    isSongLoading,
+    getSongLoadingProgress,
     
     // Acciones
     playSong,
@@ -368,7 +687,7 @@ export const PlayerProvider = ({ children }) => {
     togglePlay,
     seek,
     changeVolume,
-    clearError: () => setError(null),
+    clearError,
     
     // Información del sistema
     audioEngineAvailable: audioEngineAvailableRef.current,
@@ -396,10 +715,18 @@ export const usePlayer = () => {
       progress: { current: 0, duration: 0 },
       volume: 0.7,
       error: null,
-      isLoading: false,
       lastValidUrl: null,
-      audioEngineAvailable: false,
-      streamManagerAvailable: false,
+      songLoadingStates: {},
+      getSongLoadingState: () => ({
+        isLoading: false,
+        progress: 0,
+        stage: 'none',
+        message: '',
+        lastUpdated: 0
+      }),
+      updateSongLoadingState: () => {},
+      isSongLoading: () => false,
+      getSongLoadingProgress: () => 0,
       
       playSong: (song) => {
         console.warn('Player no disponible. Canción:', song?.title);
@@ -408,7 +735,9 @@ export const usePlayer = () => {
       togglePlay: () => console.warn('Player no disponible - togglePlay'),
       seek: (seconds) => console.warn(`Player no disponible - seek: ${seconds}`),
       changeVolume: (value) => console.warn(`Player no disponible - volume: ${value}`),
-      clearError: () => {}
+      clearError: () => {},
+      audioEngineAvailable: false,
+      streamManagerAvailable: false
     };
   }
   

@@ -7,7 +7,7 @@ import "swiper/css";
 import "swiper/css/effect-coverflow";
 import "swiper/css/pagination";
 import SongCard from "./SongCard";
-import { useConfig } from "../../hook/useConfig";
+import { useConfig } from "../../../components/hook//useConfig";
 
 // Action Types
 const FETCH_INIT = 'FETCH_INIT';

@@ -1,4 +1,4 @@
-// src/components/search/SearchResults.jsx - VERSIÓN MEJORADA
+// src/components/search/SearchResults.jsx - VERSIÓN COMPATIBLE
 import React from "react";
 import {
   Paper,
@@ -11,18 +11,21 @@ import {
   IconButton,
   ListItemIcon,
   Alert,
+  Tooltip,
+  Chip,
 } from "@mui/material";
 import {
   Close as CloseIcon,
   MusicNote as MusicIcon,
   Person as PersonIcon,
   Search as SearchIcon,
-  Album as AlbumIcon,
+  Category as CategoryIcon,
   PlayArrow,
+  Star,
 } from "@mui/icons-material";
 
 const SearchResults = ({
-  results = {},
+  results = {},      // Ahora recibe structuredResults directamente
   loading = false,
   error = null,
   isOpen = false,
@@ -31,25 +34,13 @@ const SearchResults = ({
 }) => {
   if (!isOpen) return null;
 
-  // Manejar diferentes estructuras de datos
-  let songs = [];
-  let artists = [];
-  let suggestions = [];
-
-  if (Array.isArray(results)) {
-    // Si results es un array (compatibilidad con versiones antiguas)
-    songs = results.filter(item => item.type === 'song');
-    artists = results.filter(item => item.type === 'artist');
-    suggestions = results.filter(item => item.type === 'suggestion');
-  } else {
-    // Si results es un objeto estructurado (nuevo formato)
-    songs = results.songs || [];
-    artists = results.artists || [];
-    suggestions = results.suggestions || [];
-  }
-
-  const hasResults = songs.length > 0 || artists.length > 0 || suggestions.length > 0;
-  const totalResults = songs.length + artists.length + suggestions.length;
+  // Extraer datos del structuredResults
+  const songs = results.songs || [];
+  const artists = results.artists || [];
+  const genres = results.genres || [];
+  
+  const hasResults = songs.length > 0 || artists.length > 0 || genres.length > 0;
+  const totalResults = songs.length + artists.length + genres.length;
 
   const handleSelect = (item, type) => {
     if (onSelect) {
@@ -60,20 +51,36 @@ const SearchResults = ({
     }
   };
 
-  const handleViewAll = (items, type) => {
-    if (onSelect) {
-      onSelect(items, `${type}s`);
+  const formatSecondaryInfo = (item, type) => {
+    const parts = [];
+    
+    if (type === 'song') {
+      if (item.artist) parts.push(item.artist);
+      if (item.genre && item.genre !== 'Sin género') parts.push(item.genre);
+    } else if (type === 'artist' && item.song_count) {
+      parts.push(`${item.song_count} canciones`);
+    } else if (type === 'genre' && item.song_count) {
+      parts.push(`${item.song_count} canciones`);
     }
-    if (onClose) {
-      onClose();
+    
+    // Agregar score si existe y es relevante
+    if (item.score !== undefined && item.score > 0) {
+      parts.push(`⭐ ${item.score}`);
     }
+    
+    // Agregar exact match
+    if (item.exact_match) {
+      parts.push('🎯 Exacto');
+    }
+    
+    return parts.join(' • ');
   };
 
-  const formatDuration = (seconds) => {
-    if (!seconds) return '';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const getItemTitle = (item, type) => {
+    if (type === 'song') return item.title || 'Sin título';
+    if (type === 'artist') return item.name || 'Artista';
+    if (type === 'genre') return item.name || 'Género';
+    return item.display || 'Item';
   };
 
   return (
@@ -174,7 +181,7 @@ const SearchResults = ({
             <List disablePadding>
               {songs.slice(0, 5).map((song, index) => (
                 <ListItemButton
-                  key={`song-${song.id}-${index}`}
+                  key={`song-${song.id || index}-${index}`}
                   onClick={() => handleSelect(song, "song")}
                   sx={{
                     px: 2,
@@ -204,29 +211,16 @@ const SearchResults = ({
                       noWrap
                       sx={{ color: "#006064", fontWeight: 500 }}
                     >
-                      {song.title || 'Sin título'}
+                      {getItemTitle(song, 'song')}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="caption" sx={{ color: "#00838F" }}>
-                        {song.artist || 'Artista desconocido'}
-                      </Typography>
-                      {song.genre && (
-                        <>
-                          <Typography variant="caption" sx={{ color: "#B0BEC5" }}>•</Typography>
-                          <Typography variant="caption" sx={{ color: "#78909C" }}>
-                            {song.genre}
-                          </Typography>
-                        </>
-                      )}
-                      {song.duration && (
-                        <>
-                          <Typography variant="caption" sx={{ color: "#B0BEC5" }}>•</Typography>
-                          <Typography variant="caption" sx={{ color: "#78909C" }}>
-                            {formatDuration(song.duration)}
-                          </Typography>
-                        </>
-                      )}
-                    </Box>
+                    
+                    <Typography variant="caption" sx={{ 
+                      color: "#00838F",
+                      display: 'block',
+                      mt: 0.5
+                    }}>
+                      {formatSecondaryInfo(song, 'song')}
+                    </Typography>
                   </Box>
                   <IconButton 
                     size="small" 
@@ -247,7 +241,7 @@ const SearchResults = ({
                 <Divider sx={{ borderColor: "#B2EBF2" }} />
                 <ActionItem
                   label={`Ver todas las canciones (${songs.length})`}
-                  onClick={() => handleViewAll(songs, "song")}
+                  onClick={() => onSelect && onSelect(songs, "songs")}
                 />
               </>
             )}
@@ -257,7 +251,7 @@ const SearchResults = ({
         {/* ARTISTS */}
         {artists.length > 0 && (
           <>
-            {(songs.length > 0 || suggestions.length > 0) && (
+            {songs.length > 0 && (
               <Divider sx={{ borderColor: "#B2EBF2", my: 1 }} />
             )}
             
@@ -266,7 +260,7 @@ const SearchResults = ({
             <List disablePadding>
               {artists.slice(0, 5).map((artist, index) => (
                 <ListItemButton
-                  key={`artist-${artist.id}-${index}`}
+                  key={`artist-${artist.id || index}-${index}`}
                   onClick={() => handleSelect(artist, "artist")}
                   sx={{
                     px: 2,
@@ -290,42 +284,42 @@ const SearchResults = ({
                       <PersonIcon fontSize="small" />
                     </Box>
                   </ListItemIcon>
-                  <Typography 
-                    variant="body2"
-                    sx={{ color: "#006064", fontWeight: 500 }}
-                  >
-                    {artist.name || 'Artista'}
-                  </Typography>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography 
+                      variant="body2" 
+                      noWrap
+                      sx={{ color: "#006064", fontWeight: 500 }}
+                    >
+                      {getItemTitle(artist, 'artist')}
+                    </Typography>
+                    <Typography variant="caption" sx={{ 
+                      color: "#00838F",
+                      display: 'block',
+                      mt: 0.5
+                    }}>
+                      {formatSecondaryInfo(artist, 'artist')}
+                    </Typography>
+                  </Box>
                 </ListItemButton>
               ))}
             </List>
-
-            {artists.length > 5 && (
-              <>
-                <Divider sx={{ borderColor: "#B2EBF2" }} />
-                <ActionItem
-                  label={`Ver todos los artistas (${artists.length})`}
-                  onClick={() => handleViewAll(artists, "artist")}
-                />
-              </>
-            )}
           </>
         )}
 
-        {/* SUGGESTIONS */}
-        {suggestions.length > 0 && (
+        {/* GENRES */}
+        {genres.length > 0 && (
           <>
             {(songs.length > 0 || artists.length > 0) && (
               <Divider sx={{ borderColor: "#B2EBF2", my: 1 }} />
             )}
             
-            <SectionTitle icon={<AlbumIcon />} label="Sugerencias" />
-            
+            <SectionTitle icon={<CategoryIcon />} label={`Géneros (${genres.length})`} />
+
             <Box sx={{ p: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {suggestions.map((suggestion, index) => (
+              {genres.slice(0, 6).map((genre, index) => (
                 <Box
-                  key={`suggestion-${index}`}
-                  onClick={() => handleSelect(suggestion, "suggestion")}
+                  key={`genre-${genre.id || index}-${index}`}
+                  onClick={() => handleSelect(genre, "genre")}
                   sx={{
                     px: 2,
                     py: 1,
@@ -340,9 +334,24 @@ const SearchResults = ({
                     }
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: "#00838F", fontWeight: 500 }}>
-                    {suggestion.display || suggestion}
+                  <Typography 
+                    variant="caption" 
+                    sx={{ color: "#00838F", fontWeight: 500 }}
+                  >
+                    {getItemTitle(genre, 'genre')}
                   </Typography>
+                  {genre.song_count && (
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        ml: 1,
+                        color: "#006064",
+                        fontSize: '0.7rem'
+                      }}
+                    >
+                      ({genre.song_count})
+                    </Typography>
+                  )}
                 </Box>
               ))}
             </Box>
@@ -390,8 +399,14 @@ const SectionTitle = ({ icon, label }) => (
       borderTop: "1px solid #B2EBF2",
     }}
   >
-    {React.cloneElement(icon, { sx: { color: "#00838F", fontSize: 18 } })}
-    <Typography variant="caption" fontWeight={600} sx={{ color: "#006064" }}>
+    {React.cloneElement(icon, { 
+      sx: { color: "#00838F", fontSize: 18 } 
+    })}
+    <Typography 
+      variant="caption" 
+      fontWeight={600} 
+      sx={{ color: "#006064" }}
+    >
       {label}
     </Typography>
   </Box>

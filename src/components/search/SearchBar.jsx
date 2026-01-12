@@ -1,4 +1,4 @@
-// src/components/search/SearchBar.jsx - VERSIÓN CORREGIDA
+// src/components/search/SearchBar.jsx - YA ES COMPATIBLE
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
