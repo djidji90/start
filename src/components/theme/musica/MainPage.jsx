@@ -1,14 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
-  Box, 
-  Container, 
-  Typography, 
-  Paper,
-  useTheme,
-  useMediaQuery,
-  Fade,
-  Alert,
-  Snackbar
+  Box, Container, Typography, Paper, useTheme,
+  useMediaQuery, Fade, Alert, Snackbar 
 } from "@mui/material";
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
@@ -40,44 +33,6 @@ const MainPage = () => {
 
   const searchBarRef = useRef(null);
   const resultsRef = useRef(null);
-
-  /* -------------------- FUNCIÓN PARA IDs ÚNICOS -------------------- */
-  const generateUniqueId = useCallback(() => {
-    return `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }, []);
-
-  /* -------------------- CANCIONES INICIALES -------------------- */
-  useEffect(() => {
-    setSelectedSongs([
-      { 
-        id: generateUniqueId(),
-        title: "Malo", 
-        artist: "Jordi", 
-        genre: "Hip Hop", 
-        duration: 180,
-        cover: null,
-        audioUrl: null
-      },
-      { 
-        id: generateUniqueId(),
-        title: "Badeko Ya Basy", 
-        artist: "Franco", 
-        genre: "Rumba", 
-        duration: 240,
-        cover: null,
-        audioUrl: null
-      },
-      { 
-        id: generateUniqueId(),
-        title: "FD", 
-        artist: "DDD", 
-        genre: "Pop", 
-        duration: 210,
-        cover: null,
-        audioUrl: null
-      }
-    ]);
-  }, [generateUniqueId]);
 
   /* -------------------- NOTIFICACIÓN DE CACHÉ -------------------- */
   useEffect(() => {
@@ -128,93 +83,41 @@ const MainPage = () => {
     closeResults?.();
   };
 
-  /* -------------------- SELECCIÓN DE CANCIONES -------------------- */
+  /* -------------------- SELECCIÓN DE CANCIONES (SOLO API) -------------------- */
   const handleSelectResult = (item, type) => {
     console.log('Item seleccionado:', { item, type });
     
-    // Verificar si ya existe una canción similar
-    const isDuplicate = (newSong) => {
-      return selectedSongs.some(existingSong => 
-        existingSong.title === newSong.title && 
-        existingSong.artist === newSong.artist
-      );
+    // 🔥 SOLO aceptar canciones con IDs de API válidos
+    if (type !== "song" || !item.id || typeof item.id !== 'number') {
+      console.log('⚠️ Solo se pueden seleccionar canciones con ID de API válido');
+      handleCloseResults();
+      return;
+    }
+    
+    // Verificar si ya existe la canción
+    const isDuplicate = selectedSongs.some(song => song.id === item.id);
+    
+    if (isDuplicate) {
+      console.log('Canción ya existe en la lista');
+      handleCloseResults();
+      return;
+    }
+    
+    // Crear objeto de canción simplificado
+    const newSong = {
+      id: item.id,
+      title: item.title || "Sin título",
+      artist: item.artist || "Artista desconocido",
+      genre: item.genre || "Desconocido",
+      duration: item.duration || 180,
+      cover: item.cover || null,
+      // Mantener compatibilidad con otros componentes
+      image_url: item.image_url || null
     };
-
-    if (type === "song") {
-      const newSong = {
-        id: item.id || generateUniqueId(),
-        title: item.title || "Sin título",
-        artist: item.artist || "Artista desconocido",
-        genre: item.genre || "Desconocido",
-        duration: 180,
-        cover: null,
-        audioUrl: null
-      };
-
-      if (!isDuplicate(newSong)) {
-        setSelectedSongs(prev => [newSong, ...prev]);
-      } else {
-        console.log('Canción ya existe en la lista');
-      }
-    }
-
-    if (type === "artist") {
-      const newSongs = [
-        { 
-          id: generateUniqueId(), 
-          title: `${item.name || 'Artista'} - Hit 1`, 
-          artist: item.name || 'Artista',
-          genre: "Artista",
-          duration: 180,
-          cover: null,
-          audioUrl: null
-        },
-        { 
-          id: generateUniqueId(), 
-          title: `${item.name || 'Artista'} - Hit 2`, 
-          artist: item.name || 'Artista',
-          genre: "Artista",
-          duration: 200,
-          cover: null,
-          audioUrl: null
-        }
-      ];
-
-      // Filtrar duplicados
-      const uniqueNewSongs = newSongs.filter(song => !isDuplicate(song));
-      if (uniqueNewSongs.length > 0) {
-        setSelectedSongs(prev => [...uniqueNewSongs, ...prev]);
-      }
-    }
-
-    if (type === "genre") {
-      const newSongs = [
-        { 
-          id: generateUniqueId(), 
-          title: `Canción ${item.name || 'Género'} 1`, 
-          artist: "Varios artistas",
-          genre: item.name || 'Género',
-          duration: 180,
-          cover: null,
-          audioUrl: null
-        },
-        { 
-          id: generateUniqueId(), 
-          title: `Canción ${item.name || 'Género'} 2`, 
-          artist: "Varios artistas",
-          genre: item.name || 'Género',
-          duration: 200,
-          cover: null,
-          audioUrl: null
-        }
-      ];
-
-      const uniqueNewSongs = newSongs.filter(song => !isDuplicate(song));
-      if (uniqueNewSongs.length > 0) {
-        setSelectedSongs(prev => [...uniqueNewSongs, ...prev]);
-      }
-    }
-
+    
+    setSelectedSongs(prev => [newSong, ...prev]);
+    console.log('✅ Canción agregada:', newSong);
+    
     handleCloseResults();
   };
 
@@ -260,7 +163,7 @@ const MainPage = () => {
               onQueryChange={setQuery}
               loading={loading}
               autoFocus={!isMobile}
-              placeholder="Buscar canciones, artistas, géneros..."
+              placeholder="Buscar canciones..."
             />
           </Paper>
 
@@ -299,19 +202,19 @@ const MainPage = () => {
           </Box>
         )}
 
+        {/* CANCIONES SELECCIONADAS */}
+        {selectedSongs.length > 0 && (
+          <Box sx={{ mb: 8 }}>
+            <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: "#1a1a1a" }}>
+              Canciones Seleccionadas
+            </Typography>
+            <SongCarousel songs={selectedSongs} />
+          </Box>
+        )}
+
         {/* ARTIST CAROUSEL */}
         <Box sx={{ mb: 8 }}>
           <ArtistCarousel />
-        </Box>
-
-        {/* SONG CAROUSEL */}
-        <Box sx={{ mb: 8 }}>
-          {selectedSongs.length > 0 && (
-            <SongCarousel
-              songs={selectedSongs}
-              title={null}
-            />
-          )}
         </Box>
 
         {/* POPULAR SONGS */}
