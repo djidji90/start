@@ -311,11 +311,11 @@ export const PlayerProvider = ({ children }) => {
 
       // 🔥 USAR EL STREAM MANAGER
       updateSongLoadingState(songId, {
-        progress: 20,
-        message: 'Conectando con StreamManager...'
+        progress: 99,
+        message: 'cargando..'
       });
       
-      console.log(`[PlayerContext] Solicitando audio a StreamManager para: ${songId}`);
+      console.log(`[PlayerContext] cargando...: ${songId}`);
       const audioUrl = await streamManager.getAudio(songId);
       
       if (!audioUrl) {
