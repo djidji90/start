@@ -1,24 +1,21 @@
-// src/components/songs/RandomSongsDisplay.jsx - VERSIÓN FINAL
-import React, { useRef, useEffect } from "react";
+// src/components/songs/RandomSongsDisplay.jsx - SCROLL VERTICAL
+import React from "react";
 import {
   Container,
+  Grid,
   Box,
   Typography,
   Button,
   CircularProgress,
   Alert,
   Paper,
-  IconButton,
-  Stack,
   useMediaQuery,
   useTheme
 } from "@mui/material";
 import {
   Refresh,
   MusicNote,
-  Error as ErrorIcon,
-  ChevronLeft,
-  ChevronRight
+  Error as ErrorIcon
 } from "@mui/icons-material";
 import useRandomSongs from "../../components/hook/services/useRandomSongs";
 import SongCard from "../../songs/SongCard";
@@ -26,8 +23,6 @@ import SongCard from "../../songs/SongCard";
 const RandomSongsDisplay = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const scrollContainerRef = useRef(null);
-  const [touchStart, setTouchStart] = React.useState(0);
 
   // Usamos el hook completo
   const {
@@ -42,48 +37,6 @@ const RandomSongsDisplay = () => {
     showError,
     showContent
   } = useRandomSongs();
-
-  // Touch handlers para móvil
-  const handleTouchStart = (e) => {
-    if (isMobile && scrollContainerRef.current) {
-      setTouchStart(e.touches[0].clientX);
-    }
-  };
-
-  const handleTouchMove = (e) => {
-    if (isMobile && scrollContainerRef.current && touchStart !== 0) {
-      e.preventDefault();
-      const touchX = e.touches[0].clientX;
-      const diff = touchStart - touchX;
-      scrollContainerRef.current.scrollLeft += diff;
-      setTouchStart(touchX);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (isMobile) {
-      setTouchStart(0);
-    }
-  };
-
-  // Scroll manual con flechas
-  const scrollLeftManual = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ 
-        left: isMobile ? -300 : -400, 
-        behavior: 'smooth' 
-      });
-    }
-  };
-
-  const scrollRightManual = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ 
-        left: isMobile ? 300 : 400, 
-        behavior: 'smooth' 
-      });
-    }
-  };
 
   // Estados del componente
   if (!isAuthenticated) {
@@ -177,87 +130,66 @@ const RandomSongsDisplay = () => {
           Selección Especial
         </Typography>
 
-        <Stack direction="row" spacing={1} alignItems="center">
-          {/* Solo controles esenciales */}
-          <IconButton
-            onClick={scrollLeftManual}
-            size={isMobile ? "medium" : "small"}
-            title="Anterior"
-            sx={isMobile ? { p: 1 } : {}}
-          >
-            <ChevronLeft fontSize={isMobile ? "medium" : "small"} />
-          </IconButton>
-
-          <IconButton
-            onClick={scrollRightManual}
-            size={isMobile ? "medium" : "small"}
-            title="Siguiente"
-            sx={isMobile ? { p: 1 } : {}}
-          >
-            <ChevronRight fontSize={isMobile ? "medium" : "small"} />
-          </IconButton>
-
-         
-        </Stack>
+        <Button
+          variant="outlined"
+          onClick={refresh}
+          startIcon={<Refresh />}
+          size={isMobile ? "medium" : "small"}
+        >
+          {isMobile ? "Nuevas" : "Nuevas canciones"}
+        </Button>
       </Box>
 
-      {/* Contenedor de scroll simple */}
-      <Box
-        ref={scrollContainerRef}
-        onTouchStart={isMobile ? handleTouchStart : undefined}
-        onTouchMove={isMobile ? handleTouchMove : undefined}
-        onTouchEnd={isMobile ? handleTouchEnd : undefined}
-        sx={{
-          display: "flex",
-          overflowX: "auto",
-          overflowY: "hidden",
-          py: isMobile ? 1 : 2,
-          px: isMobile ? 0.5 : 1,
-          gap: isMobile ? 1.5 : 2,
-          scrollbarWidth: "none",
-          WebkitOverflowScrolling: "touch",
-          "&::-webkit-scrollbar": {
-            display: "none"
-          }
-        }}
-      >
+      {/* Grid vertical (scroll natural del navegador) */}
+      <Grid container spacing={isMobile ? 2 : 3}>
         {songs.map((song) => (
-          <Box
-            key={song.id}
-            sx={{
-              flexShrink: 0,
-              width: isMobile ? "220px" : "260px",
-              transition: "transform 0.2s ease",
-              "&:active": isMobile ? {
-                transform: "scale(0.98)"
-              } : {},
-              "&:hover": !isMobile ? {
-                transform: "translateY(-4px)"
-              } : {}
-            }}
+          <Grid 
+            item 
+            key={song.id} 
+            xs={12} 
+            sm={6} 
+            md={4} 
+            lg={3}
           >
-            <SongCard
-              song={song}
+            <Box
               sx={{
-                height: "100%",
+                transition: "transform 0.2s ease",
+                "&:active": isMobile ? {
+                  transform: "scale(0.98)"
+                } : {},
                 "&:hover": !isMobile ? {
-                  boxShadow: 4
+                  transform: "translateY(-4px)"
                 } : {}
               }}
-            />
-          </Box>
+            >
+              <SongCard
+                song={song}
+                sx={{
+                  height: "100%",
+                  "&:hover": !isMobile ? {
+                    boxShadow: 4
+                  } : {}
+                }}
+              />
+            </Box>
+          </Grid>
         ))}
-      </Box>
+      </Grid>
 
       {/* Información mínima */}
       <Box sx={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        mt: 2,
+        mt: 3,
+        pt: 2,
+        borderTop: 1,
+        borderColor: "divider",
         px: isMobile ? 0.5 : 1
       }}>
-       
+        <Typography variant="caption" color="text.secondary">
+          {songs.length} canciones disponibles
+        </Typography>
         
         <Typography variant="caption" color="text.secondary">
           Actualizado: {new Date().toLocaleTimeString([], { 
