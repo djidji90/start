@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Box, Container, Typography, Paper, useTheme,
-  useMediaQuery, Fade, Alert, Snackbar 
+  useMediaQuery, Fade, Alert, Snackbar, Divider 
 } from "@mui/material";
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
@@ -9,6 +9,7 @@ import { useSearch } from "../../../components/hook/services/useSearch";
 import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
+import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay"; // NUEVO IMPORT
 
 const MainPage = () => {
   const theme = useTheme();
@@ -86,24 +87,21 @@ const MainPage = () => {
   /* -------------------- SELECCIÓN DE CANCIONES (SOLO API) -------------------- */
   const handleSelectResult = (item, type) => {
     console.log('Item seleccionado:', { item, type });
-    
-    // 🔥 SOLO aceptar canciones con IDs de API válidos
+
     if (type !== "song" || !item.id || typeof item.id !== 'number') {
       console.log('⚠️ Solo se pueden seleccionar canciones con ID de API válido');
       handleCloseResults();
       return;
     }
-    
-    // Verificar si ya existe la canción
+
     const isDuplicate = selectedSongs.some(song => song.id === item.id);
-    
+
     if (isDuplicate) {
       console.log('Canción ya existe en la lista');
       handleCloseResults();
       return;
     }
-    
-    // Crear objeto de canción simplificado
+
     const newSong = {
       id: item.id,
       title: item.title || "Sin título",
@@ -111,13 +109,12 @@ const MainPage = () => {
       genre: item.genre || "Desconocido",
       duration: item.duration || 180,
       cover: item.cover || null,
-      // Mantener compatibilidad con otros componentes
       image_url: item.image_url || null
     };
-    
+
     setSelectedSongs(prev => [newSong, ...prev]);
     console.log('✅ Canción agregada:', newSong);
-    
+
     handleCloseResults();
   };
 
@@ -212,13 +209,45 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* ARTIST CAROUSEL */}
+        {/* RANDOM SONGS DISPLAY - MOVIDO ARRIBA DE ARTIST CAROUSEL */}
+        <Box sx={{ mb: 8 }}>
+          <Typography 
+            variant="h4" 
+            sx={{ 
+              mb: 4, 
+              fontWeight: 100, 
+              color: "#1a1a1a",
+              textAlign: "center",
+              fontSize: { xs: "1.8rem", md: "2.2rem" }
+            }}
+          >
+            
+          </Typography>
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              mb: 6, 
+              color: "#666",
+              textAlign: "center",
+              maxWidth: 600,
+              mx: "auto",
+              lineHeight: 1.6
+            }}
+          >
+            
+          </Typography>
+          
+          {/* COMPONENTE RANDOM SONGS */}
+          <RandomSongsDisplay />
+        </Box>
+
+        {/* ARTIST CAROUSEL - AHORA DESPUÉS DE RANDOM SONGS */}
         <Box sx={{ mb: 8 }}>
           <ArtistCarousel />
         </Box>
 
         {/* POPULAR SONGS */}
-        <Box>
+        <Box sx={{ mb: 8 }}>
           <PopularSongs />
         </Box>
 
