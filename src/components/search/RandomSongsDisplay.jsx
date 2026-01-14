@@ -40,9 +40,9 @@ const RandomSongsDisplay = () => {
   // Estados del componente
   if (!isAuthenticated) {
     return (
-      <Container maxWidth="sm" sx={{ mt: 4 }}>
-        <Paper sx={{ p: 4, borderRadius: 2 }}>
-          <ErrorIcon sx={{ fontSize: 50, color: "error.main", mb: 2 }} />
+      <Container maxWidth="sm" sx={{ mt: 3 }}>
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <ErrorIcon sx={{ fontSize: 40, color: "error.main", mb: 1.5 }} />
           <Typography variant="h6" gutterBottom color="error.main">
             Sesión requerida
           </Typography>
@@ -64,10 +64,10 @@ const RandomSongsDisplay = () => {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        py: 8
+        py: 6
       }}>
-        <CircularProgress size={isMobile ? 40 : 50} />
-        <Typography variant="body1" sx={{ mt: 2 }}>
+        <CircularProgress size={isMobile ? 35 : 45} />
+        <Typography variant="body1" sx={{ mt: 1.5 }}>
           Cargando canciones...
         </Typography>
       </Box>
@@ -76,10 +76,10 @@ const RandomSongsDisplay = () => {
 
   if (showError) {
     return (
-      <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Container maxWidth="md" sx={{ mt: 3 }}>
         <Alert
           severity="error"
-          sx={{ mb: 2 }}
+          sx={{ mb: 1.5 }}
           action={
             <Button color="inherit" size="small" onClick={refresh}>
               Reintentar
@@ -98,8 +98,8 @@ const RandomSongsDisplay = () => {
   if (isEmpty) {
     return (
       <Container maxWidth="sm">
-        <Paper sx={{ p: 4, textAlign: "center" }}>
-          <MusicNote sx={{ fontSize: 50, color: "text.secondary", mb: 2 }} />
+        <Paper sx={{ p: 3, textAlign: "center" }}>
+          <MusicNote sx={{ fontSize: 40, color: "text.secondary", mb: 1.5 }} />
           <Typography variant="h6" gutterBottom>
             No hay canciones
           </Typography>
@@ -115,15 +115,15 @@ const RandomSongsDisplay = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3, px: isMobile ? 1 : 3 }}>
-      {/* Header limpio */}
+    <Container maxWidth="xl" sx={{ py: 2, px: isMobile ? 1 : 2 }}>
+      {/* Header optimizado */}
       <Box sx={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        mb: 3,
+        mb: 2,
         flexWrap: "wrap",
-        gap: 2
+        gap: 1.5
       }}>
         <Typography variant={isMobile ? "h6" : "h5"} fontWeight="medium">
           Selección Especial
@@ -134,13 +134,14 @@ const RandomSongsDisplay = () => {
           onClick={refresh}
           startIcon={<Refresh />}
           size={isMobile ? "medium" : "small"}
+          sx={{ minWidth: "auto" }}
         >
-          {isMobile ? "Nuevas" : "Nuevas canciones"}
+          {isMobile ? "Nuevas" : "Nuevas"}
         </Button>
       </Box>
 
-      {/* Grid vertical - SCROLL VERTICAL */}
-      <Grid container spacing={isMobile ? 2 : 3}>
+      {/* Grid vertical optimizado */}
+      <Grid container spacing={isMobile ? 1.5 : 2}>
         {songs.map((song) => (
           <Grid 
             item 
@@ -149,15 +150,17 @@ const RandomSongsDisplay = () => {
             sm={6} 
             md={4} 
             lg={3}
+            sx={{ display: "flex" }}
           >
             <Box
               sx={{
+                width: "100%",
                 transition: "transform 0.2s ease",
                 "&:active": isMobile ? {
                   transform: "scale(0.98)"
                 } : {},
                 "&:hover": !isMobile ? {
-                  transform: "translateY(-4px)"
+                  transform: "translateY(-3px)"
                 } : {}
               }}
             >
@@ -166,7 +169,7 @@ const RandomSongsDisplay = () => {
                 sx={{
                   height: "100%",
                   "&:hover": !isMobile ? {
-                    boxShadow: 4
+                    boxShadow: 3
                   } : {}
                 }}
               />
@@ -175,23 +178,23 @@ const RandomSongsDisplay = () => {
         ))}
       </Grid>
 
-      {/* Información mínima */}
+      {/* Información mínima optimizada */}
       <Box sx={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        mt: 3,
-        pt: 2,
+        mt: 2,
+        pt: 1.5,
         borderTop: 1,
         borderColor: "divider",
-        px: isMobile ? 0.5 : 1
+        px: 0.5
       }}>
         <Typography variant="caption" color="text.secondary">
-          {songs.length} canciones disponibles
+          {songs.length} canciones
         </Typography>
         
         <Typography variant="caption" color="text.secondary">
-          Actualizado: {new Date().toLocaleTimeString([], { 
+          {new Date().toLocaleTimeString([], { 
             hour: '2-digit', 
             minute: '2-digit' 
           })}
