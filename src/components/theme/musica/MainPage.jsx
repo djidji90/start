@@ -6,10 +6,10 @@ import {
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
 import { useSearch } from "../../../components/hook/services/useSearch";
-import SongCarousel from "../../../songs/SongCarousel";
+import SongCarousel from "../../../songs/SongCarousel"; // ← Este ahora es vertical
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
-import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay"; // NUEVO IMPORT
+import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
 
 const MainPage = () => {
   const theme = useTheme();
@@ -199,17 +199,20 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* CANCIONES SELECCIONADAS */}
+        {/* CANCIONES SELECCIONADAS - AHORA CON GRID VERTICAL */}
         {selectedSongs.length > 0 && (
           <Box sx={{ mb: 8 }}>
             <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: "#1a1a1a" }}>
               Canciones Seleccionadas
             </Typography>
-            <SongCarousel songs={selectedSongs} />
+            <SongCarousel 
+              songs={selectedSongs} 
+              title={null} // El título ya lo ponemos arriba
+            />
           </Box>
         )}
 
-        {/* RANDOM SONGS DISPLAY - MOVIDO ARRIBA DE ARTIST CAROUSEL */}
+        {/* RANDOM SONGS DISPLAY */}
         <Box sx={{ mb: 8 }}>
           <Typography 
             variant="h4" 
@@ -221,32 +224,18 @@ const MainPage = () => {
               fontSize: { xs: "1.8rem", md: "2.2rem" }
             }}
           >
-            
-          </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              mb: 6, 
-              color: "#666",
-              textAlign: "center",
-              maxWidth: 600,
-              mx: "auto",
-              lineHeight: 1.6
-            }}
-          >
-            
+            Selección Especial
           </Typography>
           
-          {/* COMPONENTE RANDOM SONGS */}
           <RandomSongsDisplay />
         </Box>
 
-        {/* ARTIST CAROUSEL - AHORA DESPUÉS DE RANDOM SONGS */}
+        {/* ARTIST CAROUSEL - Se mantiene horizontal (OK para artistas) */}
         <Box sx={{ mb: 8 }}>
           <ArtistCarousel />
         </Box>
 
-        {/* POPULAR SONGS */}
+        {/* POPULAR SONGS - Se mantiene como está */}
         <Box sx={{ mb: 8 }}>
           <PopularSongs />
         </Box>
