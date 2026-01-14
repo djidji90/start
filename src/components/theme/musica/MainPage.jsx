@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Box, Container, Typography, Paper, useTheme,
-  useMediaQuery, Fade, Alert, Snackbar, Divider 
+  useMediaQuery, Fade, Alert, Snackbar 
 } from "@mui/material";
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
 import { useSearch } from "../../../components/hook/services/useSearch";
-import SongCarousel from "../../../songs/SongCarousel"; // ← Este ahora es vertical
+import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
@@ -128,18 +128,17 @@ const MainPage = () => {
   /* ============================ RENDER ============================ */
   return (
     <Box sx={{
-      minHeight: "100vh",
       backgroundColor: "#ffffff",
-      pt: { xs: 3, md: 6 },
-      pb: 8
+      pt: { xs: 2, md: 4 },      // REDUCIDO: 3→2, 6→4
+      pb: 4                       // REDUCIDO: 8→4
     }}>
-      <Container maxWidth="lg">
+      <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}> {/* REDUCIDO padding horizontal */}
         {/* HEADER */}
-        <Box sx={{ textAlign: "center", mb: { xs: 4, md: 6 } }}>
+        <Box sx={{ textAlign: "center", mb: { xs: 3, md: 4 } }}> {/* REDUCIDO: 4→3, 6→4 */}
           <Typography 
             variant="h1"
             sx={{ 
-              fontSize: { xs: "2.5rem", md: "3.5rem" },
+              fontSize: { xs: "2rem", md: "3rem" },  /* REDUCIDO: 2.5→2, 3.5→3 */
               fontWeight: 300,
               color: "#1a1a1a",
               fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
@@ -152,7 +151,7 @@ const MainPage = () => {
         {/* BÚSQUEDA */}
         <Box 
           ref={searchBarRef} 
-          sx={{ maxWidth: 600, mx: "auto", mb: 8, position: "relative" }}
+          sx={{ maxWidth: 600, mx: "auto", mb: 6, position: "relative" }} /* REDUCIDO: 8→6 */
         >
           <Paper elevation={0} sx={{ borderRadius: "12px", bgcolor: "#fafafa" }}>
             <SearchBar
@@ -183,7 +182,7 @@ const MainPage = () => {
 
         {/* ESTADÍSTICAS */}
         {query.trim().length >= 2 && (
-          <Box sx={{ maxWidth: 600, mx: "auto", mb: 4, textAlign: "center" }}>
+          <Box sx={{ maxWidth: 600, mx: "auto", mb: 3, textAlign: "center" }}> {/* REDUCIDO: 4→3 */}
             {loading && <Typography variant="caption" sx={{ color: "#00838F" }}>Buscando...</Typography>}
             {searchMetrics && !loading && (
               <Typography variant="caption" sx={{ color: "#006064" }}>
@@ -199,29 +198,25 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* CANCIONES SELECCIONADAS - AHORA CON GRID VERTICAL */}
+        {/* CANCIONES SELECCIONADAS */}
         {selectedSongs.length > 0 && (
-          <Box sx={{ mb: 8 }}>
-            <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: "#1a1a1a" }}>
+          <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
+            <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: "#1a1a1a" }}> {/* REDUCIDO: 3→2 */}
               Canciones Seleccionadas
             </Typography>
-            <SongCarousel 
-              songs={selectedSongs} 
-              title={null} // El título ya lo ponemos arriba
-            />
+            <SongCarousel songs={selectedSongs} />
           </Box>
         )}
 
         {/* RANDOM SONGS DISPLAY */}
-        <Box sx={{ mb: 8 }}>
+        <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
           <Typography 
-            variant="h4" 
+            variant="h5" /* CAMBIADO: h4→h5 para más coherencia */
             sx={{ 
-              mb: 4, 
-              fontWeight: 100, 
+              mb: 3, 
+              fontWeight: 500, /* CAMBIADO: 100→500 para mejor legibilidad */
               color: "#1a1a1a",
-              textAlign: "center",
-              fontSize: { xs: "1.8rem", md: "2.2rem" }
+              textAlign: "center"
             }}
           >
             Selección Especial
@@ -230,13 +225,13 @@ const MainPage = () => {
           <RandomSongsDisplay />
         </Box>
 
-        {/* ARTIST CAROUSEL - Se mantiene horizontal (OK para artistas) */}
-        <Box sx={{ mb: 8 }}>
+        {/* ARTIST CAROUSEL */}
+        <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
           <ArtistCarousel />
         </Box>
 
-        {/* POPULAR SONGS - Se mantiene como está */}
-        <Box sx={{ mb: 8 }}>
+        {/* POPULAR SONGS */}
+        <Box>
           <PopularSongs />
         </Box>
 
