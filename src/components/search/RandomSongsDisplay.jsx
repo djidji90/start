@@ -1,4 +1,3 @@
-// src/components/songs/RandomSongsDisplay.jsx - SCROLL VERTICAL
 import React from "react";
 import {
   Container,
@@ -140,7 +139,7 @@ const RandomSongsDisplay = () => {
         </Button>
       </Box>
 
-      {/* Grid vertical (scroll natural del navegador) */}
+      {/* Grid vertical - SCROLL VERTICAL */}
       <Grid container spacing={isMobile ? 2 : 3}>
         {songs.map((song) => (
           <Grid 
