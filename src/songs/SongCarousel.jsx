@@ -1,44 +1,33 @@
-import React, { useRef } from "react";
-import { Box, IconButton, Typography } from "@mui/material";
-import {
-  ChevronLeft,
-  ChevronRight
-} from "@mui/icons-material";
+// src/components/songs/SongCarousel.jsx - VERSIÓN VERTICAL
+import React from "react";
+import { 
+  Grid, 
+  Box, 
+  Typography 
+} from "@mui/material";
 import SongCard from "../songs/SongCard";
 
 const SongCarousel = ({ songs = [], title }) => {
-  const scrollRef = useRef(null);
-
-  const scroll = (direction) => {
-    if (!scrollRef.current) return;
-
-    const { clientWidth } = scrollRef.current;
-    const scrollAmount = direction === "left"
-      ? -clientWidth * 0.9
-      : clientWidth * 0.9;
-
-    scrollRef.current.scrollBy({
-      left: scrollAmount,
-      behavior: "smooth"
-    });
-  };
-
   if (!songs.length) return null;
 
+  const handleLike = (songId, liked) => {
+    console.log(
+      `❤️ Canción ${liked ? "liked" : "unliked"}:`,
+      songId
+    );
+  };
+
+  const handleMoreActions = (song) => {
+    console.log("Más opciones:", song);
+  };
+
   return (
-    <Box sx={{ position: "relative", mb: 6 }}>
+    <Box sx={{ mb: 6 }}>
       {/* Header opcional */}
       {title && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            mb: 2
-          }}
-        >
+        <Box sx={{ mb: 3 }}>
           <Typography
-            variant="h6"
+            variant="h5"
             sx={{
               fontWeight: 600,
               color: "#1B5E20"
@@ -49,88 +38,35 @@ const SongCarousel = ({ songs = [], title }) => {
         </Box>
       )}
 
-      {/* Botón izquierda */}
-      <IconButton
-        onClick={() => scroll("left")}
-        sx={{
-          position: "absolute",
-          left: -18,
-          top: "50%",
-          transform: "translateY(-50%)",
-          zIndex: 2,
-          bgcolor: "white",
-          border: "1px solid #E0E0E0",
-          boxShadow: "0 2px 8px rgba(0,0,0,.1)",
-          "&:hover": {
-            bgcolor: "#F5F5F5"
-          }
-        }}
-      >
-        <ChevronLeft />
-      </IconButton>
-
-      {/* Carrusel */}
-      <Box
-        ref={scrollRef}
-        sx={{
-          display: "flex",
-          gap: 2,
-          overflowX: "auto",
-          scrollSnapType: "x mandatory",
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
-          px: 1
-        }}
-      >
+      {/* Grid vertical responsivo */}
+      <Grid container spacing={2}>
         {songs.map((song, index) => (
-          <Box
-            key={`${song.id}-${index}-${song.title || ''}-${song.artist || ''}`} // 🔥 KEY ÚNICO COMPUESTO
-            sx={{
-              minWidth: {
-                xs: "85%",
-                sm: "45%",
-                md: "30%"
-              },
-              scrollSnapAlign: "start"
-            }}
+          <Grid 
+            item 
+            key={`${song.id}-${index}-${song.title || ''}-${song.artist || ''}`}
+            xs={12}
+            sm={6}
+            md={4}
+            lg={3}
           >
             <SongCard
               song={song}
               variant="default"
               showIndex={index + 1}
-              onLike={(songId, liked) => {
-                console.log(
-                  `❤️ Canción ${liked ? "liked" : "unliked"}:`,
-                  songId
-                );
-              }}
-              onMoreActions={(song) => {
-                console.log("Más opciones:", song);
+              onLike={handleLike}
+              onMoreActions={() => handleMoreActions(song)}
+              sx={{
+                height: "100%",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                  boxShadow: 4
+                }
               }}
             />
-          </Box>
+          </Grid>
         ))}
-      </Box>
-
-      {/* Botón derecha */}
-      <IconButton
-        onClick={() => scroll("right")}
-        sx={{
-          position: "absolute",
-          right: -18,
-          top: "50%",
-          transform: "translateY(-50%)",
-          zIndex: 2,
-          bgcolor: "white",
-          border: "1px solid #E0E0E0",
-          boxShadow: "0 2px 8px rgba(0,0,0,.1)",
-          "&:hover": {
-            bgcolor: "#F5F5F5"
-          }
-        }}
-      >
-        <ChevronRight />
-      </IconButton>
+      </Grid>
     </Box>
   );
 };
