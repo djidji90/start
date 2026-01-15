@@ -116,19 +116,16 @@ const RandomSongsDisplay = () => {
 
   return (
     <Container maxWidth="xl" sx={{ py: 2, px: isMobile ? 1 : 2 }}>
-      {/* Header optimizado */}
+      {/* Header optimizado - TÍTULO Y BOTÓN ELIMINADOS */}
       <Box sx={{
         display: "flex",
-        justifyContent: "space-between",
+        justifyContent: "flex-end", // Solo el botón a la derecha
         alignItems: "center",
         mb: 2,
         flexWrap: "wrap",
         gap: 1.5
       }}>
-        <Typography variant={isMobile ? "h6" : "h5"} fontWeight="medium">
-          Selección Especial
-        </Typography>
-
+        {/* Solo queda el botón de refrescar */}
         <Button
           variant="outlined"
           onClick={refresh}
@@ -192,7 +189,7 @@ const RandomSongsDisplay = () => {
         <Typography variant="caption" color="text.secondary">
           {songs.length} canciones
         </Typography>
-        
+
         <Typography variant="caption" color="text.secondary">
           {new Date().toLocaleTimeString([], { 
             hour: '2-digit', 
