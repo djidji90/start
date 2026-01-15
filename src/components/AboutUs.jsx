@@ -359,7 +359,7 @@ const AboutUs = () => {
                     }
                   }}
                 >
-                  comozca a nuestros artistas
+                  escucha musica 🐣
                 </Button>
               </Box>
             </Grid>
