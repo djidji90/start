@@ -19,12 +19,14 @@ import {
   Login as LoginIcon,
   AutoAwesome
 } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom"; // AÑADIDO
 import useRandomSongs from "../../components/hook/services/useRandomSongs";
 import SongCard from "../../songs/SongCard";
 
 const RandomSongsDisplay = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const navigate = useNavigate(); // AÑADIDO
 
   // Usamos el hook completo
   const {
@@ -33,7 +35,6 @@ const RandomSongsDisplay = () => {
     error,
     isAuthenticated,
     refresh,
-    retryAuth,
     isEmpty,
     showLoading,
     showError,
@@ -71,9 +72,10 @@ const RandomSongsDisplay = () => {
               {error || "Inicia sesión para descubrir nueva música"}
             </Typography>
 
+            {/* Botón que redirige directamente al login */}
             <Button
               variant="contained"
-              onClick={retryAuth}
+              onClick={() => navigate("/")} // Redirige a la ruta principal (login)
               startIcon={<LoginIcon />}
               sx={{
                 px: 4,
@@ -90,7 +92,7 @@ const RandomSongsDisplay = () => {
                 transition: "all 0.3s ease"
               }}
             >
-              Iniciar sesión
+              Ir a iniciar sesión
             </Button>
           </Paper>
         </Fade>
