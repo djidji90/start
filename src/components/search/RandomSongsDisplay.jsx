@@ -8,11 +8,16 @@ import {
   Alert,
   Paper,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Button,
+  Fade
 } from "@mui/material";
 import {
+  Refresh,
   MusicNote,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  Login as LoginIcon,
+  AutoAwesome
 } from "@mui/icons-material";
 import useRandomSongs from "../../components/hook/services/useRandomSongs";
 import SongCard from "../../songs/SongCard";
@@ -27,6 +32,7 @@ const RandomSongsDisplay = () => {
     loading,
     error,
     isAuthenticated,
+    refresh,
     retryAuth,
     isEmpty,
     showLoading,
@@ -37,34 +43,57 @@ const RandomSongsDisplay = () => {
   // Estados del componente
   if (!isAuthenticated) {
     return (
-      <Container maxWidth="sm" sx={{ mt: isMobile ? 2 : 3, px: isMobile ? 2 : 3 }}>
-        <Paper sx={{ 
-          p: isMobile ? 2 : 3, 
-          borderRadius: 2,
-          boxShadow: isMobile ? 0 : 1 
-        }}>
-          <ErrorIcon sx={{ 
-            fontSize: isMobile ? 32 : 40, 
-            color: "error.main", 
-            mb: isMobile ? 1 : 1.5 
-          }} />
-          <Typography 
-            variant="h6" 
-            gutterBottom 
-            color="error.main"
-            sx={{ fontSize: isMobile ? "1rem" : "1.25rem" }}
+      <Container maxWidth="sm" sx={{ mt: 3 }}>
+        <Fade in={true} timeout={600}>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 4, 
+              borderRadius: 4,
+              textAlign: "center",
+              background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
+              border: `1px solid ${theme.palette.divider}`,
+              backdropFilter: "blur(10px)"
+            }}
           >
-            Sesión requerida
-          </Typography>
-          <Typography 
-            variant="body2" 
-            color="text.secondary" 
-            paragraph
-            sx={{ fontSize: isMobile ? "0.85rem" : "1rem" }}
-          >
-            {error || "Inicia sesión para ver las canciones"}
-          </Typography>
-        </Paper>
+            <ErrorIcon sx={{ 
+              fontSize: 60, 
+              color: theme.palette.error.main, 
+              mb: 2,
+              filter: "drop-shadow(0 4px 8px rgba(244, 67, 54, 0.3))"
+            }} />
+            
+            <Typography variant="h5" gutterBottom fontWeight={600}>
+              Sesión requerida
+            </Typography>
+            
+            <Typography variant="body1" color="text.secondary" paragraph sx={{ mb: 3 }}>
+              {error || "Inicia sesión para descubrir nueva música"}
+            </Typography>
+
+            <Button
+              variant="contained"
+              onClick={retryAuth}
+              startIcon={<LoginIcon />}
+              sx={{
+                px: 4,
+                py: 1.2,
+                borderRadius: 3,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                fontWeight: 600,
+                textTransform: "none",
+                fontSize: "1rem",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: theme.shadows[4]
+                },
+                transition: "all 0.3s ease"
+              }}
+            >
+              Iniciar sesión
+            </Button>
+          </Paper>
+        </Fade>
       </Container>
     );
   }
@@ -76,18 +105,26 @@ const RandomSongsDisplay = () => {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        py: isMobile ? 4 : 6,
-        minHeight: isMobile ? "30vh" : "40vh"
+        py: 6,
+        minHeight: "50vh"
       }}>
-        <CircularProgress size={isMobile ? 30 : 45} />
+        <CircularProgress 
+          size={isMobile ? 40 : 60} 
+          thickness={4}
+          sx={{ 
+            color: theme.palette.primary.main,
+            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
+          }}
+        />
         <Typography 
           variant="body1" 
           sx={{ 
-            mt: 1.5,
-            fontSize: isMobile ? "0.9rem" : "1rem"
+            mt: 2.5,
+            color: theme.palette.text.secondary,
+            fontWeight: 500
           }}
         >
-          Cargando canciones...
+          Buscando las mejores canciones para ti...
         </Typography>
       </Box>
     );
@@ -95,68 +132,198 @@ const RandomSongsDisplay = () => {
 
   if (showError) {
     return (
-      <Container maxWidth="md" sx={{ 
-        mt: isMobile ? 2 : 3,
-        px: isMobile ? 2 : 3 
-      }}>
-        <Alert
-          severity="error"
-          sx={{ 
-            mb: 1.5,
-            fontSize: isMobile ? "0.85rem" : "1rem"
-          }}
-        >
-          {error}
-        </Alert>
+      <Container maxWidth="md" sx={{ mt: 3 }}>
+        <Fade in={true} timeout={500}>
+          <Box>
+            <Alert
+              severity="error"
+              variant="outlined"
+              icon={<ErrorIcon fontSize="large" />}
+              sx={{ 
+                mb: 2.5,
+                borderRadius: 3,
+                borderWidth: 2,
+                alignItems: "flex-start",
+                py: 1.5
+              }}
+            >
+              <Box>
+                <Typography variant="body1" fontWeight={600} gutterBottom>
+                  ¡Ups! Algo salió mal
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {error || "No pudimos cargar las canciones. Inténtalo de nuevo."}
+                </Typography>
+              </Box>
+            </Alert>
+
+            <Box sx={{ 
+              display: "flex", 
+              gap: 2,
+              flexDirection: isMobile ? "column" : "row"
+            }}>
+              <Button
+                variant="contained"
+                onClick={refresh}
+                startIcon={<Refresh />}
+                fullWidth={isMobile}
+                sx={{
+                  py: 1.5,
+                  px: 4,
+                  borderRadius: 3,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  fontWeight: 600,
+                  fontSize: "1rem",
+                  textTransform: "none",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: `0 8px 25px ${theme.palette.primary.main}40`
+                  },
+                  transition: "all 0.3s ease"
+                }}
+              >
+                Reintentar
+              </Button>
+              
+              <Button
+                variant="outlined"
+                onClick={refresh}
+                startIcon={<AutoAwesome />}
+                fullWidth={isMobile}
+                sx={{
+                  py: 1.5,
+                  px: 4,
+                  borderRadius: 3,
+                  borderWidth: 2,
+                  fontWeight: 600,
+                  fontSize: "1rem",
+                  textTransform: "none",
+                  "&:hover": {
+                    borderWidth: 2,
+                    transform: "translateY(-2px)"
+                  },
+                  transition: "all 0.3s ease"
+                }}
+              >
+                Explorar nuevas canciones
+              </Button>
+            </Box>
+          </Box>
+        </Fade>
       </Container>
     );
   }
 
   if (isEmpty) {
     return (
-      <Container maxWidth="sm" sx={{ px: isMobile ? 2 : 3 }}>
-        <Paper sx={{ 
-          p: isMobile ? 2 : 3, 
-          textAlign: "center",
-          boxShadow: isMobile ? 0 : 1
-        }}>
-          <MusicNote sx={{ 
-            fontSize: isMobile ? 32 : 40, 
-            color: "text.secondary", 
-            mb: isMobile ? 1 : 1.5 
-          }} />
-          <Typography 
-            variant="h6" 
-            gutterBottom
-            sx={{ fontSize: isMobile ? "1rem" : "1.25rem" }}
+      <Container maxWidth="sm">
+        <Fade in={true} timeout={600}>
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 4, 
+              textAlign: "center",
+              borderRadius: 4,
+              background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
+              border: `1px solid ${theme.palette.divider}`,
+              backdropFilter: "blur(10px)"
+            }}
           >
-            No hay canciones
-          </Typography>
-          <Typography 
-            variant="body2" 
-            color="text.secondary" 
-            paragraph
-            sx={{ fontSize: isMobile ? "0.85rem" : "1rem" }}
-          >
-            No hay canciones disponibles.
-          </Typography>
-        </Paper>
+            <MusicNote sx={{ 
+              fontSize: 60, 
+              color: theme.palette.text.secondary, 
+              mb: 2,
+              opacity: 0.8
+            }} />
+            
+            <Typography variant="h5" gutterBottom fontWeight={600}>
+              No hay canciones disponibles
+            </Typography>
+            
+            <Typography variant="body1" color="text.secondary" paragraph sx={{ mb: 3 }}>
+              Parece que no hay música cargada en este momento.
+            </Typography>
+
+            <Button
+              variant="contained"
+              onClick={refresh}
+              startIcon={<Refresh />}
+              sx={{
+                px: 4,
+                py: 1.2,
+                borderRadius: 3,
+                background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
+                fontWeight: 600,
+                textTransform: "none",
+                fontSize: "1rem",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: theme.shadows[4]
+                },
+                transition: "all 0.3s ease"
+              }}
+            >
+              Buscar canciones
+            </Button>
+          </Paper>
+        </Fade>
       </Container>
     );
   }
 
   return (
-    <Container 
-      maxWidth="xl" 
-      sx={{ 
-        py: isMobile ? 1 : 2, 
-        px: isMobile ? 0.5 : 2,
-        maxWidth: "100%",
-        overflow: "hidden"
-      }}
-    >
-      {/* Grid de canciones - sin header */}
-      <Grid container spacing={isMobile ? 1 : 1.5}>
+    <Container maxWidth="xl" sx={{ py: 2, px: isMobile ? 1 : 2 }}>
+      {/* Header con opción de refrescar */}
+      <Box sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 3,
+        flexWrap: "wrap",
+        gap: 2
+      }}>
+        <Box>
+          <Typography 
+            variant={isMobile ? "h6" : "h5"} 
+            fontWeight={700}
+            sx={{
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 100%)`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent"
+            }}
+          >
+            Selección para ti
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Descubre nueva música automáticamente
+          </Typography>
+        </Box>
+
+        <Button
+          variant="outlined"
+          onClick={refresh}
+          startIcon={<Refresh />}
+          size={isMobile ? "medium" : "small"}
+          sx={{
+            borderRadius: 3,
+            fontWeight: 600,
+            textTransform: "none",
+            borderWidth: 2,
+            px: 3,
+            "&:hover": {
+              borderWidth: 2,
+              transform: "translateY(-2px)",
+              boxShadow: theme.shadows[2]
+            },
+            transition: "all 0.3s ease"
+          }}
+        >
+          {isMobile ? "Actualizar" : "Nuevas canciones"}
+        </Button>
+      </Box>
+
+      {/* Grid de canciones */}
+      <Grid container spacing={isMobile ? 1.5 : 2}>
         {songs.map((song) => (
           <Grid 
             item 
@@ -170,25 +337,25 @@ const RandomSongsDisplay = () => {
             <Box
               sx={{
                 width: "100%",
-                transition: "transform 0.2s ease",
-                "&:active": {
-                  transform: "scale(0.97)",
-                  opacity: 0.9
-                },
-                // Hover solo en desktop
+                transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                "&:active": isMobile ? {
+                  transform: "scale(0.98)"
+                } : {},
                 "&:hover": !isMobile ? {
-                  transform: "translateY(-3px)"
+                  transform: "translateY(-6px)",
+                  "& .song-card": {
+                    boxShadow: 6
+                  }
                 } : {}
               }}
             >
               <SongCard
                 song={song}
+                className="song-card"
                 sx={{
                   height: "100%",
-                  // Hover solo en desktop
-                  "&:hover": !isMobile ? {
-                    boxShadow: 3
-                  } : {}
+                  transition: "box-shadow 0.3s ease",
+                  borderRadius: 3
                 }}
               />
             </Box>
@@ -196,35 +363,43 @@ const RandomSongsDisplay = () => {
         ))}
       </Grid>
 
-      {/* Información mínima optimizada para móvil */}
+      {/* Footer informativo */}
       <Box sx={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        mt: isMobile ? 1 : 2,
-        pt: isMobile ? 1 : 1.5,
-        borderTop: 1,
-        borderColor: "divider",
-        px: isMobile ? 0 : 0.5
+        mt: 3,
+        pt: 2,
+        borderTop: `2px solid ${theme.palette.divider}`,
+        flexWrap: "wrap",
+        gap: 1
       }}>
-        <Typography 
-          variant="caption" 
-          color="text.secondary"
-          sx={{ fontSize: isMobile ? "0.7rem" : "0.75rem" }}
-        >
-          {songs.length} canciones
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ 
+            width: 8, 
+            height: 8, 
+            borderRadius: "50%",
+            backgroundColor: theme.palette.success.main,
+            animation: "pulse 2s infinite",
+            "@keyframes pulse": {
+              "0%, 100%": { opacity: 1 },
+              "50%": { opacity: 0.5 }
+            }
+          }} />
+          <Typography variant="caption" color="text.secondary">
+            {songs.length} canciones disponibles
+          </Typography>
+        </Box>
 
-        <Typography 
-          variant="caption" 
-          color="text.secondary"
-          sx={{ fontSize: isMobile ? "0.7rem" : "0.75rem" }}
-        >
-          {new Date().toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Refresh sx={{ fontSize: 12, color: theme.palette.text.disabled }} />
+          <Typography variant="caption" color="text.secondary">
+            Actualizado: {new Date().toLocaleTimeString([], { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </Typography>
+        </Box>
       </Box>
     </Container>
   );
