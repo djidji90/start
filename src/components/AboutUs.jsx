@@ -344,7 +344,7 @@ const AboutUs = () => {
                 <Button
                   variant="contained"
                   component={RouterLink}
-                  to="/Todo"
+                  to="/MainPage"
                   sx={{
                     px: 4,
                     py: 1.5,
@@ -359,7 +359,7 @@ const AboutUs = () => {
                     }
                   }}
                 >
-                  Visita nuestra tienda
+                  comozca a nuestros artistas
                 </Button>
               </Box>
             </Grid>
