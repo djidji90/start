@@ -1,4 +1,3 @@
-// src/components/Login.jsx
 import React, { useState, useContext, useEffect } from "react";
 import {
   Box,
@@ -12,7 +11,8 @@ import {
   IconButton,
   CircularProgress,
   useTheme,
-  styled
+  styled,
+  Link
 } from "@mui/material";
 import { Visibility, VisibilityOff, Login as LoginIcon } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -201,6 +201,33 @@ const Login = () => {
               >
                 {loading ? 'Autenticando...' : 'Ingresar'}
               </Button>
+            </Grid>
+            
+            {/* AÑADIDO: Opción para registrarse */}
+            <Grid item xs={12}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  textAlign: 'center', 
+                  mt: 2,
+                  color: theme.palette.text.secondary 
+                }}
+              >
+                ¿No tienes una cuenta?{' '}
+                <Link 
+                  href="/SingInPage" 
+                  sx={{ 
+                    fontWeight: 600,
+                    color: theme.palette.primary.main,
+                    textDecoration: 'none',
+                    '&:hover': {
+                      textDecoration: 'underline'
+                    }
+                  }}
+                >
+                  Regístrate aquí
+                </Link>
+              </Typography>
             </Grid>
           </Grid>
         </form>
