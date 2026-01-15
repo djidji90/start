@@ -1,104 +1,40 @@
 import React, { useState, useEffect } from "react";
 import { 
-  Button, Box, Typography, Card, CardMedia, CardContent, Chip, 
-  CircularProgress, IconButton, Tooltip, LinearProgress 
+  Grid, Box, Typography, Card, CardMedia, CardContent, 
+  Chip, IconButton, CircularProgress, alpha
 } from "@mui/material";
-import { ArrowBack, ArrowForward, Shuffle, Favorite, FavoriteBorder, Casino } from "@mui/icons-material";
+import { Favorite, FavoriteBorder, Shuffle } from "@mui/icons-material";
 
-// Colores por tipo Pokémon
 const typeColors = {
-  fire: '#FF4422',
-  water: '#3399FF',
-  grass: '#77CC55',
-  electric: '#FFCC33',
-  psychic: '#FF5599',
-  normal: '#AAAA99',
-  fighting: '#BB5544',
-  poison: '#AA5599',
-  ground: '#DDBB55',
-  flying: '#8899FF',
-  bug: '#AABB22',
-  rock: '#BBAA66',
-  ghost: '#6666BB',
-  dragon: '#7766EE',
-  dark: '#775544',
-  steel: '#AAAABB',
-  fairy: '#EE99EE',
-  ice: '#66CCFF'
+  fire: '#FF4422', water: '#3399FF', grass: '#77CC55',
+  electric: '#FFCC33', psychic: '#FF5599', normal: '#AAAA99'
 };
 
-// Estilos CSS para animaciones
-const styles = `
-  @keyframes bounce {
-    0% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0); }
-  }
-  
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
-  }
-  
-  .animated-card {
-    transition: transform 0.3s, box-shadow 0.3s;
-  }
-  
-  .animated-card:hover {
-    transform: scale(1.05);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-  }
-  
-  .bounce-animation {
-    animation: bounce 2s infinite;
-  }
-  
-  .pulse-animation {
-    animation: pulse 2s infinite;
-  }
-`;
-
-const PokemonImageViewer = () => {
-  const [pokemonId, setPokemonId] = useState(1);
-  const [pokemonData, setPokemonData] = useState(null);
+const PokemonGridViewer = () => {
+  const [pokemons, setPokemons] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [favorites, setFavorites] = useState(() => 
-    JSON.parse(localStorage.getItem('pokemonFavorites')) || []
-  );
-
-  // Efecto de sonido simple
-  const playSound = (type) => {
-    const audio = new Audio(type === 'click' 
-      ? '/sounds/click.mp3' 
-      : '/sounds/pokemon.mp3');
-    audio.play();
-  };
+  const [favorites, setFavorites] = useState([]);
 
   useEffect(() => {
-    const fetchPokemon = async () => {
+    const fetchPokemons = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonId}`);
-        const data = await response.json();
+        // Obtener múltiples Pokémon
+        const promises = [];
+        for (let i = 1; i <= 12; i++) {
+          promises.push(fetch(`https://pokeapi.co/api/v2/pokemon/${i}`).then(r => r.json()));
+        }
         
-        const types = data.types.map(t => t.type.name);
-        const stats = data.stats.reduce((acc, stat) => {
-          acc[stat.stat.name] = stat.base_stat;
-          return acc;
-        }, {});
-
-        setPokemonData({
-          name: data.name,
-          image: data.sprites.other["official-artwork"].front_default,
-          types,
-          abilities: data.abilities.map(a => a.ability.name),
-          weight: data.weight,
-          height: data.height,
-          stats
-        });
+        const results = await Promise.all(promises);
+        const formattedPokemons = results.map(pokemon => ({
+          id: pokemon.id,
+          name: pokemon.name,
+          image: pokemon.sprites.other["official-artwork"].front_default,
+          types: pokemon.types.map(t => t.type.name),
+          abilities: pokemon.abilities.map(a => a.ability.name).slice(0, 2)
+        }));
         
-        playSound('pokemon');
+        setPokemons(formattedPokemons);
       } catch (error) {
         console.error("Error fetching Pokémon:", error);
       } finally {
@@ -106,208 +42,172 @@ const PokemonImageViewer = () => {
       }
     };
 
-    fetchPokemon();
-  }, [pokemonId]);
+    fetchPokemons();
+  }, []);
 
-  const handleNavigation = (direction) => {
-    playSound('click');
-    setPokemonId(prev => direction === 'next' ? prev + 1 : Math.max(1, prev - 1));
+  const toggleFavorite = (pokemonId) => {
+    setFavorites(prev => 
+      prev.includes(pokemonId) 
+        ? prev.filter(id => id !== pokemonId)
+        : [...prev, pokemonId]
+    );
   };
 
-  const handleRandom = () => {
-    playSound('click');
-    setPokemonId(Math.floor(Math.random() * 1025) + 1);
+  const shufflePokemons = () => {
+    setPokemons(prev => [...prev].sort(() => Math.random() - 0.5));
   };
 
-  const toggleFavorite = () => {
-    const newFavorites = favorites.includes(pokemonData.name)
-      ? favorites.filter(name => name !== pokemonData.name)
-      : [...favorites, pokemonData.name];
-    
-    setFavorites(newFavorites);
-    localStorage.setItem('pokemonFavorites', JSON.stringify(newFavorites));
-  };
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      background: 'linear-gradient(45deg, #ff6b6b 30%, #4ecdc4 90%)',
-      py: 4,
-      px: 2
-    }}>
-      <style>{styles}</style>
-      
-      <Typography variant="h2" sx={{
-        textAlign: 'center',
-        mb: 4,
-        fontFamily: '"Luckiest Guy", cursive',
-        color: '#fff',
-        textShadow: '3px 3px 0 #000',
-        animation: 'bounce 2s infinite'
+    <Box sx={{ p: 2, maxWidth: 'lg', mx: 'auto' }}>
+      {/* Header compacto */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 2 
       }}>
-    conozca a los djidji pokemon !!!
-      </Typography>
-
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 4 }}>
-        <Button
-          variant="contained"
-          onClick={() => handleNavigation('prev')}
-          startIcon={<ArrowBack />}
-          disabled={pokemonId === 1}
-          sx={{
-            borderRadius: '20px',
-            bgcolor: '#ff6b6b',
-            '&:hover': { bgcolor: '#ff5252' }
-          }}
-        >
-          Anterior
-        </Button>
+        <Typography variant="h6" fontWeight="bold">
+          Pokémon ({pokemons.length})
+        </Typography>
         
-        <Tooltip title="¡Poké-sorpresa!">
-          <Button
-            variant="contained"
-            onClick={handleRandom}
-            endIcon={<Shuffle />}
-            sx={{
-              borderRadius: '20px',
-              bgcolor: '#4ecdc4',
-              '&:hover': { bgcolor: '#3daca4' }
-            }}
-          >
-            Aleatorio
-          </Button>
-        </Tooltip>
-        
-        <Button
-          variant="contained"
-          onClick={() => handleNavigation('next')}
-          endIcon={<ArrowForward />}
-          sx={{
-            borderRadius: '20px',
-            bgcolor: '#ff6b6b',
-            '&:hover': { bgcolor: '#ff5252' }
-          }}
-        >
-          Siguiente
-        </Button>
+        <IconButton onClick={shufflePokemons} size="small" title="Mezclar">
+          <Shuffle />
+        </IconButton>
       </Box>
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-          <img 
-            src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" 
-            alt="Loading" 
-            className="pulse-animation"
-            style={{ width: '100px' }}
-          />
-        </Box>
-      ) : pokemonData && (
-        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-          <Card className="animated-card" sx={{
-            maxWidth: 400,
-            borderRadius: 4,
-            overflow: 'visible',
-            position: 'relative',
-            p: 2,
-            background: `linear-gradient(145deg, ${typeColors[pokemonData.types[0]] || '#fff'} 30%, #f7f7f7 90%)`
-          }}>
-            <IconButton
-              onClick={toggleFavorite}
-              sx={{
-                position: 'absolute',
-                right: 16,
-                top: 16,
-                color: favorites.includes(pokemonData.name) ? '#ff4081' : '#fff'
-              }}
-            >
-              {favorites.includes(pokemonData.name) ? <Favorite /> : <FavoriteBorder />}
-            </IconButton>
-
-            <CardMedia
-              component="img"
-              image={pokemonData.image}
-              alt={pokemonData.name}
-              sx={{
-                width: '300px',
-                height: '300px',
-                objectFit: 'contain',
-                filter: 'drop-shadow(5px 5px 5px rgba(0,0,0,0.3))'
-              }}
-            />
-
-            <CardContent>
-              <Typography variant="h4" sx={{
-                textTransform: 'capitalize',
-                fontFamily: '"Press Start 2P", cursive',
-                textAlign: 'center',
-                color: '#fff',
-                textShadow: '2px 2px 0 #000'
+      {/* Grid de Pokémon */}
+      <Grid container spacing={1.5}>
+        {pokemons.map(pokemon => {
+          const mainType = pokemon.types[0];
+          const bgColor = typeColors[mainType] || '#f5f5f5';
+          
+          return (
+            <Grid item xs={6} sm={4} md={3} key={pokemon.id}>
+              <Card sx={{
+                height: '100%',
+                transition: 'transform 0.2s',
+                cursor: 'pointer',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 3
+                },
+                position: 'relative',
+                border: `2px solid ${alpha(bgColor, 0.3)}`
               }}>
-                {pokemonData.name}
-              </Typography>
+                {/* Favorito */}
+                <IconButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFavorite(pokemon.id);
+                  }}
+                  size="small"
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    zIndex: 2,
+                    color: favorites.includes(pokemon.id) ? '#ff4081' : 'grey.400',
+                    bgcolor: 'white',
+                    '&:hover': { bgcolor: 'white' }
+                  }}
+                >
+                  {favorites.includes(pokemon.id) ? 
+                    <Favorite fontSize="small" /> : 
+                    <FavoriteBorder fontSize="small" />
+                  }
+                </IconButton>
 
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', my: 2 }}>
-                {pokemonData.types.map(type => (
-                  <Chip
-                    key={type}
-                    label={type}
-                    sx={{
-                      bgcolor: typeColors[type] || '#fff',
-                      color: '#fff',
-                      fontWeight: 'bold',
-                      textShadow: '1px 1px 0 #000'
+                {/* Imagen */}
+                <Box sx={{ 
+                  height: 120, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  bgcolor: alpha(bgColor, 0.1),
+                  p: 1
+                }}>
+                  <img
+                    src={pokemon.image}
+                    alt={pokemon.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain'
                     }}
                   />
-                ))}
-              </Box>
+                </Box>
 
-              <Box sx={{ bgcolor: 'rgba(255,255,255,0.9)', borderRadius: 2, p: 2 }}>
-                <Typography variant="h6" sx={{ mb: 1, color: '#333' }}>Estadísticas:</Typography>
-                {Object.entries(pokemonData.stats).map(([stat, value]) => (
-                  <Box key={stat} sx={{ mb: 1 }}>
-                    <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                      {stat.replace('-', ' ')}:
-                    </Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={Math.min(100, value)} 
-                      sx={{
-                        height: 10,
-                        borderRadius: 5,
-                        bgcolor: '#eee',
-                        '& .MuiLinearProgress-bar': {
-                          borderRadius: 5,
-                          bgcolor: typeColors[pokemonData.types[0]]
-                        }
-                      }}
-                    />
+                {/* Contenido */}
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight="bold" 
+                    sx={{ 
+                      textTransform: 'capitalize',
+                      mb: 0.5
+                    }}
+                  >
+                    #{pokemon.id.toString().padStart(3, '0')} {pokemon.name}
+                  </Typography>
+
+                  {/* Tipos */}
+                  <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+                    {pokemon.types.map(type => (
+                      <Chip
+                        key={type}
+                        label={type}
+                        size="small"
+                        sx={{
+                          bgcolor: typeColors[type] || 'grey.300',
+                          color: 'white',
+                          fontSize: '0.65rem',
+                          height: 20
+                        }}
+                      />
+                    ))}
                   </Box>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
-      )}
 
-      <Box sx={{ textAlign: 'center', mt: 4 }}>
-        <Button 
-          variant="contained" 
-          endIcon={<Casino />}
-          sx={{
-            bgcolor: '#ffe66d',
-            color: '#333',
-            '&:hover': { bgcolor: '#ffdd33' }
-          }}
-        >
-          ¡Juego de Adivinanzas!
-        </Button>
+                  {/* Habilidades */}
+                  <Typography variant="caption" color="text.secondary" sx={{ 
+                    display: 'block',
+                    fontStyle: 'italic'
+                  }}>
+                    {pokemon.abilities.join(' • ')}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      {/* Footer informativo */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        mt: 3,
+        pt: 2,
+        borderTop: '1px solid',
+        borderColor: 'divider'
+      }}>
+        <Typography variant="caption" color="text.secondary">
+          {favorites.length} favoritos
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Pokémon API
+        </Typography>
       </Box>
     </Box>
   );
 };
 
-export default PokemonImageViewer;
-
-
-
-
+export default PokemonGridViewer;
