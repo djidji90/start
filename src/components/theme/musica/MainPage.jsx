@@ -219,7 +219,7 @@ const MainPage = () => {
               textAlign: "center"
             }}
           >
-            Selección Especial
+           
           </Typography>
           
           <RandomSongsDisplay />
