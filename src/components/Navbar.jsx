@@ -23,7 +23,6 @@ const Navbar = () => {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const [darkMode, setDarkMode] = useState(prefersDarkMode);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [modeMenuAnchor, setModeMenuAnchor] = useState(null);
   const navigate = useNavigate();
 
   const theme = useMemo(
@@ -53,19 +52,6 @@ const Navbar = () => {
     setAnchorEl(null);
   };
 
-  const handleModeMenuOpen = (event) => {
-    setModeMenuAnchor(event.currentTarget);
-  };
-
-  const handleModeMenuClose = () => {
-    setModeMenuAnchor(null);
-  };
-
-  const handleModeSelect = (mode) => {
-    setDarkMode(mode === "dark");
-    handleModeMenuClose();
-  };
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -79,48 +65,13 @@ const Navbar = () => {
             </Title>
           </TitleContainer>
 
-          {/* Selector de modo claro/oscuro */}
+          {/* Botón modo oscuro */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Button
-              color="inherit"
-              onClick={handleModeMenuOpen}
-              sx={{
-                textTransform: "none",
-                fontSize: "0.9rem",
-                display: { xs: "none", sm: "flex" }
-              }}
-            >
-              {darkMode ? "🌙 Oscuro" : "☀️ Claro"}
-            </Button>
-            
-            {/* Versión móvil del selector de modo */}
-            <IconButton
-              color="inherit"
-              onClick={handleModeMenuOpen}
-              sx={{ display: { xs: "flex", sm: "none" } }}
-            >
-              {darkMode ? "🌙" : "☀️"}
-            </IconButton>
-
-            {/* Menú desplegable para selección de modo */}
-            <Menu
-              anchorEl={modeMenuAnchor}
-              open={Boolean(modeMenuAnchor)}
-              onClose={handleModeMenuClose}
-            >
-              <MenuItem 
-                onClick={() => handleModeSelect("light")}
-                selected={!darkMode}
-              >
-                ☀️ Modo Claro
-              </MenuItem>
-              <MenuItem 
-                onClick={() => handleModeSelect("dark")}
-                selected={darkMode}
-              >
-                🌙 Modo Oscuro
-              </MenuItem>
-            </Menu>
+            <Switch
+              checked={darkMode}
+              onChange={() => setDarkMode(!darkMode)}
+              color="default"
+            />
 
             {/* Menú desplegable móvil */}
             <IconButton
@@ -177,7 +128,7 @@ const Navbar = () => {
   );
 };
 
-// Estilos (sin cambios)
+// Estilos
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
   backgroundColor:
     theme.palette.mode === "light"
