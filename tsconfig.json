@@ -24,7 +24,7 @@
     "src",
     "vite.config.ts",
     "shims.d.ts"
-  ],
+, "src/components/hook/services/.js"  ],
   "exclude": [
     "node_modules",
     "dist"

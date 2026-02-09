@@ -1,7 +1,9 @@
+// src/MainPage.jsx - VERSIÓN CON CARDS CIRCULARES
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  Box, Container, Typography, Paper, useTheme,
-  useMediaQuery, Fade, Alert, Snackbar 
+  Box, Container, Typography, Paper,
+  useTheme, useMediaQuery, Fade, Alert, Snackbar,
+  CircularProgress
 } from "@mui/material";
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
@@ -10,6 +12,8 @@ import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
+import EventsCircularGrid from "../../../Paginas/EventsCircularGrid"; // NUEVO COMPONENTE
+import useEvents from "../../../components/hook/services/useEvents";
 
 const MainPage = () => {
   const theme = useTheme();
@@ -31,6 +35,22 @@ const MainPage = () => {
   const [showResults, setShowResults] = useState(false);
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [showCacheNotification, setShowCacheNotification] = useState(false);
+
+  // Hook de eventos
+  const {
+    events,
+    loading: eventsLoading,
+    error: eventsError,
+    toggleSaveEvent,
+    updateFilters: updateEventsFilters,
+    fetchEvents
+  } = useEvents({
+    pageSize: 12,
+    filters: {
+      status: 'upcoming',
+      ordering: 'date',
+    }
+  });
 
   const searchBarRef = useRef(null);
   const resultsRef = useRef(null);
@@ -84,20 +104,14 @@ const MainPage = () => {
     closeResults?.();
   };
 
-  /* -------------------- SELECCIÓN DE CANCIONES (SOLO API) -------------------- */
   const handleSelectResult = (item, type) => {
-    console.log('Item seleccionado:', { item, type });
-
     if (type !== "song" || !item.id || typeof item.id !== 'number') {
-      console.log('⚠️ Solo se pueden seleccionar canciones con ID de API válido');
       handleCloseResults();
       return;
     }
 
     const isDuplicate = selectedSongs.some(song => song.id === item.id);
-
     if (isDuplicate) {
-      console.log('Canción ya existe en la lista');
       handleCloseResults();
       return;
     }
@@ -113,35 +127,37 @@ const MainPage = () => {
     };
 
     setSelectedSongs(prev => [newSong, ...prev]);
-    console.log('✅ Canción agregada:', newSong);
-
     handleCloseResults();
   };
 
-  /* -------------------- MANEJO DE ERRORES -------------------- */
-  const handleRetrySearch = () => {
-    if (error && query.trim().length >= 2) {
-      retrySearch();
+  const handleEventSave = async (eventId, save) => {
+    try {
+      await toggleSaveEvent(eventId, save);
+    } catch (error) {
+      console.error('Error al guardar evento:', error);
     }
   };
 
-  /* ============================ RENDER ============================ */
+  const handleEventFilterChange = (filter) => {
+    updateEventsFilters({
+      event_type: filter === 'all' ? '' : filter,
+    });
+  };
+
   return (
-    <Box sx={{
-      backgroundColor: "#ffffff",
-      pt: { xs: 2, md: 4 },      // REDUCIDO: 3→2, 6→4
-      pb: 4                       // REDUCIDO: 8→4
-    }}>
-      <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}> {/* REDUCIDO padding horizontal */}
+    <Box>
+      <Container maxWidth="lg" sx={{ 
+        px: { xs: 2, md: 3 },
+        py: { xs: 2, md: 4 }
+      }}>
         {/* HEADER */}
-        <Box sx={{ textAlign: "center", mb: { xs: 3, md: 4 } }}> {/* REDUCIDO: 4→3, 6→4 */}
+        <Box sx={{ textAlign: "center", mb: 4 }}>
           <Typography 
             variant="h1"
             sx={{ 
-              fontSize: { xs: "2rem", md: "3rem" },  /* REDUCIDO: 2.5→2, 3.5→3 */
+              fontSize: { xs: "2rem", md: "3rem" },
               fontWeight: 300,
               color: "#1a1a1a",
-              fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
             }}
           >
             djidjimusic
@@ -151,7 +167,7 @@ const MainPage = () => {
         {/* BÚSQUEDA */}
         <Box 
           ref={searchBarRef} 
-          sx={{ maxWidth: 600, mx: "auto", mb: 6, position: "relative" }} /* REDUCIDO: 8→6 */
+          sx={{ maxWidth: 600, mx: "auto", mb: 6 }}
         >
           <Paper elevation={0} sx={{ borderRadius: "12px", bgcolor: "#fafafa" }}>
             <SearchBar
@@ -163,10 +179,9 @@ const MainPage = () => {
             />
           </Paper>
 
-          {/* RESULTADOS */}
           {showResults && (
             <Fade in timeout={200}>
-              <Box ref={resultsRef} sx={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000, mt: 1 }}>
+              <Box ref={resultsRef} sx={{ position: "absolute", zIndex: 1000, mt: 1 }}>
                 <SearchResults
                   results={structuredResults}
                   loading={loading}
@@ -182,17 +197,12 @@ const MainPage = () => {
 
         {/* ESTADÍSTICAS */}
         {query.trim().length >= 2 && (
-          <Box sx={{ maxWidth: 600, mx: "auto", mb: 3, textAlign: "center" }}> {/* REDUCIDO: 4→3 */}
-            {loading && <Typography variant="caption" sx={{ color: "#00838F" }}>Buscando...</Typography>}
+          <Box sx={{ maxWidth: 600, mx: "auto", mb: 4, textAlign: "center" }}>
+            {loading && <Typography variant="caption">Buscando...</Typography>}
             {searchMetrics && !loading && (
-              <Typography variant="caption" sx={{ color: "#006064" }}>
+              <Typography variant="caption">
                 {results.length} resultados • {searchMetrics.time}ms
                 {searchMetrics.fromCache && " • (desde caché)"}
-              </Typography>
-            )}
-            {error && (
-              <Typography variant="caption" sx={{ color: "#d32f2f", cursor: 'pointer' }} onClick={handleRetrySearch}>
-                Error: {error.message} • Click para reintentar
               </Typography>
             )}
           </Box>
@@ -200,8 +210,8 @@ const MainPage = () => {
 
         {/* CANCIONES SELECCIONADAS */}
         {selectedSongs.length > 0 && (
-          <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
-            <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: "#1a1a1a" }}> {/* REDUCIDO: 3→2 */}
+          <Box sx={{ mb: 6 }}>
+            <Typography variant="h5" sx={{ mb: 3 }}>
               Canciones Seleccionadas
             </Typography>
             <SongCarousel songs={selectedSongs} />
@@ -209,39 +219,42 @@ const MainPage = () => {
         )}
 
         {/* RANDOM SONGS DISPLAY */}
-        <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
-          <Typography 
-            variant="h5" /* CAMBIADO: h4→h5 para más coherencia */
-            sx={{ 
-              mb: 3, 
-              fontWeight: 500, /* CAMBIADO: 100→500 para mejor legibilidad */
-              color: "#1a1a1a",
-              textAlign: "center"
-            }}
-          >
-           
-          </Typography>
-          
+        <Box sx={{ mb: 6 }}>
           <RandomSongsDisplay />
         </Box>
 
+        {/* EVENTS CIRCULAR GRID - CARDS CIRCULARES */}
+        <Box sx={{ mb: 6 }}>
+          <EventsCircularGrid
+            events={events}
+            loading={eventsLoading}
+            error={eventsError}
+            title=""
+            subtitle="Próximos conciertos y eventos"
+            onEventSave={handleEventSave}
+            showFilters={true}
+            filters={['noticias', 'conciertos', 'eventos', 'congosa']}
+            onFilterChange={handleEventFilterChange}
+            itemsPerPage={6}
+          />
+        </Box>
+
         {/* ARTIST CAROUSEL */}
-        <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
+        <Box sx={{ mb: 6 }}>
           <ArtistCarousel />
         </Box>
 
         {/* POPULAR SONGS */}
-        <Box>
+        <Box sx={{ mb: 6 }}>
           <PopularSongs />
         </Box>
-
-        {/* NOTIFICACIÓN CACHÉ */}
-        <Snackbar open={showCacheNotification} autoHideDuration={2000} onClose={() => setShowCacheNotification(false)}>
-          <Alert severity="info" sx={{ bgcolor: '#E0F7FA', color: '#006064' }}>
-            📦 Resultados desde caché • {searchMetrics?.time}ms
-          </Alert>
-        </Snackbar>
       </Container>
+
+      <Snackbar open={showCacheNotification} autoHideDuration={2000}>
+        <Alert severity="info">
+          📦 Resultados desde caché • {searchMetrics?.time}ms
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
