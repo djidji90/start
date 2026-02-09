@@ -1,9 +1,7 @@
-// src/MainPage.jsx - VERSIÓN CORREGIDA
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  Box, Container, Typography, Paper,
-  useTheme, useMediaQuery, Fade, Alert, Snackbar,
-  CircularProgress
+  Box, Container, Typography, Paper, useTheme,
+  useMediaQuery, Fade, Alert, Snackbar 
 } from "@mui/material";
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
@@ -12,16 +10,10 @@ import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
-import EventsCircularGrid from "../../../Paginas/EventsCircularGrid"; 
-import useEvents from "../../../components/hook/services/useEvents";
-
-// Importar el botón de upload
-import UploadButton from "../../../upload/UploadButton";
 
 const MainPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
 
   const { 
     query,
@@ -39,22 +31,6 @@ const MainPage = () => {
   const [showResults, setShowResults] = useState(false);
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [showCacheNotification, setShowCacheNotification] = useState(false);
-
-  // Hook de eventos
-  const {
-    events,
-    loading: eventsLoading,
-    error: eventsError,
-    toggleSaveEvent,
-    updateFilters: updateEventsFilters,
-    fetchEvents
-  } = useEvents({
-    pageSize: 9,
-    filters: {
-      status: 'upcoming',
-      ordering: 'date',
-    }
-  });
 
   const searchBarRef = useRef(null);
   const resultsRef = useRef(null);
@@ -108,14 +84,20 @@ const MainPage = () => {
     closeResults?.();
   };
 
+  /* -------------------- SELECCIÓN DE CANCIONES (SOLO API) -------------------- */
   const handleSelectResult = (item, type) => {
+    console.log('Item seleccionado:', { item, type });
+
     if (type !== "song" || !item.id || typeof item.id !== 'number') {
+      console.log('⚠️ Solo se pueden seleccionar canciones con ID de API válido');
       handleCloseResults();
       return;
     }
 
     const isDuplicate = selectedSongs.some(song => song.id === item.id);
+
     if (isDuplicate) {
+      console.log('Canción ya existe en la lista');
       handleCloseResults();
       return;
     }
@@ -131,60 +113,35 @@ const MainPage = () => {
     };
 
     setSelectedSongs(prev => [newSong, ...prev]);
+    console.log('✅ Canción agregada:', newSong);
+
     handleCloseResults();
   };
 
-  // Funciones para eventos
-  const handleEventSave = async (eventId, save) => {
-    try {
-      await toggleSaveEvent(eventId, save);
-    } catch (error) {
-      console.error('Error al guardar evento:', error);
+  /* -------------------- MANEJO DE ERRORES -------------------- */
+  const handleRetrySearch = () => {
+    if (error && query.trim().length >= 2) {
+      retrySearch();
     }
-  };
-
-  const handleEventFilterChange = (filter) => {
-    updateEventsFilters({
-      event_type: filter === 'all' ? '' : filter,
-    });
   };
 
   /* ============================ RENDER ============================ */
   return (
     <Box sx={{
       backgroundColor: "#ffffff",
-      minHeight: "100vh",
-      pt: { xs: 2, md: 4 },
-      pb: 4
+      pt: { xs: 2, md: 4 },      // REDUCIDO: 3→2, 6→4
+      pb: 4                       // REDUCIDO: 8→4
     }}>
-      {/* ELIMINADO: AppBar fija para el botón de upload */}
-      {/* ELIMINADO: Espacio para la AppBar */}
-
-      <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
-        {/* HEADER CON BOTÓN DE UPLOAD INTEGRADO */}
-        <Box sx={{ 
-          textAlign: "center", 
-          mb: 3, 
-          mt: 2,
-          position: 'relative'
-        }}>
-          {/* Botón de Upload flotante a la derecha */}
-          <Box sx={{
-            position: 'absolute',
-            right: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            display: { xs: 'none', md: 'block' }
-          }}>
-            <UploadButton />
-          </Box>
-          
+      <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}> {/* REDUCIDO padding horizontal */}
+        {/* HEADER */}
+        <Box sx={{ textAlign: "center", mb: { xs: 3, md: 4 } }}> {/* REDUCIDO: 4→3, 6→4 */}
           <Typography 
             variant="h1"
             sx={{ 
-              fontSize: { xs: "2rem", md: "2.5rem" },
+              fontSize: { xs: "2rem", md: "3rem" },  /* REDUCIDO: 2.5→2, 3.5→3 */
               fontWeight: 300,
               color: "#1a1a1a",
+              fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
             }}
           >
             djidjimusic
@@ -194,7 +151,7 @@ const MainPage = () => {
         {/* BÚSQUEDA */}
         <Box 
           ref={searchBarRef} 
-          sx={{ maxWidth: 600, mx: "auto", mb: 6, position: "relative" }}
+          sx={{ maxWidth: 600, mx: "auto", mb: 6, position: "relative" }} /* REDUCIDO: 8→6 */
         >
           <Paper elevation={0} sx={{ borderRadius: "12px", bgcolor: "#fafafa" }}>
             <SearchBar
@@ -225,12 +182,17 @@ const MainPage = () => {
 
         {/* ESTADÍSTICAS */}
         {query.trim().length >= 2 && (
-          <Box sx={{ maxWidth: 600, mx: "auto", mb: 3, textAlign: "center" }}>
-            {loading && <Typography variant="caption">Buscando...</Typography>}
+          <Box sx={{ maxWidth: 600, mx: "auto", mb: 3, textAlign: "center" }}> {/* REDUCIDO: 4→3 */}
+            {loading && <Typography variant="caption" sx={{ color: "#00838F" }}>Buscando...</Typography>}
             {searchMetrics && !loading && (
-              <Typography variant="caption">
+              <Typography variant="caption" sx={{ color: "#006064" }}>
                 {results.length} resultados • {searchMetrics.time}ms
                 {searchMetrics.fromCache && " • (desde caché)"}
+              </Typography>
+            )}
+            {error && (
+              <Typography variant="caption" sx={{ color: "#d32f2f", cursor: 'pointer' }} onClick={handleRetrySearch}>
+                Error: {error.message} • Click para reintentar
               </Typography>
             )}
           </Box>
@@ -238,8 +200,8 @@ const MainPage = () => {
 
         {/* CANCIONES SELECCIONADAS */}
         {selectedSongs.length > 0 && (
-          <Box sx={{ mb: 6 }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>
+          <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
+            <Typography variant="h5" sx={{ mb: 2, fontWeight: 600, color: "#1a1a1a" }}> {/* REDUCIDO: 3→2 */}
               Canciones Seleccionadas
             </Typography>
             <SongCarousel songs={selectedSongs} />
@@ -247,30 +209,24 @@ const MainPage = () => {
         )}
 
         {/* RANDOM SONGS DISPLAY */}
-        <Box sx={{ mb: 6 }}>
+        <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
+          <Typography 
+            variant="h5" /* CAMBIADO: h4→h5 para más coherencia */
+            sx={{ 
+              mb: 3, 
+              fontWeight: 500, /* CAMBIADO: 100→500 para mejor legibilidad */
+              color: "#1a1a1a",
+              textAlign: "center"
+            }}
+          >
+           
+          </Typography>
+          
           <RandomSongsDisplay />
         </Box>
 
-        {/* SECCIÓN DE EVENTOS */}
-        <Box sx={{ mb: 6 }}>
-          <EventsCircularGrid
-            events={events}
-            loading={eventsLoading}
-            error={eventsError}
-            title=""
-            subtitle="noticias y evenntos relacionados con tus artistas favoritos"
-            onEventSave={handleEventSave}
-            showFilters={true}
-            filters={['festivales', 'conciertos', 'noticias', 'malabosa']}
-            onFilterChange={handleEventFilterChange}
-            itemsPerPage={9}
-            cardSize={isMobile ? 220 : isTablet ? 260 : 280}
-            gridColumns={isMobile ? 1 : isTablet ? 2 : 3}
-          />
-        </Box>
-
         {/* ARTIST CAROUSEL */}
-        <Box sx={{ mb: 6 }}>
+        <Box sx={{ mb: 6 }}> {/* REDUCIDO: 8→6 */}
           <ArtistCarousel />
         </Box>
 
@@ -280,12 +236,8 @@ const MainPage = () => {
         </Box>
 
         {/* NOTIFICACIÓN CACHÉ */}
-        <Snackbar 
-          open={showCacheNotification} 
-          autoHideDuration={2000}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          <Alert severity="info" icon={false}>
+        <Snackbar open={showCacheNotification} autoHideDuration={2000} onClose={() => setShowCacheNotification(false)}>
+          <Alert severity="info" sx={{ bgcolor: '#E0F7FA', color: '#006064' }}>
             📦 Resultados desde caché • {searchMetrics?.time}ms
           </Alert>
         </Snackbar>
