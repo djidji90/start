@@ -1,4 +1,4 @@
-// src/MainPage.jsx - VERSIÓN CON CARDS GRANDES
+// src/MainPage.jsx - VERSIÓN HÍBRIDA (LO MEJOR DE AMBAS)
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Box, Container, Typography, Paper,
@@ -12,7 +12,7 @@ import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
-import EventsCircularGrid from "../../../Paginas/EventsCircularGrid"; // NUEVO componente para eventos en grid circular
+import EventsCircularGrid from "../../../Paginas/EventsCircularGrid"; 
 import useEvents from "../../../components/hook/services/useEvents";
 
 const MainPage = () => {
@@ -37,7 +37,7 @@ const MainPage = () => {
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [showCacheNotification, setShowCacheNotification] = useState(false);
 
-  // Hook de eventos - Aumentamos pageSize para cards más grandes
+  // Hook de eventos - NUEVO (mantener)
   const {
     events,
     loading: eventsLoading,
@@ -46,7 +46,7 @@ const MainPage = () => {
     updateFilters: updateEventsFilters,
     fetchEvents
   } = useEvents({
-    pageSize: 9, // Número impar para mejor distribución
+    pageSize: 9,
     filters: {
       status: 'upcoming',
       ordering: 'date',
@@ -67,7 +67,7 @@ const MainPage = () => {
     }
   }, [searchMetrics]);
 
-  /* -------------------- CONTROL DE RESULTADOS -------------------- */
+  /* -------------------- CONTROL DE RESULTADOS - ORIGINAL (FUNCIONA) -------------------- */
   useEffect(() => {
     const hasResults =
       structuredResults?.songs?.length > 0 ||
@@ -81,7 +81,7 @@ const MainPage = () => {
     }
   }, [hookIsOpen, structuredResults, query]);
 
-  /* -------------------- CLICK FUERA -------------------- */
+  /* -------------------- CLICK FUERA - ORIGINAL (FUNCIONA) -------------------- */
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -131,6 +131,7 @@ const MainPage = () => {
     handleCloseResults();
   };
 
+  // NUEVAS FUNCIONES PARA EVENTOS (mantener)
   const handleEventSave = async (eventId, save) => {
     try {
       await toggleSaveEvent(eventId, save);
@@ -145,18 +146,22 @@ const MainPage = () => {
     });
   };
 
+  /* ============================ RENDER ============================ */
   return (
-    <Box>
-      <Container maxWidth="xl" sx={{ // Cambiado de "lg" a "xl" para más ancho
-        px: { xs: 2, sm: 3, md: 4 },
-        py: { xs: 2, md: 4 }
-      }}>
-        {/* HEADER - Reducido para dar más espacio a las cards */}
+    // MANTENER ESTRUCTURA ORIGINAL DEL CONTENEDOR PRINCIPAL
+    <Box sx={{
+      backgroundColor: "#ffffff",
+      pt: { xs: 2, md: 4 },
+      pb: 4
+    }}>
+      {/* USAR maxWidth="lg" COMO ORIGINAL */}
+      <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
+        {/* HEADER - VERSIÓN NUEVA (más pequeño) */}
         <Box sx={{ textAlign: "center", mb: 3 }}>
           <Typography 
             variant="h1"
             sx={{ 
-              fontSize: { xs: "2rem", md: "2.5rem" }, // Reducido
+              fontSize: { xs: "2rem", md: "2.5rem" },
               fontWeight: 300,
               color: "#1a1a1a",
             }}
@@ -165,10 +170,10 @@ const MainPage = () => {
           </Typography>
         </Box>
 
-        {/* BÚSQUEDA */}
+        {/* BÚSQUEDA - ESTRUCTURA ORIGINAL EXACTA (CRÍTICO) */}
         <Box 
           ref={searchBarRef} 
-          sx={{ maxWidth: 600, mx: "auto", mb: 5 }}
+          sx={{ maxWidth: 600, mx: "auto", mb: 6, position: "relative" }}
         >
           <Paper elevation={0} sx={{ borderRadius: "12px", bgcolor: "#fafafa" }}>
             <SearchBar
@@ -180,9 +185,10 @@ const MainPage = () => {
             />
           </Paper>
 
+          {/* RESULTADOS - ESTRUCTURA ORIGINAL EXACTA (CRÍTICO) */}
           {showResults && (
             <Fade in timeout={200}>
-              <Box ref={resultsRef} sx={{ position: "absolute", zIndex: 1000, mt: 1 }}>
+              <Box ref={resultsRef} sx={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000, mt: 1 }}>
                 <SearchResults
                   results={structuredResults}
                   loading={loading}
@@ -196,7 +202,7 @@ const MainPage = () => {
           )}
         </Box>
 
-        {/* ESTADÍSTICAS */}
+        {/* ESTADÍSTICAS - ORIGINAL */}
         {query.trim().length >= 2 && (
           <Box sx={{ maxWidth: 600, mx: "auto", mb: 3, textAlign: "center" }}>
             {loading && <Typography variant="caption">Buscando...</Typography>}
@@ -209,9 +215,9 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* CANCIONES SELECCIONADAS - Reducido */}
+        {/* CANCIONES SELECCIONADAS - ORIGINAL */}
         {selectedSongs.length > 0 && (
-          <Box sx={{ mb: 5 }}>
+          <Box sx={{ mb: 6 }}>
             <Typography variant="h5" sx={{ mb: 2 }}>
               Canciones Seleccionadas
             </Typography>
@@ -219,45 +225,46 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* RANDOM SONGS DISPLAY - Reducido */}
-        <Box sx={{ mb: 5 }}>
+        {/* RANDOM SONGS DISPLAY - ORIGINAL */}
+        <Box sx={{ mb: 6 }}>
           <RandomSongsDisplay />
         </Box>
 
-        {/* EVENTS CIRCULAR GRID - ¡AHORA MÁS GRANDES! */}
+        {/* ================ NUEVA SECCIÓN DE EVENTOS ================ */}
         <Box sx={{ mb: 6 }}>
           <EventsCircularGrid
             events={events}
             loading={eventsLoading}
             error={eventsError}
-            title="eventos y noticias"
-            subtitle="toda la informacion relacionada con tus artistas favoritos"
+            title="🎵 EVENTOS MUSICALES"
+            subtitle="Haz click en cualquier evento para ver detalles completos"
             onEventSave={handleEventSave}
             showFilters={true}
-            filters={['festival', 'conciertos', 'cnoticias', 'malabosa']}
+            filters={['festivales', 'conciertos', 'noticias', 'malabosa']}
             onFilterChange={handleEventFilterChange}
-            itemsPerPage={9} // Más eventos iniciales
-            cardSize={isMobile ? 220 : isTablet ? 260 : 280} // Cards más grandes
-            gridColumns={isMobile ? 1 : isTablet ? 2 : 3} // Control de columnas
+            itemsPerPage={9}
+            cardSize={isMobile ? 220 : isTablet ? 260 : 280}
+            gridColumns={isMobile ? 1 : isTablet ? 2 : 3}
           />
         </Box>
 
-        {/* ARTIST CAROUSEL - Reducido */}
-        <Box sx={{ mb: 5 }}>
+        {/* ARTIST CAROUSEL - ORIGINAL */}
+        <Box sx={{ mb: 6 }}>
           <ArtistCarousel />
         </Box>
 
-        {/* POPULAR SONGS - Reducido */}
-        <Box sx={{ mb: 5 }}>
+        {/* POPULAR SONGS - ORIGINAL */}
+        <Box>
           <PopularSongs />
         </Box>
-      </Container>
 
-      <Snackbar open={showCacheNotification} autoHideDuration={2000}>
-        <Alert severity="info">
-          📦 Resultados desde caché • {searchMetrics?.time}ms
-        </Alert>
-      </Snackbar>
+        {/* NOTIFICACIÓN CACHÉ - ORIGINAL */}
+        <Snackbar open={showCacheNotification} autoHideDuration={2000}>
+          <Alert severity="info">
+            📦 Resultados desde caché • {searchMetrics?.time}ms
+          </Alert>
+        </Snackbar>
+      </Container>
     </Box>
   );
 };
