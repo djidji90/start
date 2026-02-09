@@ -1,4 +1,4 @@
-// src/MainPage.jsx - VERSIÓN CON CARDS CIRCULARES
+// src/MainPage.jsx - VERSIÓN CON CARDS GRANDES
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Box, Container, Typography, Paper,
@@ -12,12 +12,13 @@ import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
-import EventsCircularGrid from "../../../Paginas/EventsCircularGrid"; // NUEVO COMPONENTE
+import EventsCircularGrid from "../../../Paginas/EventsCircularGrid"; // NUEVO componente para eventos en grid circular
 import useEvents from "../../../components/hook/services/useEvents";
 
 const MainPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
 
   const { 
     query,
@@ -36,7 +37,7 @@ const MainPage = () => {
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [showCacheNotification, setShowCacheNotification] = useState(false);
 
-  // Hook de eventos
+  // Hook de eventos - Aumentamos pageSize para cards más grandes
   const {
     events,
     loading: eventsLoading,
@@ -45,7 +46,7 @@ const MainPage = () => {
     updateFilters: updateEventsFilters,
     fetchEvents
   } = useEvents({
-    pageSize: 12,
+    pageSize: 9, // Número impar para mejor distribución
     filters: {
       status: 'upcoming',
       ordering: 'date',
@@ -146,16 +147,16 @@ const MainPage = () => {
 
   return (
     <Box>
-      <Container maxWidth="lg" sx={{ 
-        px: { xs: 2, md: 3 },
+      <Container maxWidth="xl" sx={{ // Cambiado de "lg" a "xl" para más ancho
+        px: { xs: 2, sm: 3, md: 4 },
         py: { xs: 2, md: 4 }
       }}>
-        {/* HEADER */}
-        <Box sx={{ textAlign: "center", mb: 4 }}>
+        {/* HEADER - Reducido para dar más espacio a las cards */}
+        <Box sx={{ textAlign: "center", mb: 3 }}>
           <Typography 
             variant="h1"
             sx={{ 
-              fontSize: { xs: "2rem", md: "3rem" },
+              fontSize: { xs: "2rem", md: "2.5rem" }, // Reducido
               fontWeight: 300,
               color: "#1a1a1a",
             }}
@@ -167,7 +168,7 @@ const MainPage = () => {
         {/* BÚSQUEDA */}
         <Box 
           ref={searchBarRef} 
-          sx={{ maxWidth: 600, mx: "auto", mb: 6 }}
+          sx={{ maxWidth: 600, mx: "auto", mb: 5 }}
         >
           <Paper elevation={0} sx={{ borderRadius: "12px", bgcolor: "#fafafa" }}>
             <SearchBar
@@ -197,7 +198,7 @@ const MainPage = () => {
 
         {/* ESTADÍSTICAS */}
         {query.trim().length >= 2 && (
-          <Box sx={{ maxWidth: 600, mx: "auto", mb: 4, textAlign: "center" }}>
+          <Box sx={{ maxWidth: 600, mx: "auto", mb: 3, textAlign: "center" }}>
             {loading && <Typography variant="caption">Buscando...</Typography>}
             {searchMetrics && !loading && (
               <Typography variant="caption">
@@ -208,44 +209,46 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* CANCIONES SELECCIONADAS */}
+        {/* CANCIONES SELECCIONADAS - Reducido */}
         {selectedSongs.length > 0 && (
-          <Box sx={{ mb: 6 }}>
-            <Typography variant="h5" sx={{ mb: 3 }}>
+          <Box sx={{ mb: 5 }}>
+            <Typography variant="h5" sx={{ mb: 2 }}>
               Canciones Seleccionadas
             </Typography>
             <SongCarousel songs={selectedSongs} />
           </Box>
         )}
 
-        {/* RANDOM SONGS DISPLAY */}
-        <Box sx={{ mb: 6 }}>
+        {/* RANDOM SONGS DISPLAY - Reducido */}
+        <Box sx={{ mb: 5 }}>
           <RandomSongsDisplay />
         </Box>
 
-        {/* EVENTS CIRCULAR GRID - CARDS CIRCULARES */}
+        {/* EVENTS CIRCULAR GRID - ¡AHORA MÁS GRANDES! */}
         <Box sx={{ mb: 6 }}>
           <EventsCircularGrid
             events={events}
             loading={eventsLoading}
             error={eventsError}
-            title=""
-            subtitle="Próximos conciertos y eventos"
+            title="eventos y noticias"
+            subtitle="toda la informacion relacionada con tus artistas favoritos"
             onEventSave={handleEventSave}
             showFilters={true}
-            filters={['noticias', 'conciertos', 'eventos', 'congosa']}
+            filters={['festival', 'conciertos', 'cnoticias', 'malabosa']}
             onFilterChange={handleEventFilterChange}
-            itemsPerPage={6}
+            itemsPerPage={9} // Más eventos iniciales
+            cardSize={isMobile ? 220 : isTablet ? 260 : 280} // Cards más grandes
+            gridColumns={isMobile ? 1 : isTablet ? 2 : 3} // Control de columnas
           />
         </Box>
 
-        {/* ARTIST CAROUSEL */}
-        <Box sx={{ mb: 6 }}>
+        {/* ARTIST CAROUSEL - Reducido */}
+        <Box sx={{ mb: 5 }}>
           <ArtistCarousel />
         </Box>
 
-        {/* POPULAR SONGS */}
-        <Box sx={{ mb: 6 }}>
+        {/* POPULAR SONGS - Reducido */}
+        <Box sx={{ mb: 5 }}>
           <PopularSongs />
         </Box>
       </Container>
