@@ -1,4 +1,4 @@
-// src/MainPage.jsx - VERSIÓN HÍBRIDA (LO MEJOR DE AMBAS)
+// src/MainPage.jsx - VERSIÓN CORREGIDA
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Box, Container, Typography, Paper,
@@ -14,6 +14,9 @@ import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
 import EventsCircularGrid from "../../../Paginas/EventsCircularGrid"; 
 import useEvents from "../../../components/hook/services/useEvents";
+
+// Importar el botón de upload
+import UploadButton from "../../../upload/UploadButton";
 
 const MainPage = () => {
   const theme = useTheme();
@@ -37,7 +40,7 @@ const MainPage = () => {
   const [selectedSongs, setSelectedSongs] = useState([]);
   const [showCacheNotification, setShowCacheNotification] = useState(false);
 
-  // Hook de eventos - NUEVO (mantener)
+  // Hook de eventos
   const {
     events,
     loading: eventsLoading,
@@ -67,7 +70,7 @@ const MainPage = () => {
     }
   }, [searchMetrics]);
 
-  /* -------------------- CONTROL DE RESULTADOS - ORIGINAL (FUNCIONA) -------------------- */
+  /* -------------------- CONTROL DE RESULTADOS -------------------- */
   useEffect(() => {
     const hasResults =
       structuredResults?.songs?.length > 0 ||
@@ -81,7 +84,7 @@ const MainPage = () => {
     }
   }, [hookIsOpen, structuredResults, query]);
 
-  /* -------------------- CLICK FUERA - ORIGINAL (FUNCIONA) -------------------- */
+  /* -------------------- CLICK FUERA -------------------- */
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -131,7 +134,7 @@ const MainPage = () => {
     handleCloseResults();
   };
 
-  // NUEVAS FUNCIONES PARA EVENTOS (mantener)
+  // Funciones para eventos
   const handleEventSave = async (eventId, save) => {
     try {
       await toggleSaveEvent(eventId, save);
@@ -148,16 +151,34 @@ const MainPage = () => {
 
   /* ============================ RENDER ============================ */
   return (
-    // MANTENER ESTRUCTURA ORIGINAL DEL CONTENEDOR PRINCIPAL
     <Box sx={{
       backgroundColor: "#ffffff",
+      minHeight: "100vh",
       pt: { xs: 2, md: 4 },
       pb: 4
     }}>
-      {/* USAR maxWidth="lg" COMO ORIGINAL */}
+      {/* ELIMINADO: AppBar fija para el botón de upload */}
+      {/* ELIMINADO: Espacio para la AppBar */}
+
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
-        {/* HEADER - VERSIÓN NUEVA (más pequeño) */}
-        <Box sx={{ textAlign: "center", mb: 3 }}>
+        {/* HEADER CON BOTÓN DE UPLOAD INTEGRADO */}
+        <Box sx={{ 
+          textAlign: "center", 
+          mb: 3, 
+          mt: 2,
+          position: 'relative'
+        }}>
+          {/* Botón de Upload flotante a la derecha */}
+          <Box sx={{
+            position: 'absolute',
+            right: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: { xs: 'none', md: 'block' }
+          }}>
+            <UploadButton />
+          </Box>
+          
           <Typography 
             variant="h1"
             sx={{ 
@@ -170,7 +191,7 @@ const MainPage = () => {
           </Typography>
         </Box>
 
-        {/* BÚSQUEDA - ESTRUCTURA ORIGINAL EXACTA (CRÍTICO) */}
+        {/* BÚSQUEDA */}
         <Box 
           ref={searchBarRef} 
           sx={{ maxWidth: 600, mx: "auto", mb: 6, position: "relative" }}
@@ -185,7 +206,7 @@ const MainPage = () => {
             />
           </Paper>
 
-          {/* RESULTADOS - ESTRUCTURA ORIGINAL EXACTA (CRÍTICO) */}
+          {/* RESULTADOS */}
           {showResults && (
             <Fade in timeout={200}>
               <Box ref={resultsRef} sx={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000, mt: 1 }}>
@@ -202,7 +223,7 @@ const MainPage = () => {
           )}
         </Box>
 
-        {/* ESTADÍSTICAS - ORIGINAL */}
+        {/* ESTADÍSTICAS */}
         {query.trim().length >= 2 && (
           <Box sx={{ maxWidth: 600, mx: "auto", mb: 3, textAlign: "center" }}>
             {loading && <Typography variant="caption">Buscando...</Typography>}
@@ -215,7 +236,7 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* CANCIONES SELECCIONADAS - ORIGINAL */}
+        {/* CANCIONES SELECCIONADAS */}
         {selectedSongs.length > 0 && (
           <Box sx={{ mb: 6 }}>
             <Typography variant="h5" sx={{ mb: 2 }}>
@@ -225,19 +246,19 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* RANDOM SONGS DISPLAY - ORIGINAL */}
+        {/* RANDOM SONGS DISPLAY */}
         <Box sx={{ mb: 6 }}>
           <RandomSongsDisplay />
         </Box>
 
-        {/* ================ NUEVA SECCIÓN DE EVENTOS ================ */}
+        {/* SECCIÓN DE EVENTOS */}
         <Box sx={{ mb: 6 }}>
           <EventsCircularGrid
             events={events}
             loading={eventsLoading}
             error={eventsError}
-            title="🎵 EVENTOS MUSICALES"
-            subtitle="Haz click en cualquier evento para ver detalles completos"
+            title=""
+            subtitle="noticias y evenntos relacionados con tus artistas favoritos"
             onEventSave={handleEventSave}
             showFilters={true}
             filters={['festivales', 'conciertos', 'noticias', 'malabosa']}
@@ -248,19 +269,23 @@ const MainPage = () => {
           />
         </Box>
 
-        {/* ARTIST CAROUSEL - ORIGINAL */}
+        {/* ARTIST CAROUSEL */}
         <Box sx={{ mb: 6 }}>
           <ArtistCarousel />
         </Box>
 
-        {/* POPULAR SONGS - ORIGINAL */}
+        {/* POPULAR SONGS */}
         <Box>
           <PopularSongs />
         </Box>
 
-        {/* NOTIFICACIÓN CACHÉ - ORIGINAL */}
-        <Snackbar open={showCacheNotification} autoHideDuration={2000}>
-          <Alert severity="info">
+        {/* NOTIFICACIÓN CACHÉ */}
+        <Snackbar 
+          open={showCacheNotification} 
+          autoHideDuration={2000}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert severity="info" icon={false}>
             📦 Resultados desde caché • {searchMetrics?.time}ms
           </Alert>
         </Snackbar>

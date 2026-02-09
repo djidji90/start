@@ -45,7 +45,7 @@ const useRandomSongs = () => {
     try {
       const endpoint = "https://api.djidjimusic.com/api2/songs/random/";
       
-      console.log("🌐 Llamando a:", endpoint);
+     
 
       const response = await fetch(endpoint, {
         method: "GET",
@@ -113,7 +113,7 @@ const useRandomSongs = () => {
         
       } else if (Array.isArray(data)) {
         setSongs(data);
-        console.log(`🎵 ${data.length} canciones cargadas (array directo)`);
+        
         
       } else {
         console.warn("⚠️ Estructura de respuesta inesperada:", data);

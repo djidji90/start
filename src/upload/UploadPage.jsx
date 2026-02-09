@@ -1,107 +1,72 @@
-// UploadPage.jsx - ESQUELETO SIMPLIFICADO
+// pages/UploadPage.jsx
 import React from 'react';
-import { 
-  Box, Container, Typography, Paper, Button,
-  LinearProgress, Alert, IconButton, Chip
-} from "@mui/material";
-import { CloudUpload, Delete, Cancel } from "@mui/icons-material";
-import { useUpload } from '../hooks/useUpload';
+import FileUploader from '../components/Upload/FileUploader';
 
-const UploadPage = () => {
-  const {
-    files,
-    setFiles,
-    uploads,
-    quota,
-    loading,
-    error,
-    validateFile,
-    uploadFiles,
-    cancelUpload,
-    clearCompleted,
-    getStats
-  } = useUpload();
-
-  // 1. Manejo de selección de archivos
-  const handleFileSelect = (event) => {
-    const selectedFiles = Array.from(event.target.files);
-    // Validar y agregar a files...
-  };
-
-  // 2. Manejo de upload
-  const handleUpload = async () => {
-    // Usar uploadFiles...
-  };
-
-  // 3. UI tendrá:
-  // - Área de drag & drop (simplificada)
-  // - Lista de archivos seleccionados
-  // - Uploads en progreso
-  // - Información de cuota
-  // - Botones de acción
-
+function UploadPage() {
   return (
-    <Box sx={{ backgroundColor: "#ffffff", pt: 4, pb: 6 }}>
-      <Container maxWidth="lg">
-        {/* Header similar a tu MainPage */}
-        <Typography variant="h1" sx={{ textAlign: "center", mb: 4 }}>
-          Subir Música
-        </Typography>
+    <div className="upload-page">
+      <header className="page-header">
+        <h1>Subir Música</h1>
+        <p className="page-subtitle">
+          Comparte tu música con la comunidad DJ
+        </p>
+      </header>
 
-        {/* Dos paneles: Selección + Progreso */}
-        <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3 }}>
-          
-          {/* PANEL IZQUIERDO: Selección de archivos */}
-          <Paper sx={{ p: 3, flex: 1 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Seleccionar Archivos
-            </Typography>
-            
-            {/* Aquí irá:
-              - Input file o drag & drop
-              - Lista de archivos validados
-              - Botón de subir
-            */}
-          </Paper>
+      <main className="page-content">
+        <FileUploader />
+      </main>
 
-          {/* PANEL DERECHO: Uploads en progreso */}
-          <Paper sx={{ p: 3, flex: 1 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Uploads en Progreso
-            </Typography>
-            
-            {/* Aquí irá:
-              - Lista de uploads con progress bars
-              - Botones de cancelar
-              - Estadísticas
-            */}
-          </Paper>
+      <style jsx>{`
+        .upload-page {
+          min-height: 100vh;
+          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+          padding: 20px;
+        }
 
-        </Box>
+        .page-header {
+          text-align: center;
+          margin-bottom: 40px;
+          padding: 40px 20px;
+        }
 
-        {/* Información de cuota */}
-        {quota && (
-          <Paper sx={{ p: 2, mt: 3 }}>
-            <Typography variant="body2">
-              Espacio usado: {quota.percentage}%
-            </Typography>
-            <LinearProgress 
-              variant="determinate" 
-              value={quota.percentage} 
-              sx={{ mt: 1 }}
-            />
-          </Paper>
-        )}
+        .page-header h1 {
+          font-size: 3rem;
+          margin: 0 0 10px 0;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
 
-        {/* Mensajes de error/éxito */}
-        {error && (
-          <Alert severity="error" sx={{ mt: 3 }}>
-            {error}
-          </Alert>
-        )}
-      </Container>
-    </Box>
+        .page-subtitle {
+          font-size: 1.2rem;
+          color: #6b7280;
+          max-width: 600px;
+          margin: 0 auto;
+          line-height: 1.6;
+        }
+
+        .page-content {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+          .page-header {
+            padding: 20px 0;
+          }
+
+          .page-header h1 {
+            font-size: 2.5rem;
+          }
+
+          .upload-page {
+            padding: 10px;
+          }
+        }
+      `}</style>
+    </div>
   );
-};
+}
 
 export default UploadPage;

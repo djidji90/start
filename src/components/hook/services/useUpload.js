@@ -1,179 +1,251 @@
-// useUpload.js - VERSIÓN SIMPLIFICADA Y REUTILIZABLE
-import { useState, useCallback, useEffect } from 'react';
-import getUploadService from '../services/uploadService';
+// hooks/useUpload.js (versión actualizada)
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { uploadService } from '../services/uploadService';
 
-export const useUpload = () => {
-  const [files, setFiles] = useState([]);        // Archivos seleccionados
-  const [uploads, setUploads] = useState([]);    // Uploads en progreso/completados
-  const [quota, setQuota] = useState(null);      // Cuota del usuario
-  const [loading, setLoading] = useState(false); // Estado de carga general
-  const [error, setError] = useState(null);      // Error general
-
-  const uploadService = getUploadService();
-
-  // 1. INICIALIZAR: Cargar cuota al montar
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const quotaData = await uploadService.getUserQuota();
-        setQuota(quotaData);
-      } catch (err) {
-        console.warn('Error cargando cuota:', err);
-      }
-    };
-    init();
-  }, []);
-
-  // 2. VALIDAR ARCHIVO (usa tu servicio)
-  const validateFile = useCallback((file) => {
-    return uploadService.validateFile(file);
-  }, []);
-
-  // 3. SUBIR ARCHIVO INDIVIDUAL
-  const uploadFile = useCallback(async (file, metadata = {}) => {
-    const uploadId = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Crear entrada en uploads
-    const uploadEntry = {
-      id: uploadId,
-      name: file.name,
-      size: file.size,
-      status: 'uploading',
-      progress: 0,
-      startTime: Date.now(),
-    };
-    
-    setUploads(prev => [...prev, uploadEntry]);
-    setError(null);
-
-    try {
-      const result = await uploadService.uploadFile(file, metadata, {
-        onProgress: (progress) => {
-          // Actualizar progreso
-          setUploads(prev => prev.map(u => 
-            u.id === uploadId 
-              ? { ...u, progress, status: 'uploading' }
-              : u
-          ));
-        }
-      });
-
-      // Completado exitosamente
-      setUploads(prev => prev.map(u => 
-        u.id === uploadId 
-          ? { ...u, status: 'completed', progress: 100, result }
-          : u
-      ));
-
-      // Actualizar cuota
-      const newQuota = await uploadService.getUserQuota({ forceRefresh: true });
-      setQuota(newQuota);
-
-      return { success: true, uploadId, result };
-
-    } catch (err) {
-      // Error
-      setUploads(prev => prev.map(u => 
-        u.id === uploadId 
-          ? { ...u, status: 'error', error: err.message }
-          : u
-      ));
-      setError(err.message);
-      return { success: false, uploadId, error: err };
-    }
-  }, []);
-
-  // 4. SUBIR MÚLTIPLES ARCHIVOS
-  const uploadFiles = useCallback(async (fileList, metadataArray = []) => {
-    setLoading(true);
-    setError(null);
-    
-    const results = await Promise.allSettled(
-      fileList.map((file, index) => 
-        uploadFile(file, metadataArray[index] || {})
-      )
-    );
-
-    setLoading(false);
-    
-    // Estadísticas
-    const successful = results.filter(r => 
-      r.status === 'fulfilled' && r.value.success
-    ).length;
-
+export function useUpload() {
+  const [state, setState] = useState(() => {
+    // Intentar cargar historial desde localStorage
+    const savedHistory = localStorage.getItem('uploadHistory');
     return {
-      total: fileList.length,
-      successful,
-      failed: fileList.length - successful,
-      results,
+      isUploading: false,
+      progress: 0,
+      currentUpload: null,
+      error: null,
+      quota: null,
+      uploadHistory: savedHistory ? JSON.parse(savedHistory) : [],
     };
-  }, [uploadFile]);
+  });
 
-  // 5. CANCELAR UPLOAD
-  const cancelUpload = useCallback(async (uploadId) => {
-    try {
-      await uploadService.cancelUpload(uploadId);
-      setUploads(prev => prev.filter(u => u.id !== uploadId));
-      return { success: true, uploadId };
-    } catch (err) {
-      setError(`Error cancelando: ${err.message}`);
-      return { success: false, uploadId, error: err };
+  const abortControllerRef = useRef(null);
+
+  // Guardar historial en localStorage cuando cambie
+  useEffect(() => {
+    if (state.uploadHistory.length > 0) {
+      localStorage.setItem('uploadHistory', JSON.stringify(state.uploadHistory));
     }
-  }, []);
+  }, [state.uploadHistory]);
 
-  // 6. ACTUALIZAR CUOTA
-  const updateQuota = useCallback(async () => {
+  /**
+   * Cargar cuota del usuario
+   */
+  const loadQuota = useCallback(async () => {
     try {
-      const quotaData = await uploadService.getUserQuota({ forceRefresh: true });
-      setQuota(quotaData);
+      const quotaData = await uploadService.getUserQuota();
+      setState(prev => ({ ...prev, quota: quotaData }));
       return quotaData;
-    } catch (err) {
-      console.warn('Error actualizando cuota:', err);
-      return null;
+    } catch (error) {
+      console.error('Error cargando cuota:', error);
+      throw error;
     }
   }, []);
 
-  // 7. LIMPIAR
-  const clearCompleted = useCallback(() => {
-    setUploads(prev => prev.filter(u => u.status !== 'completed'));
+  /**
+   * Subir archivo (flujo completo)
+   */
+  const uploadFile = useCallback(async (file) => {
+    abortControllerRef.current = new AbortController();
+    
+    setState(prev => ({
+      ...prev,
+      isUploading: true,
+      progress: 0,
+      error: null,
+      currentUpload: {
+        id: null,
+        file,
+        status: 'preparing',
+        timestamp: new Date().toISOString(),
+      },
+    }));
+
+    try {
+      // Verificar cuota primero
+      const quota = await loadQuota();
+      if (file.size > quota.available_quota) {
+        throw new Error(
+          `Cuota insuficiente. Necesitas ${uploadService.formatBytes(file.size)} ` +
+          `pero tienes ${uploadService.formatBytes(quota.available_quota)} disponibles.`
+        );
+      }
+
+      // Subir archivo
+      const result = await uploadService.uploadFile(
+        file,
+        (progress) => {
+          setState(prev => ({
+            ...prev,
+            progress,
+            currentUpload: {
+              ...prev.currentUpload,
+              status: progress < 100 ? 'uploading' : 'confirming',
+            },
+          }));
+        }
+      );
+
+      // Obtener estado final
+      const status = await uploadService.getUploadStatus(result.uploadId);
+      
+      // Crear entrada de historial
+      const historyEntry = {
+        id: result.uploadId,
+        fileName: file.name,
+        fileSize: file.size,
+        status: status.status,
+        timestamp: new Date().toISOString(),
+        fileType: file.type,
+        result: result,
+        lastChecked: new Date().toISOString(),
+      };
+
+      // Actualizar estado
+      setState(prev => ({
+        ...prev,
+        isUploading: false,
+        progress: 100,
+        currentUpload: {
+          ...prev.currentUpload,
+          id: result.uploadId,
+          status: status.status,
+          result,
+        },
+        uploadHistory: [historyEntry, ...prev.uploadHistory.slice(0, 19)], // Mantener solo últimos 20
+      }));
+
+      // Recargar cuota
+      await loadQuota();
+
+      return { success: true, data: result };
+
+    } catch (error) {
+      console.error('Error en upload:', error);
+      
+      // Agregar al historial como fallido
+      const failedEntry = {
+        id: Date.now().toString(), // ID temporal
+        fileName: file.name,
+        fileSize: file.size,
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        error: error.message,
+      };
+
+      setState(prev => ({
+        ...prev,
+        isUploading: false,
+        error: error.message,
+        currentUpload: {
+          ...prev.currentUpload,
+          status: 'error',
+          error: error.message,
+        },
+        uploadHistory: [failedEntry, ...prev.uploadHistory.slice(0, 19)],
+      }));
+
+      return { success: false, error: error.message };
+    }
+  }, [loadQuota]);
+
+  /**
+   * Cancelar upload actual
+   */
+  const cancelUpload = useCallback(async (uploadId) => {
+    if (!uploadId) return;
+
+    try {
+      await uploadService.cancelUpload(uploadId, true);
+      
+      // Cancelar request si está en progreso
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      setState(prev => ({
+        ...prev,
+        isUploading: false,
+        progress: 0,
+        currentUpload: null,
+        uploadHistory: prev.uploadHistory.map(upload =>
+          upload.id === uploadId
+            ? { ...upload, status: 'cancelled' }
+            : upload
+        ),
+      }));
+
+      await loadQuota();
+    } catch (error) {
+      console.error('Error cancelando upload:', error);
+    }
+  }, [loadQuota]);
+
+  /**
+   * Verificar estado de un upload específico
+   */
+  const checkStatus = useCallback(async (uploadId) => {
+    try {
+      const status = await uploadService.getUploadStatus(uploadId);
+      
+      // Actualizar en historial si existe
+      setState(prev => ({
+        ...prev,
+        uploadHistory: prev.uploadHistory.map(upload =>
+          upload.id === uploadId
+            ? { 
+                ...upload, 
+                status: status.status, 
+                lastChecked: new Date().toISOString(),
+                result: { ...upload.result, status }
+              }
+            : upload
+        ),
+      }));
+
+      return status;
+    } catch (error) {
+      console.error('Error verificando estado:', error);
+      throw error;
+    }
   }, []);
 
-  const clearAll = useCallback(() => {
-    setFiles([]);
-    setUploads([]);
-    setError(null);
+  /**
+   * Limpiar historial
+   */
+  const clearHistory = useCallback(() => {
+    setState(prev => ({ ...prev, uploadHistory: [] }));
+    localStorage.removeItem('uploadHistory');
   }, []);
 
-  // 8. ESTADÍSTICAS
-  const getStats = useCallback(() => {
-    const total = uploads.length;
-    const completed = uploads.filter(u => u.status === 'completed').length;
-    const uploading = uploads.filter(u => u.status === 'uploading').length;
-    const failed = uploads.filter(u => u.status === 'error').length;
+  /**
+   * Eliminar un upload del historial
+   */
+  const removeFromHistory = useCallback((uploadId) => {
+    setState(prev => ({
+      ...prev,
+      uploadHistory: prev.uploadHistory.filter(upload => upload.id !== uploadId),
+    }));
+  }, []);
 
-    return { total, completed, uploading, failed };
-  }, [uploads]);
+  /**
+   * Limpiar errores
+   */
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }));
+  }, []);
 
   return {
-    // ESTADO
-    files,
-    setFiles,
-    uploads,
-    quota,
-    loading,
-    error,
+    // Estado
+    ...state,
     
-    // MÉTODOS
-    validateFile,
+    // Acciones
     uploadFile,
-    uploadFiles,
     cancelUpload,
-    updateQuota,
-    clearCompleted,
-    clearAll,
-    getStats,
+    checkStatus,
+    loadQuota,
+    clearError,
+    clearHistory,
+    removeFromHistory,
     
-    // SERVICIO (por si necesitas acceder directamente)
-    service: uploadService,
+    // Helpers
+    formatBytes: uploadService.formatBytes,
   };
-};
+}

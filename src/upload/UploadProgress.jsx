@@ -1,166 +1,188 @@
-// components/UploadProgress.jsx
+// components/Upload/UploadProgress.jsx
 import React from 'react';
-import { 
-  X, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
-  Play,
-  Pause,
-  FileMusic,
-  UploadCloud
-} from 'lucide-react';
 
-const UploadProgress = ({ upload, onCancel }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return 'text-green-600 bg-green-100 border-green-200';
-      case 'error': return 'text-red-600 bg-red-100 border-red-200';
-      case 'uploading': return 'text-blue-600 bg-blue-100 border-blue-200';
-      case 'pending': return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      default: return 'text-gray-600 bg-gray-100 border-gray-200';
-    }
+function UploadProgress({ 
+  fileName, 
+  progress, 
+  status, 
+  fileSize,
+  onCancel,
+  uploadId 
+}) {
+  const getStatusText = () => {
+    const statusMap = {
+      preparing: 'Preparando...',
+      uploading: 'Subiendo...',
+      confirming: 'Confirmando...',
+      processing: 'Procesando...',
+      completed: 'Completado',
+      error: 'Error',
+      cancelled: 'Cancelado',
+    };
+    return statusMap[status] || 'En progreso';
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="w-5 h-5" />;
-      case 'error': return <AlertCircle className="w-5 h-5" />;
-      case 'uploading': return <Play className="w-5 h-5" />;
-      case 'pending': return <Clock className="w-5 h-5" />;
-      default: return <UploadCloud className="w-5 h-5" />;
-    }
+  const getStatusColor = () => {
+    const colorMap = {
+      preparing: '#f59e0b',
+      uploading: '#3b82f6',
+      confirming: '#8b5cf6',
+      processing: '#f59e0b',
+      completed: '#10b981',
+      error: '#ef4444',
+      cancelled: '#6b7280',
+    };
+    return colorMap[status] || '#3b82f6';
   };
 
-  const formatFileName = (name) => {
-    if (name.length > 30) {
-      return name.substring(0, 15) + '...' + name.substring(name.length - 12);
-    }
-    return name;
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+  const formatBytes = (bytes) => {
+    if (!bytes) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
-
-  const formatSpeed = (speed) => {
-    if (!speed) return '';
-    if (speed < 1024) return `${speed.toFixed(0)} B/s`;
-    if (speed < 1024 * 1024) return `${(speed / 1024).toFixed(1)} KB/s`;
-    return `${(speed / (1024 * 1024)).toFixed(1)} MB/s`;
-  };
-
-  const formatTimeRemaining = (seconds) => {
-    if (!seconds || seconds < 0) return '';
-    if (seconds < 60) return `${Math.ceil(seconds)}s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.ceil(seconds % 60)}s`;
-    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
-  };
-
-  const getTimeElapsed = () => {
-    const elapsed = (Date.now() - upload.startTime) / 1000;
-    if (elapsed < 60) return `${elapsed.toFixed(0)}s`;
-    if (elapsed < 3600) return `${(elapsed / 60).toFixed(1)}m`;
-    return `${(elapsed / 3600).toFixed(1)}h`;
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
-    <div className={`p-4 rounded-xl border ${getStatusColor(upload.status)}`}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          <div className={`p-2 rounded-lg ${getStatusColor(upload.status).split(' ')[0].replace('text-', 'bg-')} ${getStatusColor(upload.status).split(' ')[0]}`}>
-            {getStatusIcon(upload.status)}
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <FileMusic className="w-4 h-4 text-gray-500" />
-              <span className="font-medium text-gray-800">
-                {formatFileName(upload.name)}
-              </span>
-            </div>
-            <span className="text-sm text-gray-500">
-              {formatFileSize(upload.size)}
-            </span>
-          </div>
+    <div className="upload-progress">
+      <div className="progress-header">
+        <div className="file-info">
+          <div className="file-name">{fileName}</div>
+          <div className="file-size">{formatBytes(fileSize)}</div>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          {upload.status === 'uploading' && upload.speed && (
-            <span className="text-sm font-medium px-2 py-1 bg-white rounded">
-              {formatSpeed(upload.speed)}
-            </span>
-          )}
-          
-          {upload.status !== 'completed' && upload.status !== 'error' && (
-            <button
-              onClick={onCancel}
-              className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Cancelar upload"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+        <div className="status-indicator" style={{ color: getStatusColor() }}>
+          {getStatusText()}
         </div>
       </div>
-      
-      {/* Progress Bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-sm text-gray-600 mb-1">
-          <span>
-            {upload.status === 'completed' ? 'Completado' : 
-             upload.status === 'error' ? 'Error' : 
-             `${upload.progress}%`}
-          </span>
-          <span className="flex items-center">
-            <Clock className="w-3 h-3 mr-1" />
-            {getTimeElapsed()}
-            {upload.estimatedRemaining && ` • ${formatTimeRemaining(upload.estimatedRemaining)} restante`}
-          </span>
+
+      <div className="progress-bar-container">
+        <div className="progress-bar">
+          <div 
+            className="progress-fill"
+            style={{ 
+              width: `${progress}%`,
+              backgroundColor: getStatusColor()
+            }}
+          />
         </div>
-        
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className={`h-2 rounded-full transition-all duration-300 ${
-              upload.status === 'completed' ? 'bg-green-500' :
-              upload.status === 'error' ? 'bg-red-500' :
-              'bg-blue-500'
-            }`}
-            style={{ width: `${upload.progress}%` }}
-          ></div>
-        </div>
+        <div className="progress-text">{progress}%</div>
       </div>
-      
-      {/* Status Message */}
-      {upload.error && (
-        <div className="text-sm text-red-600 bg-red-50 p-2 rounded-lg">
-          <div className="flex items-start">
-            <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-            <span>{upload.error}</span>
-          </div>
+
+      {status === 'uploading' && (
+        <div className="progress-actions">
+          <button 
+            onClick={() => onCancel(uploadId)}
+            className="btn-cancel"
+          >
+            Cancelar
+          </button>
         </div>
       )}
-      
-      {upload.status === 'completed' && upload.result && (
-        <div className="text-sm text-green-700 bg-green-50 p-2 rounded-lg">
-          <div className="flex items-start">
-            <CheckCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-            <div>
-              <span className="font-medium">¡Upload exitoso!</span>
-              {upload.result.song && (
-                <div className="mt-1 text-green-600">
-                  Canción procesada: {upload.result.song.title}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+
+      <style jsx>{`
+        .upload-progress {
+          background: white;
+          border-radius: 10px;
+          padding: 20px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e5e7eb;
+        }
+
+        .progress-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 15px;
+        }
+
+        .file-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .file-name {
+          font-weight: 600;
+          font-size: 1.1rem;
+          margin-bottom: 4px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .file-size {
+          font-size: 0.9rem;
+          color: #6b7280;
+        }
+
+        .status-indicator {
+          font-weight: 600;
+          font-size: 0.9rem;
+          padding-left: 15px;
+        }
+
+        .progress-bar-container {
+          margin-bottom: 15px;
+        }
+
+        .progress-bar {
+          height: 8px;
+          background: #e5e7eb;
+          border-radius: 4px;
+          overflow: hidden;
+          margin-bottom: 8px;
+        }
+
+        .progress-fill {
+          height: 100%;
+          border-radius: 4px;
+          transition: width 0.3s ease;
+        }
+
+        .progress-text {
+          text-align: right;
+          font-size: 0.9rem;
+          color: #6b7280;
+          font-weight: 600;
+        }
+
+        .progress-actions {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .btn-cancel {
+          background: #fef2f2;
+          color: #dc2626;
+          border: 1px solid #fecaca;
+          padding: 8px 20px;
+          border-radius: 6px;
+          font-size: 0.9rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-cancel:hover {
+          background: #fee2e2;
+          border-color: #fca5a5;
+        }
+
+        @media (max-width: 640px) {
+          .progress-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+          }
+
+          .status-indicator {
+            padding-left: 0;
+            align-self: flex-start;
+          }
+        }
+      `}</style>
     </div>
   );
-};
+}
 
 export default UploadProgress;
