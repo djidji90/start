@@ -194,14 +194,14 @@ const MainPage = () => {
       pt: { xs: 2, md: 4 },
       pb: 4
     }}>
-      {/* CONTADOR FLOTANTE */}
+      {/* CONTADOR FLOTANTE - MODIFICADO: BAJADO 60px */}
       {selectedSongs.length > 0 && (
         <Box
           sx={{
             position: 'fixed',
-            top: 16,
+            top: 60, // CAMBIADO: 16 → 60 (bajado 44px = ~6mm)
             right: 16,
-            zIndex: 2000,
+            zIndex: 1300, // CAMBIADO: 2000 → 1300 (menor que resultados pero mayor que otros elementos)
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -268,7 +268,14 @@ const MainPage = () => {
           {/* RESULTADOS */}
           {showResults && (
             <Fade in timeout={200}>
-              <Box ref={resultsRef} sx={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000, mt: 1 }}>
+              <Box ref={resultsRef} sx={{ 
+                position: "absolute", 
+                top: "100%", 
+                left: 0, 
+                right: 0, 
+                zIndex: 1400, // Aseguramos que resultados estén sobre el contador
+                mt: 1 
+              }}>
                 <SearchResults
                   results={structuredResults}
                   loading={loading}
