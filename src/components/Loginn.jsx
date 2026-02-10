@@ -35,7 +35,7 @@ const fadeIn = keyframes`
   }
 `;
 
-// Paleta de colores - Naranja como protagonista
+// Paleta de colores - Naranja como ADN de marca
 const colors = {
   primary: '#FF6B35',     // Naranja principal vibrante
   primaryLight: '#FF8B5C', // Naranja claro
@@ -54,10 +54,17 @@ const colors = {
   error: '#FF4757',
 };
 
-// Contenedor principal con gradiente sutil
+// Contenedor principal con naranja ultra-sutil en el fondo
 const LoginContainer = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
-  background: `linear-gradient(135deg, ${colors.lightBg} 0%, ${colors.gray100} 100%)`,
+  background: `
+    linear-gradient(
+      135deg,
+      ${colors.lightBg} 0%,
+      ${alpha(colors.primary, 0.04)} 60%,
+      ${colors.gray100} 100%
+    )
+  `,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -66,17 +73,18 @@ const LoginContainer = styled(Box)(({ theme }) => ({
   '&::before': {
     content: '""',
     position: 'absolute',
-    top: '-50%',
-    right: '-20%',
-    width: '70%',
-    height: '140%',
-    background: `radial-gradient(circle, ${alpha(colors.primary, 0.03)} 0%, transparent 70%)`,
+    top: '-40%',
+    right: '-15%',
+    width: '60%',
+    height: '120%',
+    background: `radial-gradient(circle, ${alpha(colors.primary, 0.05)} 0%, transparent 70%)`,
     borderRadius: '50%',
     zIndex: 0,
+    filter: 'blur(20px)',
   },
 }));
 
-// Header de marca con identidad naranja
+// Header de marca con identidad naranja potenciada
 const BrandHeader = styled(Box)(({ theme }) => ({
   textAlign: 'center',
   marginBottom: theme.spacing(5),
@@ -85,14 +93,15 @@ const BrandHeader = styled(Box)(({ theme }) => ({
   zIndex: 1,
 }));
 
-// Caja de login moderna y limpia
+// Caja de login moderna y limpia con premium touch
 const LoginBox = styled(Box)(({ theme }) => ({
   background: colors.textLight,
   borderRadius: '20px',
-  border: `1px solid ${colors.gray200}`,
+  border: `1px solid ${alpha(colors.gray200, 0.8)}`,
   boxShadow: `
-    0 10px 40px ${alpha(colors.secondary, 0.08)},
-    0 2px 10px ${alpha(colors.secondary, 0.03)}
+    0 15px 50px ${alpha(colors.secondary, 0.1)},
+    0 2px 12px ${alpha(colors.secondary, 0.05)},
+    inset 0 1px 0 ${alpha(colors.textLight, 0.9)}
   `,
   padding: theme.spacing(5),
   width: '100%',
@@ -109,40 +118,42 @@ const LoginBox = styled(Box)(({ theme }) => ({
     height: '6px',
     background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
     borderRadius: '20px 20px 0 0',
-    boxShadow: `0 2px 8px ${alpha(colors.primary, 0.3)}`,
+    boxShadow: `0 4px 12px ${alpha(colors.primary, 0.4)}`,
   },
-  // Efecto hover sutil
   transition: 'transform 0.3s ease, box-shadow 0.3s ease',
   '&:hover': {
-    transform: 'translateY(-2px)',
+    transform: 'translateY(-3px)',
     boxShadow: `
-      0 15px 50px ${alpha(colors.secondary, 0.12)},
-      0 3px 15px ${alpha(colors.secondary, 0.05)}
+      0 20px 60px ${alpha(colors.secondary, 0.15)},
+      0 4px 20px ${alpha(colors.secondary, 0.08)}
     `,
   },
-  // Mobile optimization
   '@media (max-width: 600px)': {
     margin: theme.spacing(2),
-    padding: theme.spacing(3),
+    padding: theme.spacing(4),
     maxWidth: 'calc(100% - 32px)',
   },
 }));
 
-// Inputs modernos con acentos naranja
+// Inputs modernos con foco naranja potenciado
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiOutlinedInput-root': {
     backgroundColor: colors.lightBg,
     borderRadius: '12px',
     border: `1px solid ${colors.gray200}`,
-    transition: 'all 0.3s ease',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     '&:hover': {
       borderColor: colors.primaryLight,
-      backgroundColor: alpha(colors.primary, 0.02),
+      backgroundColor: alpha(colors.primary, 0.04),
     },
     '&.Mui-focused': {
       borderColor: colors.primary,
-      backgroundColor: colors.textLight,
-      boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.1)}`,
+      backgroundColor: alpha(colors.primary, 0.04),
+      boxShadow: `
+        0 0 0 3px ${alpha(colors.primary, 0.15)},
+        0 2px 12px ${alpha(colors.primary, 0.1)}
+      `,
+      transform: 'translateY(-1px)',
     },
     '& input': {
       color: colors.textDark,
@@ -152,6 +163,10 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
       '&::placeholder': {
         color: colors.gray600,
         opacity: 0.7,
+        transition: 'opacity 0.2s ease',
+      },
+      '&:focus::placeholder': {
+        opacity: 0.4,
       },
     },
     '& .MuiInputLabel-root': {
@@ -159,6 +174,7 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
       transform: 'translate(14px, 18px) scale(1)',
       fontSize: '0.95rem',
       fontWeight: 500,
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       '&.Mui-focused, &.MuiFormLabel-filled': {
         color: colors.primary,
         transform: 'translate(14px, -6px) scale(0.85)',
@@ -167,6 +183,7 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
     },
     '& .MuiInputAdornment-root': {
       color: colors.gray600,
+      transition: 'color 0.3s ease',
       '&.Mui-focused': {
         color: colors.primary,
       },
@@ -179,35 +196,45 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
   },
 }));
 
-// Botón principal con naranja vibrante
+// Botón principal premium con borde interno
 const StyledButton = styled(Button)(({ theme }) => ({
   background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
   color: colors.textLight,
   padding: '16px 32px',
   borderRadius: '12px',
-  fontWeight: 600,
+  fontWeight: 700,
   fontSize: '1rem',
   textTransform: 'none',
   letterSpacing: '0.3px',
   border: 'none',
-  transition: 'all 0.3s ease',
-  boxShadow: `0 4px 20px ${alpha(colors.primary, 0.3)}`,
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  boxShadow: `
+    0 6px 25px ${alpha(colors.primary, 0.4)},
+    inset 0 1px 0 ${alpha(colors.textLight, 0.3)}
+  `,
   position: 'relative',
   overflow: 'hidden',
   '&:hover': {
     background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)`,
-    transform: 'translateY(-2px)',
-    boxShadow: `0 8px 30px ${alpha(colors.primary, 0.4)}`,
+    transform: 'translateY(-3px)',
+    boxShadow: `
+      0 12px 35px ${alpha(colors.primary, 0.5)},
+      inset 0 1px 0 ${alpha(colors.textLight, 0.4)}
+    `,
   },
   '&:active': {
-    transform: 'translateY(0)',
+    transform: 'translateY(-1px)',
+    boxShadow: `
+      0 4px 20px ${alpha(colors.primary, 0.4)},
+      inset 0 1px 0 ${alpha(colors.textLight, 0.2)}
+    `,
   },
   '&:disabled': {
     background: colors.gray300,
     color: colors.gray600,
     boxShadow: 'none',
+    transform: 'none',
   },
-  // Efecto de brillo al pasar el mouse
   '&::before': {
     content: '""',
     position: 'absolute',
@@ -215,19 +242,28 @@ const StyledButton = styled(Button)(({ theme }) => ({
     left: '-100%',
     width: '100%',
     height: '100%',
-    background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)',
-    transition: 'left 0.5s ease',
+    background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent)',
+    transition: 'left 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
   },
   '&:hover::before': {
     left: '100%',
   },
-  // Mobile optimization
+  // Borde interno premium (como Spotify/Apple Music)
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    inset: '1px',
+    borderRadius: '11px',
+    border: `1px solid ${alpha(colors.textLight, 0.3)}`,
+    pointerEvents: 'none',
+  },
   '@media (max-width: 600px)': {
-    padding: '14px 28px',
+    padding: '15px 28px',
+    fontSize: '0.95rem',
   },
 }));
 
-// Separador elegante
+// Separador elegante con toque naranja
 const Separator = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
@@ -237,27 +273,33 @@ const Separator = styled(Box)(({ theme }) => ({
     content: '""',
     flex: 1,
     height: '1px',
-    background: colors.gray200,
+    background: `linear-gradient(90deg, ${colors.gray200}, ${alpha(colors.primary, 0.3)}, ${colors.gray200})`,
   },
   '& span': {
     padding: '0 16px',
     fontSize: '0.9rem',
-    fontWeight: 500,
+    fontWeight: 600,
     color: colors.gray800,
+    background: colors.textLight,
+    position: 'relative',
+    zIndex: 1,
   },
 }));
 
-// Icono decorativo musical
+// Icono musical con efecto especial
 const MusicIcon = styled(MusicNote)(({ theme }) => ({
   position: 'absolute',
-  top: '-24px',
+  top: '-28px',
   right: '32px',
-  fontSize: '48px',
-  color: alpha(colors.primary, 0.1),
+  fontSize: '52px',
+  color: alpha(colors.primary, 0.12),
   transform: 'rotate(15deg)',
+  filter: `drop-shadow(0 4px 8px ${alpha(colors.primary, 0.2)})`,
   animation: `${fadeIn} 0.8s ease-out 0.4s both`,
   '@media (max-width: 600px)': {
-    display: 'none',
+    top: '-20px',
+    right: '20px',
+    fontSize: '40px',
   },
 }));
 
@@ -318,7 +360,7 @@ const Login = () => {
 
       login(response.data.access);
 
-      setSuccessMessage(`¡Bienvenido a djidjimusic, ${formData.username}!`);
+      setSuccessMessage(`¡Bienvenido a djidjimusic, ${formData.username}! 🎵`);
       setOpenSnackbar(true);
 
       setTimeout(() => navigate("/MainPage"), 1500);
@@ -336,57 +378,77 @@ const Login = () => {
     <LoginContainer>
       <Container maxWidth="sm" sx={{ px: { xs: 2, sm: 3 }, position: 'relative', zIndex: 1 }}>
         <LoginBox>
-          {/* Icono decorativo musical */}
+          {/* Icono musical decorativo */}
           <MusicIcon />
 
-          {/* Header con identidad naranja */}
+          {/* Header con naranja como ADN */}
           <BrandHeader>
             <Typography
               variant="h3"
               sx={{
-                fontWeight: 700,
-                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
+                fontWeight: 800,
+                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 50%, ${colors.primary} 100%)`,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
                 letterSpacing: '-0.5px',
-                marginBottom: 2,
-                fontSize: { xs: '2rem', sm: '2.5rem' },
-                lineHeight: 1.2,
+                marginBottom: 3,
+                fontSize: { xs: '2.2rem', sm: '2.8rem' },
+                lineHeight: 1.1,
+                textShadow: `0 2px 10px ${alpha(colors.primary, 0.15)}`,
               }}
             >
               djidjimusic
             </Typography>
             
+            {/* Separador visual con naranja protagonista */}
             <Box sx={{ 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
-              gap: 1,
-              marginBottom: 3,
+              gap: 1.5,
+              marginBottom: 4,
             }}>
               <Box sx={{ 
-                width: '60px', 
-                height: '4px', 
+                width: '70px', 
+                height: '5px', 
                 background: `linear-gradient(90deg, ${colors.primary}, ${colors.primaryLight})`,
-                borderRadius: '2px',
+                borderRadius: '3px',
+                boxShadow: `0 2px 8px ${alpha(colors.primary, 0.4)}`,
               }} />
-              <MusicNote sx={{ color: colors.primary, fontSize: '24px' }} />
+              <MusicNote sx={{ 
+                color: colors.primary,
+                fontSize: '26px',
+                filter: `drop-shadow(0 2px 6px ${alpha(colors.primary, 0.4)})`
+              }} />
               <Box sx={{ 
-                width: '60px', 
-                height: '4px', 
+                width: '70px', 
+                height: '5px', 
                 background: `linear-gradient(90deg, ${colors.primaryLight}, ${colors.primary})`,
-                borderRadius: '2px',
+                borderRadius: '3px',
+                boxShadow: `0 2px 8px ${alpha(colors.primary, 0.4)}`,
               }} />
             </Box>
 
             <Typography
               variant="h5"
               sx={{
-                fontWeight: 600,
+                fontWeight: 700,
                 color: colors.textDark,
-                marginBottom: 1,
-                fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                marginBottom: 1.5,
+                fontSize: { xs: '1.35rem', sm: '1.6rem' },
+                position: 'relative',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: '-8px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '40px',
+                  height: '3px',
+                  background: alpha(colors.primary, 0.3),
+                  borderRadius: '2px',
+                }
               }}
             >
               Inicio de Sesión
@@ -395,10 +457,12 @@ const Login = () => {
               variant="body1"
               sx={{
                 color: colors.gray800,
-                fontSize: '1rem',
-                lineHeight: 1.6,
+                fontSize: '1.05rem',
+                lineHeight: 1.7,
                 maxWidth: '400px',
                 margin: '0 auto',
+                marginTop: 3,
+                fontWeight: 400,
               }}
             >
               Accede a tu cuenta para explorar la música de Guinea Ecuatorial
@@ -424,6 +488,7 @@ const Login = () => {
                         <Person sx={{ 
                           color: errors.username ? colors.error : colors.gray600,
                           transition: 'color 0.3s ease',
+                          fontSize: '1.2rem',
                         }} />
                       </InputAdornment>
                     ),
@@ -449,6 +514,7 @@ const Login = () => {
                         <Lock sx={{ 
                           color: errors.password ? colors.error : colors.gray600,
                           transition: 'color 0.3s ease',
+                          fontSize: '1.2rem',
                         }} />
                       </InputAdornment>
                     ),
@@ -460,9 +526,11 @@ const Login = () => {
                           sx={{ 
                             color: colors.gray600,
                             padding: '8px',
+                            transition: 'all 0.3s ease',
                             '&:hover': {
                               color: colors.primary,
-                              backgroundColor: alpha(colors.primary, 0.1),
+                              backgroundColor: alpha(colors.primary, 0.12),
+                              transform: 'scale(1.1)',
                             },
                           }}
                         >
@@ -480,13 +548,15 @@ const Login = () => {
                   <Alert 
                     severity="error"
                     sx={{
-                      background: alpha(colors.error, 0.1),
+                      background: alpha(colors.error, 0.08),
                       border: `1px solid ${alpha(colors.error, 0.3)}`,
                       color: colors.error,
                       borderRadius: '12px',
-                      fontWeight: 500,
+                      fontWeight: 600,
+                      padding: '12px 16px',
                       '& .MuiAlert-icon': {
                         color: colors.error,
+                        fontSize: '1.2rem',
                       },
                     }}
                   >
@@ -495,13 +565,16 @@ const Login = () => {
                 </Grid>
               )}
 
-              {/* Botón de envío */}
-              <Grid item xs={12} sx={{ mt: 1 }}>
+              {/* Botón de envío premium */}
+              <Grid item xs={12} sx={{ mt: 2 }}>
                 <StyledButton
                   fullWidth
                   type="submit"
                   disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
+                  startIcon={loading ? 
+                    <CircularProgress size={22} color="inherit" sx={{ opacity: 0.9 }} /> : 
+                    <LoginIcon sx={{ fontSize: '1.2rem' }} />
+                  }
                 >
                   {loading ? 'Autenticando...' : 'Ingresar a la plataforma'}
                 </StyledButton>
@@ -514,15 +587,16 @@ const Login = () => {
                 </Separator>
               </Grid>
 
-              {/* Link de registro */}
+              {/* Link de registro premium */}
               <Grid item xs={12}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography
                     variant="body2"
                     sx={{
                       color: colors.gray800,
-                      marginBottom: 2,
-                      fontSize: '0.95rem',
+                      marginBottom: 2.5,
+                      fontSize: '1rem',
+                      fontWeight: 500,
                     }}
                   >
                     Únete a nuestra comunidad musical
@@ -532,24 +606,26 @@ const Login = () => {
                     sx={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 1,
+                      gap: 1.5,
                       color: colors.primary,
-                      fontWeight: 600,
+                      fontWeight: 700,
                       textDecoration: 'none',
-                      fontSize: '1rem',
-                      padding: '12px 24px',
+                      fontSize: '1.05rem',
+                      padding: '14px 28px',
                       borderRadius: '12px',
                       border: `2px solid ${alpha(colors.primary, 0.3)}`,
-                      transition: 'all 0.3s ease',
+                      background: alpha(colors.primary, 0.05),
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        background: alpha(colors.primary, 0.1),
+                        background: alpha(colors.primary, 0.12),
                         borderColor: colors.primary,
-                        transform: 'translateY(-1px)',
-                        boxShadow: `0 4px 15px ${alpha(colors.primary, 0.2)}`,
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 8px 20px ${alpha(colors.primary, 0.25)}`,
+                        color: colors.primaryDark,
                       },
                     }}
                   >
-                    <MusicNote fontSize="small" />
+                    <MusicNote sx={{ fontSize: '1.2rem' }} />
                     Crear cuenta gratuita
                   </Link>
                 </Box>
@@ -557,26 +633,39 @@ const Login = () => {
             </Grid>
           </form>
 
-          {/* Snackbar de éxito con naranja */}
+          {/* Snackbar de éxito premium */}
           <Snackbar
             open={openSnackbar}
-            autoHideDuration={4000}
+            autoHideDuration={4500}
             onClose={() => setOpenSnackbar(false)}
             anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             sx={{
-              top: { xs: '20px', sm: '30px' },
+              top: { xs: '24px', sm: '32px' },
             }}
           >
             <Alert 
               severity="success"
               sx={{
                 background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
-                borderRadius: '12px',
-                boxShadow: `0 8px 25px ${alpha(colors.primary, 0.4)}`,
-                fontWeight: 600,
+                borderRadius: '14px',
+                boxShadow: `
+                  0 12px 35px ${alpha(colors.primary, 0.5)},
+                  0 0 0 1px ${alpha(colors.textLight, 0.2)},
+                  inset 0 1px 0 ${alpha(colors.textLight, 0.4)}
+                `,
+                fontWeight: 700,
                 color: colors.textLight,
+                padding: '14px 20px',
+                fontSize: '1rem',
                 '& .MuiAlert-icon': {
                   color: colors.textLight,
+                  fontSize: '1.4rem',
+                  marginRight: '12px',
+                },
+                '& .MuiAlert-message': {
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px 0',
                 },
               }}
             >
