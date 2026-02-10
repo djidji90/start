@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   AppBar,
   Toolbar,
@@ -10,6 +10,7 @@ import {
   IconButton,
   styled,
   CssBaseline,
+  useMediaQuery,
   Switch,
   createTheme,
   ThemeProvider,
@@ -28,7 +29,7 @@ import StoreIcon from "@mui/icons-material/Store";
 import SearchIcon from "@mui/icons-material/Search";
 import ExploreIcon from "@mui/icons-material/Explore";
 
-// Paleta naranja consistente
+// Paleta naranja consistente con Login
 const colors = {
   primary: '#FF6B35',
   primaryLight: '#FF8B5C',
@@ -36,32 +37,10 @@ const colors = {
 };
 
 const Navbar = () => {
-  // Estado persistente para dark mode
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('djidjimusic-darkmode');
-    return saved ? JSON.parse(saved) : false;
-  });
-  
+  const [darkMode, setDarkMode] = useState(false); // Light mode por defecto
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Aplicar clase al body para compatibilidad CSS global
-  useEffect(() => {
-    if (darkMode) {
-      document.body.classList.add('dark-mode');
-      document.body.classList.remove('light-mode');
-    } else {
-      document.body.classList.add('light-mode');
-      document.body.classList.remove('dark-mode');
-    }
-  }, [darkMode]);
-
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    localStorage.setItem('djidjimusic-darkmode', JSON.stringify(newMode));
-  };
 
   const theme = useMemo(
     () =>
@@ -72,12 +51,6 @@ const Navbar = () => {
             main: colors.primary,
             light: colors.primaryLight,
             dark: colors.primaryDark,
-          },
-        },
-        transitions: {
-          duration: {
-            enteringScreen: 300,
-            leavingScreen: 300,
           },
         },
       }),
@@ -95,8 +68,7 @@ const Navbar = () => {
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
   const handleMenuClose = () => setAnchorEl(null);
 
-  const isActive = (path) => 
-    location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
+  const isActive = (path) => location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
 
   return (
     <ThemeProvider theme={theme}>
@@ -114,6 +86,7 @@ const Navbar = () => {
             <Title 
               variant="h6" 
               onClick={() => navigate("/")}
+              darkmode={darkMode ? "true" : "false"}
             >
               djidjimusic
             </Title>
@@ -121,36 +94,21 @@ const Navbar = () => {
 
           {/* Controles lado derecho */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {/* Switch dark mode persistente */}
+            {/* Switch dark mode */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               {darkMode ? (
-                <NightlightRoundIcon sx={{ 
-                  color: alpha(colors.primary, 0.8),
-                  fontSize: "1.1rem"
-                }} />
+                <NightlightRoundIcon sx={{ color: alpha(colors.primary, 0.8) }} />
               ) : (
-                <WbSunnyIcon sx={{ 
-                  color: alpha(colors.primary, 0.8),
-                  fontSize: "1.1rem"
-                }} />
+                <WbSunnyIcon sx={{ color: alpha(colors.primary, 0.8) }} />
               )}
               <Switch
                 checked={darkMode}
-                onChange={toggleDarkMode}
+                onChange={() => setDarkMode(!darkMode)}
                 size="small"
                 sx={{
-                  "& .MuiSwitch-thumb": { 
-                    backgroundColor: darkMode ? "#333" : "#FFF",
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                  },
-                  "& .MuiSwitch-track": { 
-                    backgroundColor: darkMode ? alpha(colors.primary, 0.3) : alpha(colors.primary, 0.2) 
-                  },
-                  '&:focus-visible .MuiSwitch-thumb': {
-                    boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.3)}`,
-                  }
+                  "& .MuiSwitch-thumb": { backgroundColor: darkMode ? "#333" : "#FFF" },
+                  "& .MuiSwitch-track": { backgroundColor: darkMode ? alpha(colors.primary, 0.3) : alpha(colors.primary, 0.2) },
                 }}
-                aria-label={darkMode ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
               />
             </Box>
 
@@ -158,25 +116,17 @@ const Navbar = () => {
             <IconButton
               edge="end"
               color="inherit"
-              aria-label="Abrir menú de navegación"
+              aria-label="menu"
               onClick={handleMenuClick}
-              sx={{ 
-                display: { xs: "flex", md: "none" }, 
-                color: darkMode ? "#FFF" : colors.primary,
-                '&:focus-visible': {
-                  outline: `2px solid ${colors.primary}`,
-                  outlineOffset: '2px',
-                }
-              }}
+              sx={{ display: { xs: "flex", md: "none" }, color: darkMode ? "#FFF" : colors.primary }}
               aria-controls="nav-menu"
-              aria-expanded={Boolean(anchorEl)}
               aria-haspopup="true"
             >
               <MenuIcon />
             </IconButton>
           </Box>
 
-          {/* Menú móvil con mejor UX */}
+          {/* Menú móvil con iconos */}
           <Menu
             id="nav-menu"
             anchorEl={anchorEl}
@@ -185,84 +135,48 @@ const Navbar = () => {
             PaperProps={{
               sx: {
                 mt: 1,
-                minWidth: 220,
-                maxWidth: 'calc(100vw - 32px)',
-                background: darkMode 
-                  ? `linear-gradient(135deg, ${alpha("#1A1D29", 0.98)} 0%, ${alpha("#2D3047", 0.98)} 100%)`
-                  : `linear-gradient(135deg, ${alpha("#FFF", 0.98)} 0%, ${alpha("#F8F9FA", 0.98)} 100%)`,
+                minWidth: 200,
+                background: darkMode ? alpha("#1A1D29", 0.95) : alpha("#FFF", 0.95),
                 backdropFilter: "blur(10px)",
-                border: `1px solid ${alpha(colors.primary, 0.15)}`,
-                boxShadow: `0 12px 40px ${alpha(darkMode ? "#000" : colors.primary, 0.2)}`,
+                border: `1px solid ${alpha(colors.primary, 0.1)}`,
+                boxShadow: `0 8px 32px ${alpha(darkMode ? "#000" : colors.primary, 0.15)}`,
               }
             }}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
           >
-            {menuItems.map((item) => {
-              const active = isActive(item.path);
-              return (
-                <MenuItem
-                  key={item.label}
-                  onClick={() => { navigate(item.path); handleMenuClose(); }}
-                  sx={{
-                    py: 1.75,
-                    px: 2.5,
-                    color: active ? colors.primary : (darkMode ? "#E2E8F0" : "#2D3047"),
-                    fontWeight: active ? 600 : 400,
-                    background: active 
-                      ? alpha(colors.primary, darkMode ? 0.15 : 0.08) 
-                      : "transparent",
-                    borderLeft: active 
-                      ? `3px solid ${colors.primary}`
-                      : "3px solid transparent",
-                    transition: "all 0.25s ease",
-                    "&:hover": { 
-                      background: alpha(colors.primary, darkMode ? 0.2 : 0.12),
-                      borderLeft: `3px solid ${alpha(colors.primary, 0.8)}`,
-                      color: colors.primary,
-                      fontWeight: 500,
-                    },
-                    "&:focus-visible": {
-                      outline: `2px solid ${alpha(colors.primary, 0.5)}`,
-                      outlineOffset: '-2px',
-                    }
-                  }}
-                >
-                  <ListItemIcon sx={{ 
-                    color: active ? colors.primary : (darkMode ? "#CBD5E1" : "#3E4C59"),
-                    minWidth: 40,
-                  }}>
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={item.label}
-                    primaryTypographyProps={{ 
-                      fontWeight: active ? 600 : 400,
-                      fontSize: '0.95rem',
-                    }}
-                  />
-                </MenuItem>
-              );
-            })}
+            {menuItems.map((item) => (
+              <MenuItem
+                key={item.label}
+                onClick={() => { navigate(item.path); handleMenuClose(); }}
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  color: isActive(item.path) ? colors.primary : "inherit",
+                  fontWeight: isActive(item.path) ? 600 : 400,
+                  background: isActive(item.path) ? alpha(colors.primary, darkMode ? 0.15 : 0.08) : "transparent",
+                  borderLeft: isActive(item.path) ? `3px solid ${colors.primary}` : "3px solid transparent",
+                  transition: "all 0.2s ease",
+                  "&:hover": { background: alpha(colors.primary, darkMode ? 0.2 : 0.1), borderLeft: `3px solid ${alpha(colors.primary, 0.7)}` }
+                }}
+              >
+                <ListItemIcon sx={{ color: isActive(item.path) ? colors.primary : "inherit", minWidth: 36 }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 600 : 400 }} />
+              </MenuItem>
+            ))}
           </Menu>
 
-          {/* Links desktop - mejor posicionados */}
+          {/* Links desktop */}
           <NavButtonsContainer>
-            {menuItems.map((item) => {
-              const active = isActive(item.path);
-              return (
-                <NavButton
-                  key={item.label}
-                  component={Link}
-                  to={item.path}
-                  isactive={active ? "true" : "false"}
-                  darkmode={darkMode ? "true" : "false"}
-                  aria-current={active ? "page" : undefined}
-                >
-                  {item.label}
-                </NavButton>
-              );
-            })}
+            {menuItems.map((item) => (
+              <NavButton
+                key={item.label}
+                component={Link}
+                to={item.path}
+                isactive={isActive(item.path) ? "true" : "false"}
+                darkmode={darkMode ? "true" : "false"}
+              >
+                {item.label}
+              </NavButton>
+            ))}
           </NavButtonsContainer>
         </Toolbar>
       </StyledAppBar>
@@ -270,135 +184,70 @@ const Navbar = () => {
   );
 };
 
-// ---------- Estilos optimizados ----------
-const StyledAppBar = styled(AppBar, { 
-  shouldForwardProp: (prop) => prop !== 'darkmode' 
-})(({ darkmode }) => ({
-  background: darkmode === "true" 
-    ? `linear-gradient(135deg, ${alpha("#1A1D29", 0.97)} 0%, ${alpha("#2D3047", 0.97)} 100%)`
-    : `linear-gradient(135deg, ${alpha("#FFF", 0.97)} 0%, ${alpha("#F8F9FA", 0.97)} 100%)`,
-  boxShadow: darkmode === "true" 
-    ? `0 4px 24px ${alpha("#000", 0.3)}, inset 0 1px 0 ${alpha("#FFF", 0.05)}`
-    : `0 4px 24px ${alpha(colors.primary, 0.1)}, inset 0 1px 0 ${alpha("#FFF", 0.9)}`,
+// ---------- Estilos ----------
+const StyledAppBar = styled(AppBar, { shouldForwardProp: (prop) => prop !== 'darkmode' })(({ darkmode }) => ({
+  background: darkmode === "true" ? alpha("#1A1D29", 0.95) : alpha("#FFF", 0.98),
+  boxShadow: darkmode === "true" ? `0 4px 20px ${alpha("#000", 0.25)}` : `0 4px 20px ${alpha(colors.primary, 0.08)}`,
   color: darkmode === "true" ? "#FFF" : "#2D3047",
-  backdropFilter: "blur(12px)",
-  borderBottom: `2px solid ${alpha(colors.primary, darkmode === "true" ? 0.12 : 0.1)}`,
-  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+  backdropFilter: "blur(10px)",
+  borderBottom: `2px solid ${alpha(colors.primary, darkmode === "true" ? 0.1 : 0.08)}`,
+  transition: "all 0.3s ease",
 }));
 
-const TitleContainer = styled(Box)(({ theme }) => ({ 
-  display: "flex", 
-  alignItems: "center", 
-  flexGrow: 1, 
-  minWidth: 0, 
-  gap: theme.spacing(1.5),
-  '@media (max-width: 600px)': {
-    gap: theme.spacing(1),
-  }
-}));
+const TitleContainer = styled(Box)(({ theme }) => ({ display: "flex", alignItems: "center", flexGrow: 1, minWidth: 0, gap: theme.spacing(1) }));
 
-const Logo = styled("img", { 
-  shouldForwardProp: (prop) => prop !== 'darkmode' 
-})(({ darkmode }) => ({
-  width: 44,
+const Logo = styled("img", { shouldForwardProp: (prop) => prop !== 'darkmode' })(({ darkmode }) => ({
+  width: 42,
   height: "auto",
   cursor: "pointer",
-  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-  filter: darkmode === "true" 
-    ? "brightness(0.85) saturate(1.1) drop-shadow(0 2px 4px rgba(0,0,0,0.3))" 
-    : "brightness(1) saturate(1.05) drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
-  "&:hover": { 
-    transform: "scale(1.08) rotate(5deg)", 
-    filter: darkmode === "true"
-      ? "brightness(1) saturate(1.2) drop-shadow(0 4px 8px rgba(0,0,0,0.4))"
-      : "brightness(1.1) saturate(1.15) drop-shadow(0 4px 8px rgba(0,0,0,0.15))",
-  },
-  "@media (max-width: 600px)": {
-    width: 40,
-  },
+  transition: "all 0.3s ease",
+  filter: darkmode === "true" ? "brightness(0.9) saturate(1.2)" : "brightness(1) saturate(1.1)",
+  "&:hover": { transform: "scale(1.05) rotate(5deg)", filter: darkmode === "true" ? "brightness(1.1) saturate(1.3)" : "brightness(1.1) saturate(1.2)" },
 }));
 
-const Title = styled(Typography)({
+const Title = styled(Typography)(({ theme }) => ({
   fontWeight: 700,
-  letterSpacing: "0.3px",
+  letterSpacing: "0.5px",
   cursor: "pointer",
   background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
   WebkitBackgroundClip: "text",
   WebkitTextFillColor: "transparent",
   backgroundClip: "text",
-  fontSize: "1.35rem",
-  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-  "&:hover": { 
-    background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)`,
-    transform: "translateY(-1px)",
-  },
-  "@media (max-width: 600px)": {
-    fontSize: "1.2rem",
-  },
-});
+  fontSize: "1.3rem",
+  transition: "all 0.3s ease",
+  "&:hover": { background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)` },
+}));
 
 const NavButtonsContainer = styled(Box)(({ theme }) => ({
   display: "none",
-  gap: theme.spacing(2),
-  [theme.breakpoints.up("md")]: { 
-    display: "flex", 
-    justifyContent: "center", 
-    flexGrow: 1,
-    marginLeft: theme.spacing(10),
-    marginRight: theme.spacing(2),
-  }
+  gap: theme.spacing(1),
+  [theme.breakpoints.up("md")]: { display: "flex", justifyContent: "center", flexGrow: 1 }
 }));
 
-const NavButton = styled(Button, { 
-  shouldForwardProp: (prop) => prop !== 'isactive' && prop !== 'darkmode' 
-})(({ isactive, darkmode }) => ({
+const NavButton = styled(Button, { shouldForwardProp: (prop) => prop !== 'isactive' && prop !== 'darkmode' })(({ isactive, darkmode }) => ({
   fontWeight: isactive === "true" ? 600 : 400,
-  fontSize: "0.92rem",
+  fontSize: "0.9rem",
   textTransform: "capitalize",
-  padding: "8px 18px",
-  color: isactive === "true" 
-    ? colors.primary 
-    : darkmode === "true" 
-      ? alpha("#FFF", 0.92)
-      : alpha("#2D3047", 0.85),
+  padding: "6px 16px",
+  color: isactive === "true" ? colors.primary : darkmode === "true" ? alpha("#FFF", 0.9) : alpha("#2D3047", 0.8),
   position: "relative",
-  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-  borderRadius: "8px",
-  minWidth: "auto",
+  transition: "all 0.3s ease",
   "&::after": {
     content: '""',
     position: "absolute",
-    bottom: 4,
+    bottom: 2,
     left: "50%",
-    width: isactive === "true" ? "75%" : "0%",
+    width: isactive === "true" ? "70%" : "0%",
     height: 2,
     background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
     borderRadius: 1,
     transform: "translateX(-50%)",
-    transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-    opacity: isactive === "true" ? 1 : 0,
+    transition: "all 0.3s ease",
   },
   "&:hover": {
     color: colors.primary,
-    backgroundColor: darkmode === "true" 
-      ? alpha(colors.primary, 0.15)
-      : alpha(colors.primary, 0.08),
-    transform: "translateY(-1px)",
-    "&::after": { 
-      width: "75%",
-      opacity: 1,
-    },
-  },
-  "&:active": {
-    transform: "translateY(0)",
-  },
-  "&:focus-visible": {
-    outline: `2px solid ${alpha(colors.primary, 0.4)}`,
-    outlineOffset: "2px",
-  },
-  "@media (min-width: 1200px)": {
-    fontSize: "0.95rem",
-    padding: "8px 20px",
+    backgroundColor: "transparent",
+    "&::after": { width: "70%" },
   },
 }));
 
