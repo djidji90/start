@@ -599,7 +599,7 @@ const Login = () => {
                       fontWeight: 500,
                     }}
                   >
-                    Únete a nuestra comunidad 
+                    Únete a nuestra comunidad musical
                   </Typography>
                   <Link 
                     href="/SingInPage"
@@ -626,7 +626,7 @@ const Login = () => {
                     }}
                   >
                     <MusicNote sx={{ fontSize: '1.2rem' }} />
-                    Crear cuenta gratis
+                    Crear cuenta gratuita
                   </Link>
                 </Box>
               </Grid>
