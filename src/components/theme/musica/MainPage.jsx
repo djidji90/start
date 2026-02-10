@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
   Box, Container, Typography, Paper, useTheme,
   useMediaQuery, Fade, Alert, Snackbar, Grow, IconButton
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
-import DeleteSweepIcon from "@mui/icons-material/DeleteSweep"; // Para icono diferente
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
 import { useSearch } from "../../../components/hook/services/useSearch";
@@ -13,8 +13,33 @@ import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
 
-// Clave para localStorage
-const SELECTED_SONGS_STORAGE_KEY = "djidjimusic_selected_songs";
+/* -------------------- SISTEMA DE IDENTIDAD POR USUARIO -------------------- */
+
+// Generar o recuperar ID único de usuario
+const getOrCreateUserId = () => {
+  let userId = localStorage.getItem('djidjimusic_user_id');
+  
+  if (!userId) {
+    // Crear ID único: timestamp + random string + userAgent hash
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substr(2, 9);
+    const userAgentHash = btoa(navigator.userAgent).substr(0, 8);
+    
+    userId = `user_${timestamp}_${randomStr}_${userAgentHash}`;
+    localStorage.setItem('djidjimusic_user_id', userId);
+    
+    console.log('✅ Nuevo usuario creado:', userId);
+  }
+  
+  return userId;
+};
+
+// Obtener clave única para las canciones del usuario
+const getUserSongsKey = (userId) => {
+  return `djidjimusic_selected_songs_${userId}`;
+};
+
+/* -------------------- COMPONENTE PRINCIPAL -------------------- */
 
 const MainPage = () => {
   const theme = useTheme();
@@ -34,19 +59,26 @@ const MainPage = () => {
   } = useSearch();
 
   const [showResults, setShowResults] = useState(false);
-  // Cargar canciones seleccionadas desde localStorage al iniciar
+  
+  // Obtener ID de usuario y clave de almacenamiento
+  const [userId] = useState(() => getOrCreateUserId());
+  const userSongsKey = getUserSongsKey(userId);
+  
+  // Cargar canciones seleccionadas DESDE LA CLAVE DEL USUARIO ACTUAL
   const [selectedSongs, setSelectedSongs] = useState(() => {
     try {
-      const stored = localStorage.getItem(SELECTED_SONGS_STORAGE_KEY);
+      const stored = localStorage.getItem(userSongsKey);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
       console.error("Error loading songs from localStorage:", error);
       return [];
     }
   });
+  
   const [showCacheNotification, setShowCacheNotification] = useState(false);
   const [newlyAddedSong, setNewlyAddedSong] = useState(null);
   const [showAddNotification, setShowAddNotification] = useState(false);
+  const [currentUserId] = useState(userId); // Guardar userId para referencia
 
   const searchBarRef = useRef(null);
   const resultsRef = useRef(null);
@@ -55,11 +87,12 @@ const MainPage = () => {
   /* -------------------- PERSISTENCIA EN LOCALSTORAGE -------------------- */
   useEffect(() => {
     try {
-      localStorage.setItem(SELECTED_SONGS_STORAGE_KEY, JSON.stringify(selectedSongs));
+      localStorage.setItem(userSongsKey, JSON.stringify(selectedSongs));
+      console.log('💾 Canciones guardadas para usuario:', userId);
     } catch (error) {
       console.error("Error saving songs to localStorage:", error);
     }
-  }, [selectedSongs]);
+  }, [selectedSongs, userSongsKey, userId]);
 
   /* -------------------- NOTIFICACIÓN DE CACHÉ -------------------- */
   useEffect(() => {
@@ -123,8 +156,8 @@ const MainPage = () => {
   };
 
   /* -------------------- SELECCIÓN DE CANCIONES -------------------- */
-  const handleSelectResult = (item, type) => {
-    console.log('Item seleccionado:', { item, type });
+  const handleSelectResult = useCallback((item, type) => {
+    console.log('Item seleccionado:', { item, type, userId: currentUserId });
 
     if (type !== "song" || !item.id) {
       console.log('⚠️ Solo se pueden seleccionar canciones con ID válido');
@@ -148,12 +181,13 @@ const MainPage = () => {
       duration: item.duration || 180,
       cover: item.cover || null,
       image_url: item.image_url || null,
-      addedAt: new Date().toISOString()
+      addedAt: new Date().toISOString(),
+      userId: currentUserId // Registrar qué usuario la añadió
     };
 
     setSelectedSongs(prev => [newSong, ...prev]);
-    setNewlyAddedSong(newSong); // Para mostrar notificación
-    console.log('✅ Canción agregada:', newSong);
+    setNewlyAddedSong(newSong);
+    console.log('✅ Canción agregada para usuario:', currentUserId);
 
     // Scroll suave a la lista de canciones seleccionadas
     setTimeout(() => {
@@ -166,19 +200,29 @@ const MainPage = () => {
     }, 100);
 
     handleCloseResults();
-  };
+  }, [selectedSongs, currentUserId]);
 
   /* -------------------- ELIMINAR CANCIÓN -------------------- */
-  const handleRemoveSong = (songId) => {
+  const handleRemoveSong = useCallback((songId) => {
     setSelectedSongs(prev => prev.filter(song => song.id !== songId));
-  };
+  }, []);
 
   /* -------------------- ELIMINAR TODAS LAS CANCIONES -------------------- */
-  const handleClearAllSongs = () => {
+  const handleClearAllSongs = useCallback(() => {
     if (selectedSongs.length > 0 && window.confirm(`¿Eliminar todas las ${selectedSongs.length} canciones seleccionadas?`)) {
       setSelectedSongs([]);
     }
-  };
+  }, [selectedSongs.length]);
+
+  /* -------------------- CAMBIAR DE USUARIO (OPCIONAL) -------------------- */
+  const handleSwitchUser = useCallback(() => {
+    if (window.confirm("¿Crear un nuevo perfil? Esto creará una lista nueva.")) {
+      // Borrar ID actual para forzar creación de uno nuevo
+      localStorage.removeItem('djidjimusic_user_id');
+      // Recargar la página para generar nuevo usuario
+      window.location.reload();
+    }
+  }, []);
 
   /* -------------------- MANEJO DE ERRORES -------------------- */
   const handleRetrySearch = () => {
@@ -234,6 +278,30 @@ const MainPage = () => {
         </Box>
       )}
 
+      {/* INDICADOR DE USUARIO ACTUAL (OPCIONAL) */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 16,
+          left: 16,
+          zIndex: 1999,
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '0.7rem',
+          color: '#666',
+          display: { xs: 'none', sm: 'block' },
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: 'rgba(245, 245, 245, 0.95)'
+          }
+        }}
+        onClick={handleSwitchUser}
+        title="Click para cambiar de perfil"
+      >
+        👤 Perfil {userId.substr(5, 8)}...
+      </Box>
+
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
         {/* HEADER */}
         <Box sx={{ textAlign: "center", mb: { xs: 3, md: 4 } }}>
@@ -247,6 +315,16 @@ const MainPage = () => {
             }}
           >
             djidjimusic
+          </Typography>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              display: { xs: 'block', sm: 'none' },
+              color: '#666',
+              mt: 1
+            }}
+          >
+            Perfil: {userId.substr(5, 6)}...
           </Typography>
         </Box>
 
@@ -300,7 +378,7 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* CANCIONES SELECCIONADAS - VERSIÓN CORREGIDA */}
+        {/* CANCIONES SELECCIONADAS */}
         {selectedSongs.length > 0 && (
           <Box ref={selectedSongsRef} sx={{ mb: 6 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -320,11 +398,11 @@ const MainPage = () => {
               </IconButton>
             </Box>
             
-            {/* ✅ UN SOLO SongCarousel con TODAS las canciones */}
+            {/* SongCarousel con todas las canciones */}
             <Grow in={true} timeout={500}>
               <Box>
                 <SongCarousel 
-                  songs={selectedSongs} 
+                  songs={selectedSongs}
                   title=""
                   onRemoveSong={handleRemoveSong}
                   showRemoveButton={true}
