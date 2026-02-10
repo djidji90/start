@@ -38,7 +38,6 @@ const Navbar = () => {
   const menuItems = [
     { label: "Inicio", path: "/" },
     { label: "Nosotros", path: "/AboutUs" },
-    { label: "Regístrate", path: "/SingInPage" },
     { label: "Tienda", path: "/Todo" },
     { label: "Búsqueda", path: "/MainPage" },
     { label: "Descubre", path: "/TechStyleHub" },
