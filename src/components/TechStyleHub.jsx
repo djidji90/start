@@ -622,8 +622,9 @@ const ConstructionBanner = () => {
             px: 2,
           }}
         >
-          Estamos trabajando arduamente para traerte la mejor experiencia musical 
-          posible {destinoActual.nombre}, {destinoActual.descripcion.toLowerCase()} — 
+          esto es lo que suena en las calles de:
+
+ {destinoActual.nombre}, {destinoActual.descripcion.toLowerCase()} — 
           te mandamos un fuerte abrazo 🎵✨
         </Typography>
 
