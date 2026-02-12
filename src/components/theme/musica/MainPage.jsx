@@ -294,7 +294,7 @@ const MainPage = () => {
               letterSpacing: 1
             }}
           >
-            GUINEA ECUATORIAL · DESDE EL BARRIO PA'L MUNDO
+           
           </Typography>
         </Box>
 
@@ -460,7 +460,7 @@ const MainPage = () => {
               fontStyle: 'italic'
             }}
           >
-            Hecho en Guinea Ecuatorial · pa'l mundo entero 🇬🇶
+            
           </Typography>
           <Typography 
             variant="caption" 
@@ -471,7 +471,7 @@ const MainPage = () => {
               letterSpacing: 1
             }}
           >
-            DJIDJIMUSIC ® — EL SONIDO ES NUESTRO
+            EL SONIDO ES NUESTRO
           </Typography>
         </Box>
 
