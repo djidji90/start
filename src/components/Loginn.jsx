@@ -23,7 +23,7 @@ import { keyframes } from "@emotion/react";
 import { useConfig } from "./hook/useConfig";
 import { AuthContext } from "./hook/UseAut";
 
-// Animación sutil
+// Animaciones
 const fadeIn = keyframes`
   from { 
     opacity: 0; 
@@ -33,6 +33,23 @@ const fadeIn = keyframes`
     opacity: 1; 
     transform: translateY(0); 
   }
+`;
+
+const flotar = keyframes`
+  0%, 100% { transform: rotate(-5deg) translateY(0); }
+  50% { transform: rotate(-8deg) translateY(-4px); }
+`;
+
+const vibrar = keyframes`
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-1px); }
+  75% { transform: translateX(1px); }
+`;
+
+const caida = keyframes`
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  50% { opacity: 1; transform: translateY(8px) scale(1); }
+  100% { opacity: 0; transform: translateY(16px) scale(0.6); }
 `;
 
 // Paleta de colores - Naranja como ADN de marca
@@ -132,6 +149,52 @@ const LoginBox = styled(Box)(({ theme }) => ({
     margin: theme.spacing(2),
     padding: theme.spacing(4),
     maxWidth: 'calc(100% - 32px)',
+  },
+}));
+
+// 🚀 LOGO: COHETE DESPEGANDO CON ESTELA DE NOTAS
+const CoheteDespegue = styled(Box)(({ theme }) => ({
+  position: 'absolute',
+  top: '-28px',
+  right: '32px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  animation: `${fadeIn} 0.8s ease-out 0.4s both, ${vibrar} 3s ease-in-out infinite`,
+  zIndex: 10,
+  '& .cohete': {
+    fontSize: '48px',
+    transform: 'rotate(-5deg)',
+    filter: `drop-shadow(0 6px 12px ${alpha(colors.primary, 0.25)})`,
+    animation: `${flotar} 2s ease-in-out infinite`,
+  },
+  '& .estela': {
+    display: 'flex',
+    gap: '2px',
+    marginTop: '-8px',
+    '& span': {
+      fontSize: '16px',
+      color: alpha(colors.primary, 0.3),
+      animation: `${caida} 1.5s ease-in-out infinite`,
+      '&:nth-of-type(1)': { 
+        animationDelay: '0s',
+        '&::before': { content: '"♪"' }
+      },
+      '&:nth-of-type(2)': { 
+        animationDelay: '0.2s',
+        '&::before': { content: '"♫"' }
+      },
+      '&:nth-of-type(3)': { 
+        animationDelay: '0.4s',
+        '&::before': { content: '"♪"' }
+      },
+    }
+  },
+  '@media (max-width: 600px)': {
+    top: '-20px',
+    right: '20px',
+    '& .cohete': { fontSize: '36px' },
+    '& .estela span': { fontSize: '12px' },
   },
 }));
 
@@ -248,7 +311,6 @@ const StyledButton = styled(Button)(({ theme }) => ({
   '&:hover::before': {
     left: '100%',
   },
-  // Borde interno premium (como Spotify/Apple Music)
   '&::after': {
     content: '""',
     position: 'absolute',
@@ -283,23 +345,6 @@ const Separator = styled(Box)(({ theme }) => ({
     background: colors.textLight,
     position: 'relative',
     zIndex: 1,
-  },
-}));
-
-// Icono musical con efecto especial
-const MusicIcon = styled(MusicNote)(({ theme }) => ({
-  position: 'absolute',
-  top: '-28px',
-  right: '32px',
-  fontSize: '52px',
-  color: alpha(colors.primary, 0.12),
-  transform: 'rotate(15deg)',
-  filter: `drop-shadow(0 4px 8px ${alpha(colors.primary, 0.2)})`,
-  animation: `${fadeIn} 0.8s ease-out 0.4s both`,
-  '@media (max-width: 600px)': {
-    top: '-20px',
-    right: '20px',
-    fontSize: '40px',
   },
 }));
 
@@ -360,7 +405,7 @@ const Login = () => {
 
       login(response.data.access);
 
-      setSuccessMessage(`¡Bienvenido a djidjimusic, ${formData.username}! 🎵`);
+      setSuccessMessage(`🚀 ¡Bienvenido a bordo de djidjimusic, ${formData.username}! Prepara tus beats interestelares 🎵`);
       setOpenSnackbar(true);
 
       setTimeout(() => navigate("/MainPage"), 1500);
@@ -378,8 +423,17 @@ const Login = () => {
     <LoginContainer>
       <Container maxWidth="sm" sx={{ px: { xs: 2, sm: 3 }, position: 'relative', zIndex: 1 }}>
         <LoginBox>
-          {/* Icono musical decorativo */}
-          <MusicIcon />
+          {/* 🚀 LOGO: Cohete despegando con estela de notas musicales */}
+          <CoheteDespegue>
+            <Box className="cohete" component="span">
+              🚀
+            </Box>
+            <Box className="estela">
+              <span>♪</span>
+              <span>♫</span>
+              <span>♪</span>
+            </Box>
+          </CoheteDespegue>
 
           {/* Header con naranja como ADN */}
           <BrandHeader>
@@ -400,7 +454,7 @@ const Login = () => {
             >
               djidjimusic
             </Typography>
-            
+
             {/* Separador visual con naranja protagonista */}
             <Box sx={{ 
               display: 'flex', 
