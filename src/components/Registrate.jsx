@@ -955,7 +955,7 @@ const Register = () => {
                 fontWeight: 400,
               }}
             >
-              Únete a la comunidad musical de Guinea Ecuatorial y despega tu carrera
+              Únete y descubre nuevas sensaciones
             </Typography>
           </BrandHeader>
 
