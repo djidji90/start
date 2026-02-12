@@ -622,7 +622,7 @@ const ConstructionBanner = () => {
             px: 2,
           }}
         >
-          esto es lo que suena en las calles de:
+  
 
  {destinoActual.nombre}, {destinoActual.descripcion.toLowerCase()} — 
           te mandamos un fuerte abrazo 🎵✨
