@@ -356,7 +356,7 @@ const MainPage = () => {
                 fontStyle: 'italic'
               }}
             >
-              🎧 Busca y empieza tu sesión
+              🎧 Busca y empieza a disfrutar
             </Typography>
           )}
         </Box>
