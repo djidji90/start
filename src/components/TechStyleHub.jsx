@@ -44,7 +44,7 @@ const destinos = [
     id: "malabo",
     nombre: "Malabo", 
     tipo: "capital", 
-    descripcion: "Capital, isla de Bioko ⛰️", 
+    descripcion: "capital económica y cultural de nuestro hermoso pais", 
     lat: "3.75", 
     lon: "8.78",
     datoCurioso: "Fundada en 1827 por los británicos como Port Clarence"
@@ -53,7 +53,7 @@ const destinos = [
     id: "bata",
     nombre: "Bata", 
     tipo: "ciudad", 
-    descripcion: "Puerta del continente 🌊", 
+    descripcion: "ciudad del amor, Puerta del continente 🌊", 
     lat: "1.86", 
     lon: "9.77",
     datoCurioso: "Ciudad más poblada del país, principal puerto continental"
@@ -64,34 +64,34 @@ const destinos = [
     id: "baney",
     nombre: "Baney", 
     tipo: "pueblo", 
-    descripcion: "Norte de Bioko, playas negras 🏝️", 
+    descripcion: "baney yeyeba, capital de la isla de Bioko, que nadie se enfade 😂", 
     lat: "3.70", 
     lon: "8.91",
     datoCurioso: "Conocido por sus espectaculares playas volcánicas"
   },
   { 
-    id: "basupu",
-    nombre: "Basupú", 
+    id: "lea",
+    nombre: "lía", 
     tipo: "pueblo", 
-    descripcion: "Costa oeste, pescadores 🎣", 
+    descripcion: "pueblo de grandes artistas seguro que tu cantante favorito ha estado ahí", 
     lat: "3.68", 
     lon: "8.85",
-    datoCurioso: "Comunidad pesquera tradicional bubi"
+    datoCurioso: "nos gusta hacer nfuga y bailar nzanga"
   },
   { 
     id: "rebola",
     nombre: "Rebola", 
     tipo: "pueblo", 
-    descripcion: "Tierra de cacao 🍫", 
+    descripcion: "Tierra de gente fuerte y talentosa 🪺", 
     lat: "3.72", 
     lon: "8.83",
-    datoCurioso: "Corazón de la producción de cacao en Bioko"
+    datoCurioso: "deberías visitarnos estamos a pocos kilómetros de malabo"
   },
   { 
     id: "comandachina",
     nombre: "Comandachina", 
     tipo: "pueblo", 
-    descripcion: "Historia viva 📜", 
+    descripcion: "de gente muy amable situado en el corazón de bata 🫂", 
     lat: "3.75", 
     lon: "8.80",
     datoCurioso: "Nombre único con historia de principios del XX"
@@ -102,7 +102,7 @@ const destinos = [
     id: "rio_campo",
     nombre: "Río Campo", 
     tipo: "pueblo", 
-    descripcion: "Frontera natural 🌴", 
+    descripcion: "Frontera natural con Camerún te estamos esperando 🌴", 
     lat: "2.33", 
     lon: "9.82",
     datoCurioso: "Sobre el río Campo, frontera natural con Camerún"
@@ -111,7 +111,7 @@ const destinos = [
     id: "akurenam",
     nombre: "Akurenam", 
     tipo: "pueblo", 
-    descripcion: "Corazón continental ❤️", 
+    descripcion: "Corazón continental, con las chicas muy guapas ❤️", 
     lat: "1.23", 
     lon: "10.12",
     datoCurioso: "Localidad del interior, rodeada de selva tropical"
@@ -120,10 +120,10 @@ const destinos = [
     id: "mongomo",
     nombre: "Mongomo", 
     tipo: "ciudad", 
-    descripcion: "Tierra de grandes líderes 👑", 
+    descripcion: "capital de la provincia de welenzas ❤️", 
     lat: "1.63", 
     lon: "11.32",
-    datoCurioso: "Ciudad natal de Teodoro Obiang Nguema Mbasogo"
+    datoCurioso: "tierra de origen de grandes artistas "
   },
   
   // 🏙️ MÁS CIUDADES IMPORTANTES
@@ -131,16 +131,16 @@ const destinos = [
     id: "ebebiyin",
     nombre: "Ebebiyín", 
     tipo: "ciudad", 
-    descripcion: "Frontera con Gabón 🌿", 
+    descripcion: "tierra de comerciantes y artistas importantes 🌿", 
     lat: "2.15", 
     lon: "11.33",
-    datoCurioso: "Centro comercial en la frontera con Gabón"
+    datoCurioso: "Centro comercial en la frontera con cameroun"
   },
   { 
     id: "evinayong",
     nombre: "Evinayong", 
     tipo: "ciudad", 
-    descripcion: "Centro del país 🏔️", 
+    descripcion: "Centro del país, espectacular con una rica historia 🏔️ ", 
     lat: "1.45", 
     lon: "10.57",
     datoCurioso: "Capital de la provincia de Centro Sur"
@@ -622,9 +622,9 @@ const ConstructionBanner = () => {
             px: 2,
           }}
         >
-          Estamos afinando cada nota para traerte la mejor experiencia musical 
-          desde cada rincón de Guinea Ecuatorial. {destinoActual.nombre}, {destinoActual.descripcion.toLowerCase()} — 
-          te estamos preparando algo especial. 🎵✨
+          Estamos trabajando arduamente para traerte la mejor experiencia musical 
+          posible {destinoActual.nombre}, {destinoActual.descripcion.toLowerCase()} — 
+          te mandamos un fuerte abrazo 🎵✨
         </Typography>
 
         {/* ========== BOTÓN TIENDA ========== */}
@@ -676,7 +676,7 @@ const ConstructionBanner = () => {
             fontSize: "0.7rem",
           }}
         >
-          djidjimusic ® — Sonidos que cruzan el Atlántico · 🇬🇶 15 destinos en vivo
+          djidjimusic ® —  🇬🇶 descubre guinea con nosotros
         </Typography>
       </Box>
     </Box>
