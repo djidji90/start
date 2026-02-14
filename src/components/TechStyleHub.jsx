@@ -666,7 +666,7 @@ const ConstructionBanner = () => {
             mb: 0.5,
           }}
         >
-          CONSTRUIDO DESDE GUINEA ECUATORIAL PARA EL MUNDO 🌍
+          HECHO CON 🩷 DESDE GUINEA ECUATORIAL PARA EL MUNDO 🌍
         </Typography>
         
         <Typography
@@ -677,7 +677,7 @@ const ConstructionBanner = () => {
             fontSize: "0.7rem",
           }}
         >
-          djidjimusic ® —  🇬🇶 descubre guinea con nosotros
+         
         </Typography>
       </Box>
     </Box>
