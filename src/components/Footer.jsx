@@ -99,11 +99,11 @@ const Footer = () => {
                 }
               }}
             >
-              {/* Emoji de bandera de Guinea Ecuatorial */}
+              {/* 🔥 BANDERA REDUCIDA - de 48px a 36px */}
               <Typography
                 className="flag-icon"
                 sx={{
-                  fontSize: 48,
+                  fontSize: 36,  // ANTES: 48 🔥 REDUCIDO
                   mr: 1.5,
                   filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.2))",
                   transition: "all 0.3s ease",
@@ -111,6 +111,11 @@ const Footer = () => {
                 }}
               >
                 🇬🇶
+              </Typography>
+
+              {/* Opcional: texto "Guinea Ecuatorial" si quieres */}
+              <Typography variant="h6" sx={{ fontWeight: 500 }}>
+                Guinea Ecuatorial
               </Typography>
             </Box>
 
