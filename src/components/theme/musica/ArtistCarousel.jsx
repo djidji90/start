@@ -7,8 +7,8 @@ import {
   Chip,
   Skeleton,
   useTheme,
-  useMediaQuery,
-  alpha
+  alpha,
+  Fade
 } from "@mui/material";
 import {
   Favorite,
@@ -16,19 +16,19 @@ import {
   Share
 } from "@mui/icons-material";
 
-const ArtistCarouselReact = () => {
+const ArtistCarousel = () => {
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hoveredCard, setHoveredCard] = useState(null);
   const scrollContainerRef = useRef(null);
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   // Función para obtener artistas desde la API
   useEffect(() => {
     const fetchArtists = async () => {
       try {
         setLoading(true);
-        
+
         // Simulando una respuesta de API
         setTimeout(() => {
           const mockArtists = [
@@ -93,47 +93,11 @@ const ArtistCarouselReact = () => {
     fetchArtists();
   }, []);
 
-  // Auto-scroll vertical mecánico (sin controles)
-  useEffect(() => {
-    if (!scrollContainerRef.current || artists.length === 0) return;
-
-    const container = scrollContainerRef.current;
-    let animationFrameId;
-    let lastTime = 0;
-    const speed = 0.6; // Velocidad fija para móvil
-
-    const scrollVertical = (currentTime) => {
-      if (!lastTime) lastTime = currentTime;
-      const deltaTime = currentTime - lastTime;
-      
-      if (deltaTime > 16) {
-        container.scrollTop += speed * (deltaTime / 16);
-        
-        // Reiniciar scroll si llega al final
-        if (container.scrollTop >= container.scrollHeight - container.clientHeight) {
-          container.scrollTop = 0;
-        }
-        
-        lastTime = currentTime;
-      }
-      
-      animationFrameId = requestAnimationFrame(scrollVertical);
-    };
-
-    animationFrameId = requestAnimationFrame(scrollVertical);
-
-    return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [artists.length]);
-
   if (loading) {
     return (
       <Box sx={{ px: 2, py: 3 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-          Artistas
+          Artistas Destacados
         </Typography>
         <Box sx={{ display: "flex", overflowX: "auto", gap: 2, pb: 2 }}>
           {[...Array(4)].map((_, idx) => (
@@ -151,33 +115,73 @@ const ArtistCarouselReact = () => {
   return (
     <Box sx={{ px: 2, py: 3 }}>
       <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-        Artistas
+        Artistas Destacados
       </Typography>
 
-      {/* Contenedor con scroll vertical automático */}
+      {/* Contenedor con scroll vertical NATIVO - sin auto-scroll */}
       <Box
         ref={scrollContainerRef}
         sx={{
           height: "500px",
           overflowY: "auto",
           overflowX: "hidden",
-          scrollbarWidth: "none",
+          // Scrollbar elegante pero visible
+          scrollbarWidth: "thin",
           "&::-webkit-scrollbar": {
-            display: "none"
+            width: "4px", // Más delgado en móvil
           },
-          WebkitOverflowScrolling: "touch"
+          "&::-webkit-scrollbar-track": {
+            background: alpha(theme.palette.primary.main, 0.05),
+            borderRadius: "10px",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: alpha(theme.palette.primary.main, 0.3),
+            borderRadius: "10px",
+            "&:hover": {
+              background: alpha(theme.palette.primary.main, 0.5),
+            }
+          },
+          // Mejor experiencia táctil
+          WebkitOverflowScrolling: "touch",
+          // Indicador visual de que hay más contenido
+          position: "relative",
         }}
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {/* Gradiente inferior para indicar scroll */}
+        <Box
+          sx={{
+            position: "sticky",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: "40px",
+            background: `linear-gradient(to top, ${alpha(theme.palette.background.paper, 0.9)}, transparent)`,
+            pointerEvents: "none",
+            zIndex: 1,
+          }}
+        />
+        
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pr: 1, pb: 2 }}>
           {artists.map((artist) => (
             <Card
               key={artist.id}
+              onMouseEnter={() => setHoveredCard(artist.id)}
+              onMouseLeave={() => setHoveredCard(null)}
               sx={{
                 borderRadius: 2,
                 overflow: "hidden",
-                transition: "transform 0.2s ease",
+                transition: "all 0.2s ease",
+                // Efecto sutil al presionar en móvil
                 "&:active": {
-                  transform: "scale(0.98)"
+                  transform: "scale(0.98)",
+                  bgcolor: alpha(theme.palette.primary.main, 0.02),
+                },
+                // Hover solo en desktop (no interfiere en móvil)
+                "@media (hover: hover)": {
+                  "&:hover": {
+                    transform: "scale(1.01)",
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
+                  }
                 }
               }}
             >
@@ -204,29 +208,55 @@ const ArtistCarouselReact = () => {
                       color: "white",
                       fontWeight: 600,
                       fontSize: "0.65rem",
-                      height: 20
+                      height: 20,
+                      backdropFilter: "blur(4px)"
                     }}
                   />
                 </Box>
 
                 {/* Contenido */}
-                <CardContent sx={{ flex: 1, p: 2, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5, lineHeight: 1.2 }}>
+                <CardContent sx={{ 
+                  flex: 1, 
+                  p: 1.5, // Padding reducido en móvil
+                  display: "flex", 
+                  flexDirection: "column", 
+                  justifyContent: "center"
+                }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      fontWeight: 600, 
+                      mb: 0.3, 
+                      lineHeight: 1.2,
+                      fontSize: "0.9rem"
+                    }}
+                  >
                     {artist.name}
                   </Typography>
-                  <Typography variant="caption" color="primary" sx={{ mb: 1, fontWeight: 500 }}>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      mb: 0.5, 
+                      fontWeight: 500,
+                      color: theme.palette.primary.main,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.3px',
+                      fontSize: "0.65rem"
+                    }}
+                  >
                     {artist.genre}
                   </Typography>
                   <Typography 
                     variant="caption" 
                     color="text.secondary" 
                     sx={{ 
-                      lineHeight: 1.3,
+                      lineHeight: 1.2,
                       display: "-webkit-box",
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: "vertical",
                       overflow: "hidden",
-                      textOverflow: "ellipsis"
+                      textOverflow: "ellipsis",
+                      fontSize: "0.7rem"
                     }}
                   >
                     {artist.bio}
@@ -234,32 +264,55 @@ const ArtistCarouselReact = () => {
                 </CardContent>
               </Box>
 
-              {/* Acciones (pequeñas en móvil) */}
+              {/* Acciones - más compactas en móvil */}
               <Box sx={{ 
                 display: "flex", 
                 justifyContent: "space-around", 
-                py: 1,
-                borderTop: `1px solid ${theme.palette.divider}`
+                py: 0.5,
+                borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                bgcolor: alpha(theme.palette.background.paper, 0.8)
               }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Favorite fontSize="small" sx={{ color: "text.secondary", fontSize: 16 }} />
-                  <Typography variant="caption" color="text.secondary">Me gusta</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+                  <Favorite sx={{ color: "text.secondary", fontSize: 14 }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem" }}>
+                    Me gusta
+                  </Typography>
                 </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <MusicNote fontSize="small" sx={{ color: "text.secondary", fontSize: 16 }} />
-                  <Typography variant="caption" color="text.secondary">Música</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+                  <MusicNote sx={{ color: "text.secondary", fontSize: 14 }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem" }}>
+                    Música
+                  </Typography>
                 </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Share fontSize="small" sx={{ color: "text.secondary", fontSize: 16 }} />
-                  <Typography variant="caption" color="text.secondary">Compartir</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.3 }}>
+                  <Share sx={{ color: "text.secondary", fontSize: 14 }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.6rem" }}>
+                    Compartir
+                  </Typography>
                 </Box>
               </Box>
             </Card>
           ))}
         </Box>
       </Box>
+      
+      {/* Indicador sutil de scroll */}
+      <Fade in timeout={1000}>
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            display: 'block', 
+            textAlign: 'center', 
+            mt: 1,
+            color: alpha(theme.palette.text.secondary, 0.6),
+            fontSize: '0.6rem'
+          }}
+        >
+          Desliza hacia abajo para ver más artistas ↓
+        </Typography>
+      </Fade>
     </Box>
   );
 };
 
-export default ArtistCarouselReact;
+export default ArtistCarousel;
