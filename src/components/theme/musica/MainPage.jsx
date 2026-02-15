@@ -12,7 +12,6 @@ import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
-// 🆗 Eliminado: import { motion } from "framer-motion"; (no se usaba)
 
 // ============================================
 // 🎨 IDENTIDAD VISUAL
@@ -22,6 +21,9 @@ primary: '#FF6B35',
 primaryLight: '#FF8B5C',
 textDark: '#1a1a1a',
 gray600: '#666666',
+gray500: '#9E9E9E', // 🔥 NUEVO: Gris medio para focus
+gray400: '#BDBDBD', // 🔥 NUEVO: Gris más claro
+gray300: '#E0E0E0', // 🔥 NUEVO: Gris muy claro
 gray100: '#fafafa',
 gray200: '#e0e0e0'
 };
@@ -76,7 +78,6 @@ return [];
 const [showCacheNotification, setShowCacheNotification] = useState(false);
 const [newlyAddedSong, setNewlyAddedSong] = useState(null);
 const [showAddNotification, setShowAddNotification] = useState(false);
-// 🆕 Nueva notificación para límite alcanzado
 const [showLimitNotification, setShowLimitNotification] = useState(false);
 const [fraseIndex, setFraseIndex] = useState(0);
 
@@ -139,7 +140,7 @@ if (hookIsOpen || (hasResults && query.length >= 2)) {
 
 }, [hookIsOpen, structuredResults, query]);
 
-/* -------------------- CLICK FUERA (MEJORADO CON POINTERDOWN) -------------------- */
+/* -------------------- CLICK FUERA -------------------- */
 useEffect(() => {
 const handleClickOutside = (e) => {
 if (
@@ -152,7 +153,6 @@ resultsRef.current &&
 handleCloseResults();
 }
 };
-// 🆕 Cambiado a pointerdown para mejor soporte móvil
 document.addEventListener("pointerdown", handleClickOutside);
 return () => document.removeEventListener("pointerdown", handleClickOutside);
 }, [showResults]);
@@ -176,7 +176,6 @@ if (selectedSongs.some(song => String(song.id) === songId)) {
   return;  
 }  
 
-// 🆕 Límite con Snackbar en lugar de alert
 if (selectedSongs.length >= MAX_SELECTED_SONGS) {
   setShowLimitNotification(true);
   setTimeout(() => setShowLimitNotification(false), 2000);
@@ -318,7 +317,7 @@ title={`${selectedSongs.length} canción(es) seleccionada(s)`}
       </Typography>  
     </Box>  
 
-    {/* ========== BÚSQUEDA ========== */}  
+    {/* ========== BÚSQUEDA CON FOCUS GRIS ========== */}
     <Box   
       ref={searchBarRef}   
       sx={{ maxWidth: 600, mx: "auto", mb: 4, position: "relative" }}  
@@ -327,10 +326,12 @@ title={`${selectedSongs.length} canción(es) seleccionada(s)`}
         borderRadius: "12px",   
         bgcolor: colors.gray100,  
         border: `1px solid ${colors.gray200}`,  
+        // 🔥 FOCUS CON GRIS (cambiado de naranja a gris)
         '&:focus-within': {  
-          borderColor: colors.primary,  
-          boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.1)}`  
-        }  
+          borderColor: colors.gray500,  // ⚪ Borde gris medio
+          boxShadow: `0 0 0 3px ${alpha(colors.gray500, 0.15)}`,  // ⚪ Glow gris sutil
+        },
+        transition: 'all 0.2s ease'
       }}>  
         <SearchBar  
           query={query}  
@@ -510,7 +511,6 @@ title={`${selectedSongs.length} canción(es) seleccionada(s)`}
       </Alert>  
     </Snackbar>  
 
-    {/* 🆕 Notificación de límite alcanzado (Snackbar en lugar de alert) */}
     <Snackbar
       open={showLimitNotification}
       autoHideDuration={2000}
