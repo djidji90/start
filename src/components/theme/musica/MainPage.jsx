@@ -114,7 +114,7 @@ const Hero = () => {
         }}>
           <Box
             component="button"
-            onClick={() => window.location.href = "/explorar"}
+            onClick={() => window.location.href = ""}
             sx={{
               bgcolor: colors.primary,
               color: "white",
