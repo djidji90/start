@@ -3,9 +3,9 @@ import {
   Box, Container, Typography, Paper, useTheme,
   useMediaQuery, Fade, Alert, Snackbar, Grow, IconButton, alpha
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
+import { useNavigate } from 'react-router-dom';
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
 import { useSearch } from "../../../components/hook/services/useSearch";
@@ -32,21 +32,9 @@ const colors = {
 };
 
 // ============================================
-// 🎵 HERO SECTION CON MEJORAS
+// 🎵 HERO SECTION (con navegación sin recarga)
 // ============================================
-const Hero = ({ 
-  query, 
-  setQuery, 
-  loading, 
-  showResults, 
-  setShowResults,
-  resultsRef, 
-  searchBarRef, 
-  structuredResults, 
-  error, 
-  handleSelectResult,
-  closeResults
-}) => {
+const Hero = () => {
   const navigate = useNavigate();
 
   return (
@@ -55,7 +43,7 @@ const Hero = ({
       sx={{
         position: "relative",
         width: "100%",
-        height: { xs: "80vh", md: "85vh" },
+        height: "90vh",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -88,74 +76,48 @@ const Hero = ({
       <Box sx={{
         position: "relative",
         zIndex: 10,
-        maxWidth: "900px",
+        maxWidth: "800px",
         textAlign: "center",
-        px: 3,
-        width: "100%"
+        px: 3
       }}>
-        
-        {/* MARCA VISIBLE */}
-        <Typography
-          variant="h6"
-          sx={{
-            color: alpha(colors.primary, 0.9),
-            fontWeight: 700,
-            letterSpacing: "4px",
-            textTransform: "uppercase",
-            mb: 2,
-            fontSize: "0.9rem"
-          }}
-        >
-        
-        </Typography>
-
         <Typography
           variant="h1"
           sx={{
-            fontSize: { xs: "2.2rem", md: "3.8rem" },
+            fontSize: { xs: "2.5rem", md: "4rem" },
             fontWeight: 800,
             lineHeight: 1.2,
-            mb: 2,
+            mb: 3,
             color: "white"
           }}
         >
-          La casa de la{' '}
-          <Box component="span" sx={{
-            background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
-            música urbana
-          </Box>{' '}
-          de Guinea ecuatorial.
+          La casa digital de los amantes del ecuabeats.
         </Typography>
 
         <Typography
           variant="body1"
           sx={{
-            fontSize: { xs: "1rem", md: "1.2rem" },
+            fontSize: { xs: "1.1rem", md: "1.3rem" },
             color: "rgba(255,255,255,0.8)",
-            mb: 4,
-            maxWidth: "650px",
+            mb: 5,
+            maxWidth: "600px",
             mx: "auto"
           }}
         >
-          Escucha, descubre y apoya a los artistas que estan marcando la diferecia.
+          Escucha, descubre y apoya a los artistas que marcan la diferencia .
           Sube tu música, construye tu audiencia y forma parte del movimiento.
         </Typography>
 
-        {/* CTA Buttons con React Router */}
+        {/* CTA Buttons - navegación sin recargar */}
         <Box sx={{
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           alignItems: "center",
           justifyContent: "center",
-          gap: 2,
-          mb: 4
+          gap: 2
         }}>
           <Box
             component="button"
-            onClick={() => navigate("")}
+            onClick={() => navigate('/explorar')}
             sx={{
               bgcolor: colors.primary,
               color: "white",
@@ -180,7 +142,7 @@ const Hero = ({
 
           <Box
             component="button"
-            onClick={() => navigate("")}
+            onClick={() => navigate('/subir')}
             sx={{
               bgcolor: "white",
               color: colors.textDark,
@@ -204,83 +166,16 @@ const Hero = ({
           </Box>
         </Box>
 
-        {/* SEARCHBAR INTEGRADO EN HERO (DEBAJO DE LOS BOTONES) */}
-        <Box
-          ref={searchBarRef}
-          sx={{
-            maxWidth: "600px",
-            mx: "auto",
-            mb: 4,
-            width: "100%",
-            position: "relative"
-          }}
-        >
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: "16px",
-              bgcolor: "rgba(255,255,255,0.1)",
-              backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              '&:focus-within': {
-                borderColor: colors.primary,
-                boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.3)}`,
-              },
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <SearchBar
-              query={query}
-              onQueryChange={setQuery}
-              loading={loading}
-              autoFocus={false}
-              placeholder="Busca artistas, canciones..."
-              sx={{
-                input: { color: "white" },
-                '& .MuiInputBase-input::placeholder': {
-                  color: "rgba(255,255,255,0.5)"
-                }
-              }}
-            />
-          </Paper>
-
-          {/* Resultados de búsqueda */}
-          {showResults && (
-            <Fade in timeout={200}>
-              <Box ref={resultsRef} sx={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                zIndex: 1400,
-                mt: 1
-              }}>
-                <SearchResults
-                  results={structuredResults}
-                  loading={loading}
-                  error={error?.message}
-                  isOpen={showResults}
-                  onClose={() => {
-                    setShowResults(false);
-                    closeResults?.();
-                  }}
-                  onSelect={handleSelectResult}
-                />
-              </Box>
-            </Fade>
-          )}
-        </Box>
-
         {/* Social Proof */}
         <Typography
           sx={{
-            mt: 2,
+            mt: 8,
             fontSize: "0.8rem",
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(255,255,255,0.5)",
             letterSpacing: "2px"
           }}
         >
-          para toda mi gente
+          TODO LO QUE SUENA EN LAS CALLES
         </Typography>
       </Box>
     </Box>
@@ -435,20 +330,8 @@ const MainPage = () => {
 
   return (
     <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh" }}>
-      {/* HERO con todas las mejoras */}
-      <Hero 
-        query={query}
-        setQuery={setQuery}
-        loading={loading}
-        showResults={showResults}
-        setShowResults={setShowResults}
-        resultsRef={resultsRef}
-        searchBarRef={searchBarRef}
-        structuredResults={structuredResults}
-        error={error}
-        handleSelectResult={handleSelectResult}
-        closeResults={closeResults}
-      />
+      {/* HERO - con navegación sin recarga */}
+      <Hero />
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
         {/* CONTADOR FLOTANTE */}
@@ -484,6 +367,65 @@ const MainPage = () => {
             {selectedSongs.length}
           </Box>
         )}
+
+        {/* BARRA DE BÚSQUEDA */}
+        <Box ref={searchBarRef} sx={{ maxWidth: 600, mx: "auto", mb: 4, position: "relative" }}>
+          <Paper elevation={0} sx={{
+            borderRadius: "12px",
+            bgcolor: colors.gray100,
+            border: `1px solid ${colors.gray200}`,
+            '&:focus-within': {
+              borderColor: colors.gray500,
+              boxShadow: `0 0 0 3px ${alpha(colors.gray500, 0.15)}`,
+            },
+            transition: 'all 0.2s ease'
+          }}>
+            <SearchBar
+              query={query}
+              onQueryChange={setQuery}
+              loading={loading}
+              autoFocus={!isMobile}
+              placeholder="Buscar canciones, artistas..."
+            />
+          </Paper>
+
+          {showResults && (
+            <Fade in timeout={200}>
+              <Box ref={resultsRef} sx={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                zIndex: 1400,
+                mt: 1
+              }}>
+                <SearchResults
+                  results={structuredResults}
+                  loading={loading}
+                  error={error?.message}
+                  isOpen={showResults}
+                  onClose={() => setShowResults(false)}
+                  onSelect={handleSelectResult}
+                />
+              </Box>
+            </Fade>
+          )}
+
+          {!query && (
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                textAlign: 'center',
+                mt: 1.5,
+                color: colors.gray600,
+                fontStyle: 'italic'
+              }}
+            >
+              🎧 busca descubre y disfruta
+            </Typography>
+          )}
+        </Box>
 
         {/* CANCIONES SELECCIONADAS */}
         {selectedSongs.length > 0 && (
@@ -574,10 +516,10 @@ const MainPage = () => {
           borderTop: `1px solid ${alpha(colors.primary, 0.1)}`
         }}>
           <Typography variant="body2" sx={{ color: colors.gray600, fontWeight: 400 }}>
-            djidjimusic · El sonido del barrio
+            djidjimusic ®
           </Typography>
           <Typography variant="caption" sx={{ color: alpha(colors.gray600, 0.6), display: 'block', mt: 1 }}>
-            MALABO • BATA • GUINEA ECUATORIAL
+
           </Typography>
         </Box>
 
