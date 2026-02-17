@@ -50,23 +50,13 @@ const LoginContainer = styled(Box)({
 // Hero izquierdo
 const HeroSection = styled(Box)({
   flex: 1,
-  display: 'flex',
+  position: 'relative',
+  display: { xs: 'none', md: 'flex' },
   flexDirection: 'column',
   justifyContent: 'center',
   padding: '0 80px',
   color: 'white',
-  position: 'relative',
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
-  '&::before': {
-    content: '""',
-    position: 'absolute',
-    inset: 0,
-    background: 'linear-gradient(to right, rgba(0,0,0,0.9), rgba(0,0,0,0.6))',
-  },
-  '@media (max-width: 900px)': {
-    display: 'none',
-  },
+  overflow: 'hidden',
 });
 
 // Login box - minimalista
@@ -122,37 +112,62 @@ const OfficialBadge = () => (
     px: 1.5,
     py: 0.5,
     borderRadius: '20px',
-    bgcolor: alpha(colors.primary, 0.1),
+    bgcolor: alpha(colors.primary, 0.15),
     color: colors.primary,
     fontSize: '0.75rem',
     fontWeight: 600,
     letterSpacing: '0.3px',
     mb: 2,
+    backdropFilter: 'blur(4px)',
   }}>
     <Verified sx={{ fontSize: '14px' }} />
-    PLATAFORMA OFICIAL DE MÚSICA ECUATOGUINEANA
+    PLATAFORMA OFICIAL DE LA MÚSICA ECUATOGUINEANA
   </Box>
 );
 
 // ============================================
-// HERO SECTION
+// HERO SECTION - CON IMAGEN COMO MAINPAGE
 // ============================================
 const LoginHero = () => {
-  const heroImage = "/Happy face.jpg";
-
   return (
-    <HeroSection sx={{ backgroundImage: `url(${heroImage})` }}>
-      <Box sx={{ position: 'relative', maxWidth: 520 }}>
+    <HeroSection>
+      {/* Imagen de fondo - EXACTAMENTE como MainPage */}
+      <Box
+        component="img"
+        src="/futur.jpg"
+        alt="Futur - Vibra musical"
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+        }}
+      />
+      
+      {/* Overlay oscuro premium */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(to right, rgba(0,0,0,0.9), rgba(0,0,0,0.6))',
+        }}
+      />
+
+      {/* Contenido */}
+      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 520 }}>
         <OfficialBadge />
         
         <Typography
           variant="h1"
           sx={{
-            fontSize: '3.5rem',
+            fontSize: { xs: '2.5rem', lg: '3.5rem' },
             fontWeight: 700,
             lineHeight: 1.1,
             letterSpacing: '-1px',
             mb: 2,
+            color: 'white',
           }}
         >
           La nueva era del sonido en Guinea.
@@ -163,15 +178,16 @@ const LoginHero = () => {
             fontSize: '1.1rem',
             opacity: 0.8,
             mb: 3,
+            color: 'white',
           }}
         >
           Descubre, publica y haz crecer tu música. 
-          La plataforma que conecta el talento local con el mundo.
+          La plataforma que conecta tu talento con el mundo.
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 3, mt: 4 }}>
           {['+50K canciones', '+5K artistas', '100% local'].map((text, i) => (
-            <Typography key={i} sx={{ fontSize: '0.9rem', opacity: 0.6 }}>
+            <Typography key={i} sx={{ fontSize: '0.9rem', opacity: 0.6, color: 'white' }}>
               {text}
             </Typography>
           ))}
@@ -235,7 +251,7 @@ const LoginContent = () => {
           mb: 1,
         }}
       >
-        djidjimusic
+   
       </Typography>
 
       <Typography
@@ -362,6 +378,7 @@ const Login = () => {
         px: 3,
       }}>
         <Box sx={{ width: '100%', maxWidth: 400 }}>
+          {/* Versión móvil del hero */}
           <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 4 }}>
             <OfficialBadge />
             <Typography variant="h4" sx={{ fontWeight: 700, color: colors.textDark, mb: 1 }}>
