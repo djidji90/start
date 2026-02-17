@@ -87,7 +87,7 @@ const Hero = () => {
             color: "white"
           }}
         >
-          La casa digital de la música urbana de Guinea.
+          La casa digital de los amantes del ecuabeats.
         </Typography>
 
         <Typography
@@ -100,7 +100,7 @@ const Hero = () => {
             mx: "auto"
           }}
         >
-          Escucha, descubre y apoya a los artistas que están redefiniendo el sonido local.
+          Escucha, descubre y apoya a los artistas que marcan la diferencia .
           Sube tu música, construye tu audiencia y forma parte del movimiento.
         </Typography>
 
@@ -419,7 +419,7 @@ const MainPage = () => {
                 fontStyle: 'italic'
               }}
             >
-              🎧 Apoya el talento local
+              🎧 busca descubre y disfruta
             </Typography>
           )}
         </Box>
@@ -513,10 +513,10 @@ const MainPage = () => {
           borderTop: `1px solid ${alpha(colors.primary, 0.1)}`
         }}>
           <Typography variant="body2" sx={{ color: colors.gray600, fontWeight: 400 }}>
-            djidjimusic · El sonido del barrio
+            djidjimusic ®
           </Typography>
           <Typography variant="caption" sx={{ color: alpha(colors.gray600, 0.6), display: 'block', mt: 1 }}>
-            MALABO • BATA • GUINEA ECUATORIAL
+             
           </Typography>
         </Box>
 
