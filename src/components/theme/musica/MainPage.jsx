@@ -32,10 +32,37 @@ const colors = {
 };
 
 // ============================================
-// 🎵 HERO SECTION (con navegación sin recarga)
+// 🎵 FUNCIÓN AUXILIAR PARA IMAGEN DE CANCIÓN
+// ============================================
+const getSongImageUrl = (song) => {
+  if (!song) return null;
+  
+  const possibleImageProps = [
+    song.cover,
+    song.image_url,
+    song.image,
+    song.album_cover,
+    song.thumbnail,
+    song.coverImage,
+    song.coverUrl
+  ];
+  
+  const imageUrl = possibleImageProps.find(url => url && typeof url === 'string' && url.trim() !== '');
+  
+  if (imageUrl) {
+    return imageUrl;
+  }
+  
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(song.title || '?')}&background=FF6B35&color=fff&size=200&bold=true&length=2&font-size=0.50`;
+};
+
+// ============================================
+// 🎵 HERO SECTION PROFESIONAL (Opción 8)
 // ============================================
 const Hero = () => {
   const navigate = useNavigate();
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   return (
     <Box
@@ -52,27 +79,72 @@ const Hero = () => {
         mb: 4
       }}
     >
-      {/* Background Image */}
+      {/* Background Image con efecto zoom suave */}
       <Box sx={{ position: "absolute", inset: 0 }}>
-        <Box
-          component="img"
-          src="https://images.unsplash.com/photo-1518441902118-28a28c9c1e4b?auto=format&fit=crop&w=1600&q=80"
-          alt="Auriculares sobre mesa de estudio musical"
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover"
-          }}
-        />
+        {!imageError ? (
+          <Box
+            component="img"
+            src="/igor.jpg"
+            alt="Igor - Artista destacado"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              console.log('Error cargando imagen');
+              setImageError(true);
+            }}
+            sx={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              opacity: imageLoaded ? 1 : 0,
+              transition: 'opacity 0.5s ease-in-out, transform 8s ease',
+              transform: 'scale(1.02)',
+              '&:hover': {
+                transform: 'scale(1.05)',
+              }
+            }}
+          />
+        ) : (
+          // Fallback si la imagen no existe
+          <Box
+            sx={{
+              width: "100%",
+              height: "100%",
+              background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 50%, #FFA07A 100%)`,
+            }}
+          />
+        )}
+        
+        {/* Overlay profesional multicapa */}
         <Box sx={{
           position: "absolute",
           inset: 0,
-          bgcolor: "rgba(0, 0, 0, 0.7)",
-          backdropFilter: "blur(4px)"
+          background: `
+            linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%),
+            linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.2) 100%),
+            radial-gradient(circle at 30% 50%, transparent 0%, rgba(0,0,0,0.2) 100%)
+          `,
+          '&::before': {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            background: `radial-gradient(circle at 70% 30%, ${alpha(colors.primary, 0.1)} 0%, transparent 60%)`,
+            mixBlendMode: 'overlay'
+          }
+        }} />
+        
+        {/* Efecto de luz superior */}
+        <Box sx={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "30%",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%)",
+          pointerEvents: "none"
         }} />
       </Box>
 
-      {/* Content */}
+      {/* Content con sombras para legibilidad */}
       <Box sx={{
         position: "relative",
         zIndex: 10,
@@ -87,27 +159,29 @@ const Hero = () => {
             fontWeight: 800,
             lineHeight: 1.2,
             mb: 3,
-            color: "white"
+            color: "white",
+            textShadow: '2px 2px 4px rgba(0,0,0,0.3), 4px 4px 8px rgba(0,0,0,0.2)',
           }}
         >
-          La casa digital de los amantes del ecuabeats.
+          La casa digital de los amantes del EcuaBeats.
         </Typography>
 
         <Typography
           variant="body1"
           sx={{
             fontSize: { xs: "1.1rem", md: "1.3rem" },
-            color: "rgba(255,255,255,0.8)",
+            color: "rgba(255,255,255,0.95)",
             mb: 5,
             maxWidth: "600px",
-            mx: "auto"
+            mx: "auto",
+            textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
           }}
         >
-          Escucha, descubre y apoya a los artistas que marcan la diferencia .
+          Escucha, descubre y apoya a los artistas que estan marcando la diferencia.
           Sube tu música, construye tu audiencia y forma parte del movimiento.
         </Typography>
 
-        {/* CTA Buttons - navegación sin recargar */}
+        {/* CTA Buttons con efecto glassmorphism */}
         <Box sx={{
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
@@ -130,6 +204,7 @@ const Hero = () => {
               cursor: "pointer",
               transition: "all 0.2s ease",
               boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
+              backdropFilter: "blur(4px)",
               "&:hover": {
                 bgcolor: colors.primaryDark,
                 transform: "translateY(-2px)",
@@ -144,9 +219,9 @@ const Hero = () => {
             component="button"
             onClick={() => navigate('')}
             sx={{
-              bgcolor: "white",
-              color: colors.textDark,
-              border: "none",
+              bgcolor: "rgba(255,255,255,0.15)",
+              color: "white",
+              border: "2px solid rgba(255,255,255,0.3)",
               px: 5,
               py: 2,
               borderRadius: "16px",
@@ -154,10 +229,12 @@ const Hero = () => {
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s ease",
+              backdropFilter: "blur(4px)",
               boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
               "&:hover": {
-                bgcolor: "rgba(255,255,255,0.9)",
+                bgcolor: "rgba(255,255,255,0.25)",
                 transform: "translateY(-2px)",
+                borderColor: "white",
                 boxShadow: "0 8px 20px rgba(0,0,0,0.15)"
               }
             }}
@@ -171,8 +248,9 @@ const Hero = () => {
           sx={{
             mt: 8,
             fontSize: "0.8rem",
-            color: "rgba(255,255,255,0.5)",
-            letterSpacing: "2px"
+            color: "rgba(255,255,255,0.6)",
+            letterSpacing: "2px",
+            textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
           }}
         >
           TODO LO QUE SUENA EN LAS CALLES
@@ -294,14 +372,22 @@ const MainPage = () => {
       return;
     }
 
+    // Determinar la URL de la imagen correcta
+    const imageUrl = item.image_url || item.cover || item.album_cover || item.thumbnail || null;
+    
+    // Si no hay imagen, usar placeholder con iniciales
+    const finalImageUrl = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=FF6B35&color=fff&size=200&bold=true&length=2&font-size=0.50`;
+
     const newSong = {
       id: songId,
       title: item.title || "Sin título",
       artist: item.artist || "Artista desconocido",
+      artist_id: item.artist_id || item.artistId || null,
       genre: item.genre || "Desconocido",
       duration: item.duration || 180,
-      cover: item.cover || null,
-      image_url: item.image_url || null,
+      cover: finalImageUrl,
+      image_url: finalImageUrl,
+      image: finalImageUrl,
       addedAt: new Date().toISOString()
     };
 
@@ -330,7 +416,7 @@ const MainPage = () => {
 
   return (
     <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh" }}>
-      {/* HERO - con navegación sin recarga */}
+      {/* HERO - Versión profesional */}
       <Hero />
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
@@ -516,7 +602,7 @@ const MainPage = () => {
           borderTop: `1px solid ${alpha(colors.primary, 0.1)}`
         }}>
           <Typography variant="body2" sx={{ color: colors.gray600, fontWeight: 400 }}>
-            djidjimusic ®
+            EL SONIDO ES NUESTRO
           </Typography>
           <Typography variant="caption" sx={{ color: alpha(colors.gray600, 0.6), display: 'block', mt: 1 }}>
 
@@ -537,7 +623,28 @@ const MainPage = () => {
         </Snackbar>
 
         <Snackbar open={showAddNotification} autoHideDuration={1500} onClose={() => setShowAddNotification(false)}>
-          <Alert severity="success" sx={{ bgcolor: '#E8F5E9', color: '#2E7D32' }}>
+          <Alert 
+            severity="success" 
+            sx={{ 
+              bgcolor: '#E8F5E9', 
+              color: '#2E7D32',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            {newlyAddedSong?.cover && (
+              <Box
+                component="img"
+                src={newlyAddedSong.cover}
+                sx={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '4px',
+                  objectFit: 'cover'
+                }}
+              />
+            )}
             ✅ Añadido: {newlyAddedSong?.title}
           </Alert>
         </Snackbar>
