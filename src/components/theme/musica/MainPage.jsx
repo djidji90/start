@@ -221,7 +221,7 @@ const Hero = ({
         }}>
           <Box
             component="button"
-            onClick={() => navigate("")}
+            onClick={() => navigate("MainPage")}
             sx={{
               bgcolor: colors.primary,
               color: "white",
@@ -246,7 +246,7 @@ const Hero = ({
 
           <Box
             component="button"
-            onClick={() => navigate("")}
+            onClick={() => navigate("MainPage")}
             sx={{
               bgcolor: "white",
               color: colors.textDark,
