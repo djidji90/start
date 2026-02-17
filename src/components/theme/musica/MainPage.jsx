@@ -1,656 +1,392 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useContext } from "react";
 import {
-  Box, Container, Typography, Paper, useTheme,
-  useMediaQuery, Fade, Alert, Snackbar, Grow, IconButton, alpha
+Box,
+TextField,
+Button,
+Typography,
+Grid,
+Alert,
+InputAdornment,
+IconButton,
+CircularProgress,
+useTheme,
+styled,
+Link,
+alpha
 } from "@mui/material";
-import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
-import MusicNoteIcon from "@mui/icons-material/MusicNote";
-import { useNavigate } from 'react-router-dom';
-import SearchBar from "../../../components/search/SearchBar";
-import SearchResults from "../../../components/search/SearchResults";
-import { useSearch } from "../../../components/hook/services/useSearch";
-import SongCarousel from "../../../songs/SongCarousel";
-import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
-import PopularSongs from "../../../components/theme/musica/PopularSongs";
-import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
+import { Visibility, VisibilityOff, Login as LoginIcon, Person, Lock, MusicNote, Verified } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
+import { keyframes } from "@emotion/react";
+import { useConfig } from "./hook/useConfig";
+import { AuthContext } from "./hook/UseAut";
 
-// ============================================
-// 🎨 IDENTIDAD VISUAL
-// ============================================
+// Animación única y sutil
+const fadeIn = keyframes  from { opacity: 0; transform: translateY(10px); }   to { opacity: 1; transform: translateY(0); }  ;
+
+// Paleta de colores - premium
 const colors = {
-  primary: '#FF6B35',
-  primaryLight: '#FF8B5C',
-  primaryDark: '#E55A2B',
-  textDark: '#1a1a1a',
-  textLight: '#FFFFFF',
-  gray600: '#666666',
-  gray500: '#9E9E9E',
-  gray400: '#BDBDBD',
-  gray300: '#E0E0E0',
-  gray200: '#e0e0e0',
-  gray100: '#fafafa',
+primary: '#FF6B35',
+primaryLight: '#FF8B5C',
+primaryDark: '#E55A2B',
+secondary: '#2D3047',
+textDark: '#1A1D29',
+textLight: '#FFFFFF',
+gray100: '#F5F7FA',
+gray200: '#E4E7EB',
+gray600: '#6B7280',
+gray800: '#374151',
+error: '#EF4444',
+};
+
+// Container principal
+const LoginContainer = styled(Box)({
+minHeight: '100vh',
+display: 'flex',
+background: colors.gray100,
+});
+
+// Hero izquierdo
+const HeroSection = styled(Box)({
+flex: 1,
+display: 'flex',
+flexDirection: 'column',
+justifyContent: 'center',
+padding: '0 80px',
+color: 'white',
+position: 'relative',
+backgroundSize: 'cover',
+backgroundPosition: 'center',
+'&::before': {
+content: '""',
+position: 'absolute',
+inset: 0,
+background: 'linear-gradient(to right, rgba(0,0,0,0.9), rgba(0,0,0,0.6))',
+},
+'@media (max-width: 900px)': {
+display: 'none',
+},
+});
+
+// Login box - minimalista
+const LoginBox = styled(Box)({
+background: 'white',
+borderRadius: '24px',
+boxShadow: '0 10px 40px rgba(0,0,0,0.05)',
+padding: '40px',
+width: '100%',
+maxWidth: '400px',
+animation: ${fadeIn} 0.3s ease-out,
+});
+
+// Inputs limpios
+const StyledTextField = styled(TextField)({
+'& .MuiOutlinedInput-root': {
+backgroundColor: colors.gray100,
+borderRadius: '12px',
+transition: 'all 0.2s ease',
+'&:hover': {
+backgroundColor: '#F0F2F5',
+},
+'&.Mui-focused': {
+backgroundColor: 'white',
+boxShadow: 0 0 0 2px ${colors.primary},
+},
+},
+});
+
+// Botón principal
+const StyledButton = styled(Button)({
+background: colors.primary,
+color: 'white',
+padding: '14px',
+borderRadius: '12px',
+fontWeight: 600,
+fontSize: '1rem',
+textTransform: 'none',
+transition: 'all 0.2s ease',
+'&:hover': {
+background: colors.primaryDark,
+transform: 'translateY(-1px)',
+boxShadow: 0 8px 20px ${alpha(colors.primary, 0.2)},
+},
+});
+
+// Badge de plataforma oficial
+const OfficialBadge = () => (
+<Box sx={{
+display: 'inline-flex',
+alignItems: 'center',
+gap: 0.5,
+px: 1.5,
+py: 0.5,
+borderRadius: '20px',
+bgcolor: alpha(colors.primary, 0.1),
+color: colors.primary,
+fontSize: '0.75rem',
+fontWeight: 600,
+letterSpacing: '0.3px',
+mb: 2,
+}}>
+<Verified sx={{ fontSize: '14px' }} />
+PLATAFORMA OFICIAL DE LA MÚSICA ECUATOGUINEANA
+</Box>
+);
+
+// ============================================
+// HERO SECTION
+// ============================================
+const LoginHero = () => {
+const heroImage = "/Happy face.jpg";
+
+return (
+<HeroSection sx={{ backgroundImage: url(${heroImage}) }}>
+<Box sx={{ position: 'relative', maxWidth: 520 }}>
+<OfficialBadge />
+
+<Typography  
+      variant="h1"  
+      sx={{  
+        fontSize: '3.5rem',  
+        fontWeight: 700,  
+        lineHeight: 1.1,  
+        letterSpacing: '-1px',  
+        mb: 2,  
+      }}  
+    >  
+      La nueva era del sonido en Guinea.  
+    </Typography>  
+
+    <Typography  
+      sx={{  
+        fontSize: '1.1rem',  
+        opacity: 0.8,  
+        mb: 3,  
+      }}  
+    >  
+      Descubre, publica y haz crecer tu música.   
+      La plataforma que conecta tu talento con el mundo.  
+    </Typography>  
+
+    <Box sx={{ display: 'flex', gap: 3, mt: 4 }}>  
+      {['+50K canciones', '+5K artistas', '100% local'].map((text, i) => (  
+        <Typography key={i} sx={{ fontSize: '0.9rem', opacity: 0.6 }}>  
+          {text}  
+        </Typography>  
+      ))}  
+    </Box>  
+  </Box>  
+</HeroSection>
+
+);
 };
 
 // ============================================
-// 🎵 FUNCIÓN AUXILIAR PARA IMAGEN DE CANCIÓN
+// LOGIN CONTENT - SIN IP EN FRONTEND
 // ============================================
-const getSongImageUrl = (song) => {
-  if (!song) return null;
-  
-  const possibleImageProps = [
-    song.cover,
-    song.image_url,
-    song.image,
-    song.album_cover,
-    song.thumbnail,
-    song.coverImage,
-    song.coverUrl
-  ];
-  
-  const imageUrl = possibleImageProps.find(url => url && typeof url === 'string' && url.trim() !== '');
-  
-  if (imageUrl) {
-    return imageUrl;
-  }
-  
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(song.title || '?')}&background=FF6B35&color=fff&size=200&bold=true&length=2&font-size=0.50`;
+const LoginContent = () => {
+const { api } = useConfig();
+const { login } = useContext(AuthContext);
+const navigate = useNavigate();
+
+const [formData, setFormData] = useState({ username: "", password: "" });
+const [errors, setErrors] = useState({});
+const [loading, setLoading] = useState(false);
+const [showPassword, setShowPassword] = useState(false);
+
+const handleChange = (e) => {
+setFormData({ ...formData, [e.target.name]: e.target.value });
 };
 
-// ============================================
-// 🎵 HERO SECTION PROFESIONAL (Opción 8)
-// ============================================
-const Hero = () => {
-  const navigate = useNavigate();
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-
-  return (
-    <Box
-      component="section"
-      sx={{
-        position: "relative",
-        width: "100%",
-        height: "90vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        overflow: "hidden",
-        mb: 4
-      }}
-    >
-      {/* Background Image con efecto zoom suave */}
-      <Box sx={{ position: "absolute", inset: 0 }}>
-        {!imageError ? (
-          <Box
-            component="img"
-            src="/igor.jpg"
-            alt="Igor - Artista destacado"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => {
-              console.log('Error cargando imagen');
-              setImageError(true);
-            }}
-            sx={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              opacity: imageLoaded ? 1 : 0,
-              transition: 'opacity 0.5s ease-in-out, transform 8s ease',
-              transform: 'scale(1.02)',
-              '&:hover': {
-                transform: 'scale(1.05)',
-              }
-            }}
-          />
-        ) : (
-          // Fallback si la imagen no existe
-          <Box
-            sx={{
-              width: "100%",
-              height: "100%",
-              background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 50%, #FFA07A 100%)`,
-            }}
-          />
-        )}
-        
-        {/* Overlay profesional multicapa */}
-        <Box sx={{
-          position: "absolute",
-          inset: 0,
-          background: `
-            linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%),
-            linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.2) 100%),
-            radial-gradient(circle at 30% 50%, transparent 0%, rgba(0,0,0,0.2) 100%)
-          `,
-          '&::before': {
-            content: '""',
-            position: "absolute",
-            inset: 0,
-            background: `radial-gradient(circle at 70% 30%, ${alpha(colors.primary, 0.1)} 0%, transparent 60%)`,
-            mixBlendMode: 'overlay'
-          }
-        }} />
-        
-        {/* Efecto de luz superior */}
-        <Box sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "30%",
-          background: "linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%)",
-          pointerEvents: "none"
-        }} />
-      </Box>
-
-      {/* Content con sombras para legibilidad */}
-      <Box sx={{
-        position: "relative",
-        zIndex: 10,
-        maxWidth: "800px",
-        textAlign: "center",
-        px: 3
-      }}>
-        <Typography
-          variant="h1"
-          sx={{
-            fontSize: { xs: "2.5rem", md: "4rem" },
-            fontWeight: 800,
-            lineHeight: 1.2,
-            mb: 3,
-            color: "white",
-            textShadow: '2px 2px 4px rgba(0,0,0,0.3), 4px 4px 8px rgba(0,0,0,0.2)',
-          }}
-        >
-          La casa digital de los amantes del EcuaBeats.
-        </Typography>
-
-        <Typography
-          variant="body1"
-          sx={{
-            fontSize: { xs: "1.1rem", md: "1.3rem" },
-            color: "rgba(255,255,255,0.95)",
-            mb: 5,
-            maxWidth: "600px",
-            mx: "auto",
-            textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
-          }}
-        >
-          Escucha, descubre y apoya a los artistas que estan marcando la diferencia.
-          Sube tu música, construye tu audiencia y forma parte del movimiento.
-        </Typography>
-
-        {/* CTA Buttons con efecto glassmorphism */}
-        <Box sx={{
-          display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 2
-        }}>
-          <Box
-            component="button"
-            onClick={() => navigate('')}
-            sx={{
-              bgcolor: colors.primary,
-              color: "white",
-              border: "none",
-              px: 5,
-              py: 2,
-              borderRadius: "16px",
-              fontSize: "1.1rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
-              backdropFilter: "blur(4px)",
-              "&:hover": {
-                bgcolor: colors.primaryDark,
-                transform: "translateY(-2px)",
-                boxShadow: `0 8px 20px ${alpha(colors.primary, 0.4)}`
-              }
-            }}
-          >
-            🎧 Explorar música
-          </Box>
-
-          <Box
-            component="button"
-            onClick={() => navigate('')}
-            sx={{
-              bgcolor: "rgba(255,255,255,0.15)",
-              color: "white",
-              border: "2px solid rgba(255,255,255,0.3)",
-              px: 5,
-              py: 2,
-              borderRadius: "16px",
-              fontSize: "1.1rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              backdropFilter: "blur(4px)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              "&:hover": {
-                bgcolor: "rgba(255,255,255,0.25)",
-                transform: "translateY(-2px)",
-                borderColor: "white",
-                boxShadow: "0 8px 20px rgba(0,0,0,0.15)"
-              }
-            }}
-          >
-            🎤 Subir mi música
-          </Box>
-        </Box>
-
-        {/* Social Proof */}
-        <Typography
-          sx={{
-            mt: 8,
-            fontSize: "0.8rem",
-            color: "rgba(255,255,255,0.6)",
-            letterSpacing: "2px",
-            textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
-          }}
-        >
-          TODO LO QUE SUENA EN LAS CALLES
-        </Typography>
-      </Box>
-    </Box>
-  );
+const validateForm = () => {
+const newErrors = {};
+if (!formData.username.trim()) newErrors.username = "Usuario requerido";
+if (!formData.password) newErrors.password = "Contraseña requerida";
+setErrors(newErrors);
+return Object.keys(newErrors).length === 0;
 };
 
-// ============================================
-// 🎵 MAIN PAGE COMPLETA
-// ============================================
-const MainPage = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+const handleSubmit = async (e) => {
+e.preventDefault();
+setErrors({});
 
-  const {
-    query,
-    setQuery,
-    structuredResults = { songs: [], artists: [], genres: [] },
-    loading,
-    error,
-    closeResults,
-    isOpen: hookIsOpen,
-    searchMetrics
-  } = useSearch();
+if (!validateForm()) return;  
 
-  const [showResults, setShowResults] = useState(false);
-  const [selectedSongs, setSelectedSongs] = useState(() => {
-    try {
-      const stored = localStorage.getItem("djidjimusic_selected_songs");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [showCacheNotification, setShowCacheNotification] = useState(false);
-  const [newlyAddedSong, setNewlyAddedSong] = useState(null);
-  const [showAddNotification, setShowAddNotification] = useState(false);
-  const [showLimitNotification, setShowLimitNotification] = useState(false);
+setLoading(true);  
 
-  const searchBarRef = useRef(null);
-  const resultsRef = useRef(null);
-  const selectedSongsRef = useRef(null);
+try {  
+  // ✅ El backend obtiene la IP automáticamente del request  
+  const response = await api.post("/musica/api/token/", formData);  
 
-  const MAX_SELECTED_SONGS = 50;
-
-  // Persistencia
-  useEffect(() => {
-    localStorage.setItem("djidjimusic_selected_songs", JSON.stringify(selectedSongs));
-  }, [selectedSongs]);
-
-  // Notificaciones
-  useEffect(() => {
-    if (searchMetrics?.fromCache) {
-      setShowCacheNotification(true);
-      setTimeout(() => setShowCacheNotification(false), 2000);
-    }
-  }, [searchMetrics]);
-
-  useEffect(() => {
-    if (newlyAddedSong) {
-      setShowAddNotification(true);
-      setTimeout(() => {
-        setShowAddNotification(false);
-        setNewlyAddedSong(null);
-      }, 1500);
-    }
-  }, [newlyAddedSong]);
-
-  // Control de resultados
-  useEffect(() => {
-    const hasResults =
-      structuredResults?.songs?.length > 0 ||
-      structuredResults?.artists?.length > 0 ||
-      structuredResults?.genres?.length > 0;
-
-    setShowResults(hookIsOpen || (hasResults && query.length >= 2));
-  }, [hookIsOpen, structuredResults, query]);
-
-  // Click fuera
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        showResults &&
-        searchBarRef.current &&
-        !searchBarRef.current.contains(e.target) &&
-        resultsRef.current &&
-        !resultsRef.current.contains(e.target)
-      ) {
-        setShowResults(false);
-        closeResults?.();
-      }
-    };
-    document.addEventListener("pointerdown", handleClickOutside);
-    return () => document.removeEventListener("pointerdown", handleClickOutside);
-  }, [showResults, closeResults]);
-
-  const handleSelectResult = (item, type) => {
-    if (type !== "song" || !item?.id) {
-      setShowResults(false);
-      closeResults?.();
-      return;
-    }
-
-    const songId = String(item.id);
-
-    if (selectedSongs.some(song => String(song.id) === songId)) {
-      setShowResults(false);
-      closeResults?.();
-      return;
-    }
-
-    if (selectedSongs.length >= MAX_SELECTED_SONGS) {
-      setShowLimitNotification(true);
-      setTimeout(() => setShowLimitNotification(false), 2000);
-      setShowResults(false);
-      closeResults?.();
-      return;
-    }
-
-    // Determinar la URL de la imagen correcta
-    const imageUrl = item.image_url || item.cover || item.album_cover || item.thumbnail || null;
+  login(response.data.access);  
     
-    // Si no hay imagen, usar placeholder con iniciales
-    const finalImageUrl = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=FF6B35&color=fff&size=200&bold=true&length=2&font-size=0.50`;
+  // ✅ Redirect inmediato, sin snackbar  
+  navigate("/MainPage");  
 
-    const newSong = {
-      id: songId,
-      title: item.title || "Sin título",
-      artist: item.artist || "Artista desconocido",
-      artist_id: item.artist_id || item.artistId || null,
-      genre: item.genre || "Desconocido",
-      duration: item.duration || 180,
-      cover: finalImageUrl,
-      image_url: finalImageUrl,
-      image: finalImageUrl,
-      addedAt: new Date().toISOString()
-    };
+} catch (error) {  
+  const errorMessage = error.response?.data?.detail ||  
+    "Credenciales incorrectas";  
+  setErrors({ general: errorMessage });  
+  setLoading(false);  
+}
 
-    setSelectedSongs(prev => [newSong, ...prev]);
-    setNewlyAddedSong(newSong);
-
-    setTimeout(() => {
-      if (selectedSongsRef.current) {
-        selectedSongsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
-
-    setShowResults(false);
-    closeResults?.();
-  };
-
-  const handleRemoveSong = (songId) => {
-    setSelectedSongs(prev => prev.filter(song => String(song.id) !== String(songId)));
-  };
-
-  const handleClearAllSongs = () => {
-    if (selectedSongs.length > 0 && window.confirm(`🗑️ Eliminar todas las ${selectedSongs.length} canciones?`)) {
-      setSelectedSongs([]);
-    }
-  };
-
-  return (
-    <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh" }}>
-      {/* HERO - Versión profesional */}
-      <Hero />
-
-      <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
-        {/* CONTADOR FLOTANTE */}
-        {selectedSongs.length > 0 && (
-          <Box
-            sx={{
-              position: 'fixed',
-              top: 60,
-              right: 16,
-              zIndex: 1300,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 40,
-              height: 40,
-              borderRadius: '12px',
-              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
-              color: 'white',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
-              cursor: 'pointer',
-              transition: 'transform 0.2s',
-              '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: `0 6px 16px ${alpha(colors.primary, 0.4)}`
-              }
-            }}
-            onClick={() => selectedSongsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            title={`${selectedSongs.length} canción(es) seleccionada(s)`}
-          >
-            <MusicNoteIcon sx={{ fontSize: 18, mr: 0.5 }} />
-            {selectedSongs.length}
-          </Box>
-        )}
-
-        {/* BARRA DE BÚSQUEDA */}
-        <Box ref={searchBarRef} sx={{ maxWidth: 600, mx: "auto", mb: 4, position: "relative" }}>
-          <Paper elevation={0} sx={{
-            borderRadius: "12px",
-            bgcolor: colors.gray100,
-            border: `1px solid ${colors.gray200}`,
-            '&:focus-within': {
-              borderColor: colors.gray500,
-              boxShadow: `0 0 0 3px ${alpha(colors.gray500, 0.15)}`,
-            },
-            transition: 'all 0.2s ease'
-          }}>
-            <SearchBar
-              query={query}
-              onQueryChange={setQuery}
-              loading={loading}
-              autoFocus={!isMobile}
-              placeholder="Buscar canciones, artistas..."
-            />
-          </Paper>
-
-          {showResults && (
-            <Fade in timeout={200}>
-              <Box ref={resultsRef} sx={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                zIndex: 1400,
-                mt: 1
-              }}>
-                <SearchResults
-                  results={structuredResults}
-                  loading={loading}
-                  error={error?.message}
-                  isOpen={showResults}
-                  onClose={() => setShowResults(false)}
-                  onSelect={handleSelectResult}
-                />
-              </Box>
-            </Fade>
-          )}
-
-          {!query && (
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                textAlign: 'center',
-                mt: 1.5,
-                color: colors.gray600,
-                fontStyle: 'italic'
-              }}
-            >
-              🎧 busca descubre y disfruta
-            </Typography>
-          )}
-        </Box>
-
-        {/* CANCIONES SELECCIONADAS */}
-        {selectedSongs.length > 0 && (
-          <Box ref={selectedSongsRef} sx={{ mb: 6 }}>
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 2,
-              borderBottom: `2px solid ${alpha(colors.primary, 0.2)}`,
-              pb: 1
-            }}>
-              <Typography variant="h5" sx={{
-                fontWeight: 600,
-                color: colors.textDark,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <MusicNoteIcon sx={{ color: colors.primary }} />
-                TUS BEATS ({selectedSongs.length})
-              </Typography>
-              <IconButton
-                onClick={handleClearAllSongs}
-                size="small"
-                sx={{ color: colors.gray600, '&:hover': { color: colors.primary } }}
-                title="Eliminar todas"
-              >
-                <DeleteSweepIcon />
-              </IconButton>
-            </Box>
-
-            <Grow in timeout={500}>
-              <Box>
-                <SongCarousel
-                  songs={selectedSongs}
-                  title=""
-                  onRemoveSong={handleRemoveSong}
-                  showRemoveButton={true}
-                />
-              </Box>
-            </Grow>
-          </Box>
-        )}
-
-        {/* SEPARADOR */}
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 1.5,
-          my: 4
-        }}>
-          <Box sx={{
-            width: '40px',
-            height: '2px',
-            background: `linear-gradient(90deg, ${colors.primary}, ${alpha(colors.primary, 0.3)})`,
-            borderRadius: '2px'
-          }} />
-          <Typography sx={{ color: alpha(colors.primary, 0.5), fontSize: '1.1rem' }}>♫</Typography>
-          <Box sx={{
-            width: '40px',
-            height: '2px',
-            background: `linear-gradient(90deg, ${alpha(colors.primary, 0.3)}, ${colors.primary})`,
-            borderRadius: '2px'
-          }} />
-        </Box>
-
-        {/* SECCIONES DE CONTENIDO */}
-        <Box sx={{ mb: 6 }}>
-          <RandomSongsDisplay />
-        </Box>
-
-        <Box sx={{ mb: 6 }}>
-          <ArtistCarousel />
-        </Box>
-
-        <Box sx={{ mb: 6 }}>
-          <PopularSongs />
-        </Box>
-
-        {/* FOOTER */}
-        <Box sx={{
-          mt: 6,
-          pt: 4,
-          pb: 2,
-          textAlign: 'center',
-          borderTop: `1px solid ${alpha(colors.primary, 0.1)}`
-        }}>
-          <Typography variant="body2" sx={{ color: colors.gray600, fontWeight: 400 }}>
-            EL SONIDO ES NUESTRO
-          </Typography>
-          <Typography variant="caption" sx={{ color: alpha(colors.gray600, 0.6), display: 'block', mt: 1 }}>
-
-          </Typography>
-        </Box>
-
-        {/* NOTIFICACIONES */}
-        <Snackbar open={showCacheNotification} autoHideDuration={2000} onClose={() => setShowCacheNotification(false)}>
-          <Alert severity="info" sx={{ bgcolor: alpha(colors.primary, 0.08), color: colors.primary }}>
-            📦 Resultados desde caché • {searchMetrics?.time}ms
-          </Alert>
-        </Snackbar>
-
-        <Snackbar open={showLimitNotification} autoHideDuration={2000} onClose={() => setShowLimitNotification(false)}>
-          <Alert severity="warning" sx={{ bgcolor: '#FFF3E0', color: '#E65100' }}>
-            🎵 Máximo {MAX_SELECTED_SONGS} canciones
-          </Alert>
-        </Snackbar>
-
-        <Snackbar open={showAddNotification} autoHideDuration={1500} onClose={() => setShowAddNotification(false)}>
-          <Alert 
-            severity="success" 
-            sx={{ 
-              bgcolor: '#E8F5E9', 
-              color: '#2E7D32',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}
-          >
-            {newlyAddedSong?.cover && (
-              <Box
-                component="img"
-                src={newlyAddedSong.cover}
-                sx={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: '4px',
-                  objectFit: 'cover'
-                }}
-              />
-            )}
-            ✅ Añadido: {newlyAddedSong?.title}
-          </Alert>
-        </Snackbar>
-      </Container>
-    </Box>
-  );
 };
 
-export default MainPage;
+return (
+<LoginBox>
+{/* Logo */}
+<Typography
+variant="h4"
+sx={{
+fontWeight: 700,
+color: colors.textDark,
+mb: 1,
+}}
+>
+djidjimusic
+</Typography>
+
+<Typography  
+    sx={{  
+      color: colors.gray600,  
+      fontSize: '0.9rem',  
+      mb: 4,  
+    }}  
+  >  
+    Inicia sesión en tu cuenta  
+  </Typography>  
+
+  <form onSubmit={handleSubmit}>  
+    <Grid container spacing={2.5}>  
+      <Grid item xs={12}>  
+        <StyledTextField  
+          fullWidth  
+          placeholder="Usuario"  
+          name="username"  
+          value={formData.username}  
+          onChange={handleChange}  
+          error={!!errors.username}  
+          helperText={errors.username}  
+          InputProps={{  
+            startAdornment: (  
+              <InputAdornment position="start">  
+                <Person sx={{ color: colors.gray600, fontSize: '1.2rem' }} />  
+              </InputAdornment>  
+            ),  
+          }}  
+        />  
+      </Grid>  
+
+      <Grid item xs={12}>  
+        <StyledTextField  
+          fullWidth  
+          placeholder="Contraseña"  
+          name="password"  
+          type={showPassword ? 'text' : 'password'}  
+          value={formData.password}  
+          onChange={handleChange}  
+          error={!!errors.password}  
+          helperText={errors.password}  
+          InputProps={{  
+            startAdornment: (  
+              <InputAdornment position="start">  
+                <Lock sx={{ color: colors.gray600, fontSize: '1.2rem' }} />  
+              </InputAdornment>  
+            ),  
+            endAdornment: (  
+              <InputAdornment position="end">  
+                <IconButton   
+                  onClick={() => setShowPassword(!showPassword)}   
+                  edge="end"  
+                  sx={{ color: colors.gray600 }}  
+                >  
+                  {showPassword ? <VisibilityOff /> : <Visibility />}  
+                </IconButton>  
+              </InputAdornment>  
+            ),  
+          }}  
+        />  
+      </Grid>  
+
+      {errors.general && (  
+        <Grid item xs={12}>  
+          <Alert severity="error" sx={{ borderRadius: '8px', fontSize: '0.9rem' }}>  
+            {errors.general}  
+          </Alert>  
+        </Grid>  
+      )}  
+
+      <Grid item xs={12} sx={{ mt: 1 }}>  
+        <StyledButton  
+          fullWidth  
+          type="submit"  
+          disabled={loading}  
+          startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <LoginIcon />}  
+        >  
+          {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}  
+        </StyledButton>  
+      </Grid>  
+
+      <Grid item xs={12}>  
+        <Box sx={{ textAlign: 'center', mt: 2 }}>  
+          <Typography sx={{ color: colors.gray600, fontSize: '0.9rem', mb: 1 }}>  
+            ¿No tienes cuenta?  
+          </Typography>  
+          <Link   
+            href="/SingInPage"  
+            sx={{  
+              color: colors.primary,  
+              fontWeight: 600,  
+              textDecoration: 'none',  
+              fontSize: '0.95rem',  
+              '&:hover': {  
+                textDecoration: 'underline',  
+              },  
+            }}  
+          >  
+            Crear cuenta gratuita  
+          </Link>  
+        </Box>  
+      </Grid>  
+    </Grid>  
+  </form>  
+</LoginBox>
+
+);
+};
+
+// ============================================
+// COMPONENTE PRINCIPAL
+// ============================================
+const Login = () => {
+return (
+<LoginContainer>
+<LoginHero />
+<Box sx={{
+flex: 1,
+display: 'flex',
+alignItems: 'center',
+justifyContent: 'center',
+bgcolor: 'white',
+px: 3,
+}}>
+<Box sx={{ width: '100%', maxWidth: 400 }}>
+{/* Versión móvil del hero */}
+<Box sx={{ display: { xs: 'block', md: 'none' }, mb: 4 }}>
+<OfficialBadge />
+<Typography variant="h4" sx={{ fontWeight: 700, color: colors.textDark, mb: 1 }}>
+La nueva era del sonido en Guinea.
+</Typography>
+<Typography sx={{ color: colors.gray600 }}>
+Descubre música. Publica tu talento.
+</Typography>
+</Box>
+
+<LoginContent />  
+    </Box>  
+  </Box>  
+</LoginContainer>
+
+);
+};
+
+export default Login;
