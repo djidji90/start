@@ -1,436 +1,555 @@
-// src/components/search/SearchResults.jsx - VERSIÓN COMPATIBLE
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  Paper,
-  Box,
-  Typography,
-  CircularProgress,
-  Divider,
-  List,
-  ListItemButton,
-  IconButton,
-  ListItemIcon,
-  Alert,
-  Tooltip,
-  Chip,
+Box, Container, Typography, Paper, useTheme,
+useMediaQuery, Fade, Alert, Snackbar, Grow, IconButton, alpha
 } from "@mui/material";
-import {
-  Close as CloseIcon,
-  MusicNote as MusicIcon,
-  Person as PersonIcon,
-  Search as SearchIcon,
-  Category as CategoryIcon,
-  PlayArrow,
-  Star,
-} from "@mui/icons-material";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import MusicNoteIcon from "@mui/icons-material/MusicNote";
+import SearchBar from "../../../components/search/SearchBar";
+import SearchResults from "../../../components/search/SearchResults";
+import { useSearch } from "../../../components/hook/services/useSearch";
+import SongCarousel from "../../../songs/SongCarousel";
+import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
+import PopularSongs from "../../../components/theme/musica/PopularSongs";
+import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
 
-const SearchResults = ({
-  results = {},      // Ahora recibe structuredResults directamente
-  loading = false,
-  error = null,
-  isOpen = false,
-  onClose,
-  onSelect,
-}) => {
-  if (!isOpen) return null;
-
-  // Extraer datos del structuredResults
-  const songs = results.songs || [];
-  const artists = results.artists || [];
-  const genres = results.genres || [];
-  
-  const hasResults = songs.length > 0 || artists.length > 0 || genres.length > 0;
-  const totalResults = songs.length + artists.length + genres.length;
-
-  const handleSelect = (item, type) => {
-    if (onSelect) {
-      onSelect(item, type);
-    }
-    if (onClose) {
-      onClose();
-    }
-  };
-
-  const formatSecondaryInfo = (item, type) => {
-    const parts = [];
-    
-    if (type === 'song') {
-      if (item.artist) parts.push(item.artist);
-      if (item.genre && item.genre !== 'Sin género') parts.push(item.genre);
-    } else if (type === 'artist' && item.song_count) {
-      parts.push(`${item.song_count} canciones`);
-    } else if (type === 'genre' && item.song_count) {
-      parts.push(`${item.song_count} canciones`);
-    }
-    
-    // Agregar score si existe y es relevante
-    if (item.score !== undefined && item.score > 0) {
-      parts.push(`⭐ ${item.score}`);
-    }
-    
-    // Agregar exact match
-    if (item.exact_match) {
-      parts.push('🎯 Exacto');
-    }
-    
-    return parts.join(' • ');
-  };
-
-  const getItemTitle = (item, type) => {
-    if (type === 'song') return item.title || 'Sin título';
-    if (type === 'artist') return item.name || 'Artista';
-    if (type === 'genre') return item.name || 'Género';
-    return item.display || 'Item';
-  };
-
-  return (
-    <Paper
-      elevation={8}
-      sx={{
-        position: "absolute",
-        top: "calc(100% + 8px)",
-        left: 0,
-        right: 0,
-        zIndex: 1300,
-        borderRadius: 2,
-        overflow: "hidden",
-        border: "2px solid #B2EBF2",
-        maxHeight: 450,
-        overflowY: "auto",
-        boxShadow: "0 10px 40px rgba(0, 131, 143, 0.15)",
-      }}
-    >
-      {/* HEADER */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          px: 2,
-          py: 1.5,
-          bgcolor: "#E0F7FA",
-          borderBottom: "1px solid #B2EBF2",
-        }}
-      >
-        <Typography 
-          variant="subtitle2" 
-          fontWeight={600}
-          sx={{ color: "#006064" }}
-        >
-          {hasResults ? `Resultados (${totalResults})` : 'Resultados de búsqueda'}
-        </Typography>
-        <IconButton 
-          size="small" 
-          onClick={onClose}
-          sx={{ color: "#00838F" }}
-        >
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
-
-      {/* CONTENT */}
-      <Box sx={{ maxHeight: 400, overflowY: "auto" }}>
-        {loading && (
-          <Box sx={{ py: 4, textAlign: "center" }}>
-            <CircularProgress size={24} sx={{ color: "#00838F" }} />
-            <Typography 
-              variant="caption" 
-              display="block" 
-              mt={1}
-              sx={{ color: "#006064" }}
-            >
-              Buscando…
-            </Typography>
-          </Box>
-        )}
-
-        {error && (
-          <Box sx={{ p: 2 }}>
-            <Alert 
-              severity="error"
-              sx={{ 
-                borderRadius: 1,
-                bgcolor: '#FFEBEE',
-                border: '1px solid #FFCDD2'
-              }}
-            >
-              <Typography variant="body2">
-                {error}
-              </Typography>
-            </Alert>
-          </Box>
-        )}
-
-        {!loading && !error && !hasResults && (
-          <Box sx={{ py: 4, textAlign: "center", color: "text.secondary" }}>
-            <SearchIcon sx={{ fontSize: 36, mb: 1, color: "#B2EBF2" }} />
-            <Typography variant="body2" sx={{ color: "#006064", mb: 1 }}>
-              No se encontraron resultados
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#00838F" }}>
-              Intenta con otras palabras clave
-            </Typography>
-          </Box>
-        )}
-
-        {/* SONGS */}
-        {songs.length > 0 && (
-          <>
-            <SectionTitle icon={<MusicIcon />} label={`Canciones (${songs.length})`} />
-
-            <List disablePadding>
-              {songs.slice(0, 5).map((song, index) => (
-                <ListItemButton
-                  key={`song-${song.id || index}-${index}`}
-                  onClick={() => handleSelect(song, "song")}
-                  sx={{
-                    px: 2,
-                    py: 1.5,
-                    '&:hover': {
-                      bgcolor: 'rgba(0, 131, 143, 0.08)',
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    <Box sx={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: '4px',
-                      bgcolor: '#E0F7FA',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#00838F'
-                    }}>
-                      <MusicIcon fontSize="small" />
-                    </Box>
-                  </ListItemIcon>
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography 
-                      variant="body2" 
-                      noWrap
-                      sx={{ color: "#006064", fontWeight: 500 }}
-                    >
-                      {getItemTitle(song, 'song')}
-                    </Typography>
-                    
-                    <Typography variant="caption" sx={{ 
-                      color: "#00838F",
-                      display: 'block',
-                      mt: 0.5
-                    }}>
-                      {formatSecondaryInfo(song, 'song')}
-                    </Typography>
-                  </Box>
-                  <IconButton 
-                    size="small" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelect(song, "song");
-                    }}
-                    sx={{ color: "#00838F" }}
-                  >
-                    <PlayArrow fontSize="small" />
-                  </IconButton>
-                </ListItemButton>
-              ))}
-            </List>
-
-            {songs.length > 5 && (
-              <>
-                <Divider sx={{ borderColor: "#B2EBF2" }} />
-                <ActionItem
-                  label={`Ver todas las canciones (${songs.length})`}
-                  onClick={() => onSelect && onSelect(songs, "songs")}
-                />
-              </>
-            )}
-          </>
-        )}
-
-        {/* ARTISTS */}
-        {artists.length > 0 && (
-          <>
-            {songs.length > 0 && (
-              <Divider sx={{ borderColor: "#B2EBF2", my: 1 }} />
-            )}
-            
-            <SectionTitle icon={<PersonIcon />} label={`Artistas (${artists.length})`} />
-
-            <List disablePadding>
-              {artists.slice(0, 5).map((artist, index) => (
-                <ListItemButton
-                  key={`artist-${artist.id || index}-${index}`}
-                  onClick={() => handleSelect(artist, "artist")}
-                  sx={{
-                    px: 2,
-                    py: 1.5,
-                    '&:hover': {
-                      bgcolor: 'rgba(0, 131, 143, 0.08)',
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    <Box sx={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: '50%',
-                      bgcolor: '#E0F7FA',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#00838F'
-                    }}>
-                      <PersonIcon fontSize="small" />
-                    </Box>
-                  </ListItemIcon>
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography 
-                      variant="body2" 
-                      noWrap
-                      sx={{ color: "#006064", fontWeight: 500 }}
-                    >
-                      {getItemTitle(artist, 'artist')}
-                    </Typography>
-                    <Typography variant="caption" sx={{ 
-                      color: "#00838F",
-                      display: 'block',
-                      mt: 0.5
-                    }}>
-                      {formatSecondaryInfo(artist, 'artist')}
-                    </Typography>
-                  </Box>
-                </ListItemButton>
-              ))}
-            </List>
-          </>
-        )}
-
-        {/* GENRES */}
-        {genres.length > 0 && (
-          <>
-            {(songs.length > 0 || artists.length > 0) && (
-              <Divider sx={{ borderColor: "#B2EBF2", my: 1 }} />
-            )}
-            
-            <SectionTitle icon={<CategoryIcon />} label={`Géneros (${genres.length})`} />
-
-            <Box sx={{ p: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {genres.slice(0, 6).map((genre, index) => (
-                <Box
-                  key={`genre-${genre.id || index}-${index}`}
-                  onClick={() => handleSelect(genre, "genre")}
-                  sx={{
-                    px: 2,
-                    py: 1,
-                    borderRadius: '16px',
-                    bgcolor: '#E0F7FA',
-                    border: '1px solid #B2EBF2',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      bgcolor: 'rgba(0, 131, 143, 0.1)',
-                      transform: 'translateY(-1px)',
-                    }
-                  }}
-                >
-                  <Typography 
-                    variant="caption" 
-                    sx={{ color: "#00838F", fontWeight: 500 }}
-                  >
-                    {getItemTitle(genre, 'genre')}
-                  </Typography>
-                  {genre.song_count && (
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        ml: 1,
-                        color: "#006064",
-                        fontSize: '0.7rem'
-                      }}
-                    >
-                      ({genre.song_count})
-                    </Typography>
-                  )}
-                </Box>
-              ))}
-            </Box>
-          </>
-        )}
-      </Box>
-
-      {/* FOOTER */}
-      {hasResults && !loading && !error && (
-        <Box sx={{ 
-          p: 1.5, 
-          borderTop: 1, 
-          borderColor: "#B2EBF2",
-          bgcolor: "#E0F7FA",
-        }}>
-          <Typography 
-            variant="caption" 
-            align="center" 
-            sx={{ 
-              color: "#006064", 
-              display: 'block',
-              fontFamily: "'Segoe UI', Roboto, sans-serif"
-            }}
-          >
-            Haz clic para seleccionar • Esc para cerrar
-          </Typography>
-        </Box>
-      )}
-    </Paper>
-  );
+// ============================================
+// 🎨 IDENTIDAD VISUAL
+// ============================================
+const colors = {
+primary: '#FF6B35',
+primaryLight: '#FF8B5C',
+textDark: '#1a1a1a',
+gray600: '#666666',
+gray500: '#9E9E9E', // 🔥 NUEVO: Gris medio para focus
+gray400: '#BDBDBD', // 🔥 NUEVO: Gris más claro
+gray300: '#E0E0E0', // 🔥 NUEVO: Gris muy claro
+gray100: '#fafafa',
+gray200: '#e0e0e0'
 };
 
-/* -------- Componentes Helper -------- */
+// ============================================
+// 🎵 FRASES DE IDENTIDAD
+// ============================================
+const FRASES_IDENTIDAD = [
+"Malabo na wi yon.",
+"El sonido es nuestro.",
+"Chunks de barrio.",
+"Desde el barrio pa'l mundo.",
+"Bata suena así.",
+"Esto es nuestro."
+];
 
-const SectionTitle = ({ icon, label }) => (
-  <Box
-    sx={{
-      px: 2,
-      py: 1.5,
-      display: "flex",
-      alignItems: "center",
-      gap: 1.5,
-      bgcolor: "rgba(178, 235, 242, 0.3)",
-      borderBottom: "1px solid #B2EBF2",
-      borderTop: "1px solid #B2EBF2",
-    }}
-  >
-    {React.cloneElement(icon, { 
-      sx: { color: "#00838F", fontSize: 18 } 
-    })}
-    <Typography 
-      variant="caption" 
-      fontWeight={600} 
-      sx={{ color: "#006064" }}
+// Clave para localStorage
+const SELECTED_SONGS_STORAGE_KEY = "djidjimusic_selected_songs";
+const MAX_SELECTED_SONGS = 50;
+
+const MainPage = () => {
+const theme = useTheme();
+const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+const {
+query,
+setQuery,
+structuredResults = { songs: [], artists: [], genres: [] },
+results = [],
+loading,
+error,
+closeResults,
+isOpen: hookIsOpen,
+searchMetrics,
+retrySearch
+} = useSearch();
+
+const [showResults, setShowResults] = useState(false);
+const [selectedSongs, setSelectedSongs] = useState(() => {
+try {
+const stored = localStorage.getItem(SELECTED_SONGS_STORAGE_KEY);
+if (stored) {
+const parsed = JSON.parse(stored);
+return Array.isArray(parsed) ? parsed : [];
+}
+return [];
+} catch (error) {
+console.error("Error loading songs:", error);
+return [];
+}
+});
+const [showCacheNotification, setShowCacheNotification] = useState(false);
+const [newlyAddedSong, setNewlyAddedSong] = useState(null);
+const [showAddNotification, setShowAddNotification] = useState(false);
+const [showLimitNotification, setShowLimitNotification] = useState(false);
+const [fraseIndex, setFraseIndex] = useState(0);
+
+const searchBarRef = useRef(null);
+const resultsRef = useRef(null);
+const selectedSongsRef = useRef(null);
+
+// ========================================
+// 🕒 ROTACIÓN DE FRASES (CADA 6s)
+// ========================================
+useEffect(() => {
+const interval = setInterval(() => {
+setFraseIndex(prev => (prev + 1) % FRASES_IDENTIDAD.length);
+}, 6000);
+return () => clearInterval(interval);
+}, []);
+
+/* -------------------- PERSISTENCIA -------------------- */
+useEffect(() => {
+try {
+localStorage.setItem(SELECTED_SONGS_STORAGE_KEY, JSON.stringify(selectedSongs));
+} catch (error) {
+console.error("Error saving songs:", error);
+}
+}, [selectedSongs]);
+
+/* -------------------- NOTIFICACIÓN DE CACHÉ -------------------- */
+useEffect(() => {
+if (searchMetrics?.fromCache) {
+setShowCacheNotification(true);
+const timer = setTimeout(() => setShowCacheNotification(false), 2000);
+return () => clearTimeout(timer);
+}
+}, [searchMetrics]);
+
+/* -------------------- NOTIFICACIÓN AL AÑADIR -------------------- */
+useEffect(() => {
+if (newlyAddedSong) {
+setShowAddNotification(true);
+const timer = setTimeout(() => {
+setShowAddNotification(false);
+setNewlyAddedSong(null);
+}, 1500);
+return () => clearTimeout(timer);
+}
+}, [newlyAddedSong]);
+
+/* -------------------- CONTROL DE RESULTADOS -------------------- */
+useEffect(() => {
+const hasResults =
+structuredResults?.songs?.length > 0 ||
+structuredResults?.artists?.length > 0 ||
+structuredResults?.genres?.length > 0;
+
+if (hookIsOpen || (hasResults && query.length >= 2)) {  
+  setShowResults(true);  
+} else {  
+  setShowResults(false);  
+}
+
+}, [hookIsOpen, structuredResults, query]);
+
+/* -------------------- CLICK FUERA -------------------- */
+useEffect(() => {
+const handleClickOutside = (e) => {
+if (
+showResults &&
+searchBarRef.current &&
+!searchBarRef.current.contains(e.target) &&
+resultsRef.current &&
+!resultsRef.current.contains(e.target)
+) {
+handleCloseResults();
+}
+};
+document.addEventListener("pointerdown", handleClickOutside);
+return () => document.removeEventListener("pointerdown", handleClickOutside);
+}, [showResults]);
+
+const handleCloseResults = () => {
+setShowResults(false);
+closeResults?.();
+};
+
+/* -------------------- SELECCIÓN DE CANCIONES -------------------- */
+const handleSelectResult = (item, type) => {
+if (type !== "song" || !item?.id) {
+handleCloseResults();
+return;
+}
+
+const songId = String(item.id);
+
+if (selectedSongs.some(song => String(song.id) === songId)) {  
+  handleCloseResults();  
+  return;  
+}  
+
+if (selectedSongs.length >= MAX_SELECTED_SONGS) {
+  setShowLimitNotification(true);
+  setTimeout(() => setShowLimitNotification(false), 2000);
+  handleCloseResults();
+  return;
+}
+
+const newSong = {  
+  id: songId,
+  title: item.title || "Sin título",  
+  artist: item.artist || "Artista desconocido",  
+  genre: item.genre || "Desconocido",  
+  duration: item.duration || 180,  
+  cover: item.cover || null,  
+  image_url: item.image_url || null,  
+  addedAt: new Date().toISOString()  
+};  
+
+setSelectedSongs(prev => [newSong, ...prev]);  
+setNewlyAddedSong(newSong);  
+
+setTimeout(() => {  
+  if (selectedSongsRef.current) {  
+    selectedSongsRef.current.scrollIntoView({   
+      behavior: 'smooth',   
+      block: 'start'   
+    });  
+  }  
+}, 100);  
+
+handleCloseResults();
+
+};
+
+const handleRemoveSong = (songId) => {
+setSelectedSongs(prev => prev.filter(song => String(song.id) !== String(songId)));
+};
+
+const handleClearAllSongs = () => {
+if (selectedSongs.length > 0) {
+const confirmMessage = `🗑️ Eliminar todas las ${selectedSongs.length} canciones seleccionadas?\n\nEsta acción no se puede deshacer.`;
+if (window.confirm(confirmMessage)) {
+setSelectedSongs([]);
+}
+}
+};
+
+const handleRetrySearch = () => {
+if (error && query.trim().length >= 2) retrySearch();
+};
+
+return (
+<Box sx={{
+backgroundColor: "#ffffff",
+pt: { xs: 2, md: 4 },
+pb: 4,
+minHeight: "100vh"
+}}>
+{/* ========== CONTADOR FLOTANTE ========== */}
+{selectedSongs.length > 0 && (
+<Box
+sx={{
+position: 'fixed',
+top: 60,
+right: 16,
+zIndex: 1300,
+display: 'flex',
+alignItems: 'center',
+justifyContent: 'center',
+width: 40,
+height: 40,
+borderRadius: '12px',
+background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
+color: 'white',
+fontSize: '0.95rem',
+fontWeight: 700,
+boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
+cursor: 'pointer',
+transition: 'transform 0.2s',
+'&:hover': {
+transform: 'scale(1.05)',
+boxShadow: `0 6px 16px ${alpha(colors.primary, 0.4)}`
+}
+}}
+onClick={() => selectedSongsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+title={`${selectedSongs.length} canción(es) seleccionada(s)`}
+>
+<MusicNoteIcon sx={{ fontSize: 18, mr: 0.5 }} />
+{selectedSongs.length}
+</Box>
+)}
+
+<Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>  
+
+    {/* ========== HEADER CON IDENTIDAD ========== */}  
+    <Box sx={{ textAlign: "center", mb: { xs: 4, md: 5 } }}>  
+
+      <Typography   
+        variant="h1"  
+        sx={{   
+          fontSize: { xs: "2.2rem", md: "3.2rem" },  
+          fontWeight: 700,  
+          background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,  
+          WebkitBackgroundClip: "text",  
+          WebkitTextFillColor: "transparent",  
+          fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",  
+          mb: 1.5,  
+          letterSpacing: '-0.5px'  
+        }}  
+      >  
+        djidjimusic  
+      </Typography>  
+
+      <Fade in key={fraseIndex} timeout={500}>  
+        <Typography   
+          variant="h6"   
+          sx={{   
+            color: colors.primary,   
+            fontWeight: 500,   
+            fontStyle: "italic",  
+            fontSize: { xs: "1.1rem", md: "1.3rem" },  
+            mb: 1  
+          }}  
+        >  
+          “{FRASES_IDENTIDAD[fraseIndex]}”  
+        </Typography>  
+      </Fade>  
+
+      <Typography   
+        variant="caption"   
+        sx={{   
+          color: alpha(colors.primary, 0.7),  
+          display: 'block',  
+          fontSize: '0.85rem',  
+          letterSpacing: 1  
+        }}  
+      >  
+
+      </Typography>  
+    </Box>  
+
+    {/* ========== BÚSQUEDA CON FOCUS GRIS ========== */}
+    <Box   
+      ref={searchBarRef}   
+      sx={{ maxWidth: 600, mx: "auto", mb: 4, position: "relative" }}  
+    >  
+      <Paper elevation={0} sx={{   
+        borderRadius: "12px",   
+        bgcolor: colors.gray100,  
+        border: `1px solid ${colors.gray200}`,  
+        // 🔥 FOCUS CON GRIS (cambiado de naranja a gris)
+        '&:focus-within': {  
+          borderColor: colors.gray500,  // ⚪ Borde gris medio
+          boxShadow: `0 0 0 3px ${alpha(colors.gray500, 0.15)}`,  // ⚪ Glow gris sutil
+        },
+        transition: 'all 0.2s ease'
+      }}>  
+        <SearchBar  
+          query={query}  
+          onQueryChange={setQuery}  
+          loading={loading}  
+          autoFocus={!isMobile}  
+          placeholder="Buscar canciones, artistas..."  
+        />  
+      </Paper>  
+
+      {/* RESULTADOS */}  
+      {showResults && (  
+        <Fade in timeout={200}>  
+          <Box ref={resultsRef} sx={{   
+            position: "absolute",   
+            top: "100%",   
+            left: 0,   
+            right: 0,   
+            zIndex: 1400,   
+            mt: 1   
+          }}>  
+            <SearchResults  
+              results={structuredResults}  
+              loading={loading}  
+              error={error?.message}  
+              isOpen={showResults}  
+              onClose={handleCloseResults}  
+              onSelect={handleSelectResult}  
+            />  
+          </Box>  
+        </Fade>  
+      )}  
+
+      {!query && (  
+        <Typography   
+          variant="caption"   
+          sx={{   
+            display: 'block',   
+            textAlign: 'center',   
+            mt: 1.5,   
+            color: colors.gray600,  
+            fontStyle: 'italic'  
+          }}  
+        >  
+          🎧 Busca y empieza a disfrutar  
+        </Typography>  
+      )}  
+    </Box>  
+
+    {/* ========== CANCIONES SELECCIONADAS ========== */}  
+    {selectedSongs.length > 0 && (  
+      <Box ref={selectedSongsRef} sx={{ mb: 6 }}>  
+        <Box sx={{   
+          display: 'flex',   
+          justifyContent: 'space-between',   
+          alignItems: 'center',   
+          mb: 2,  
+          borderBottom: `2px solid ${alpha(colors.primary, 0.2)}`,  
+          pb: 1  
+        }}>  
+          <Typography variant="h5" sx={{   
+            fontWeight: 600,   
+            color: colors.textDark,  
+            display: 'flex',  
+            alignItems: 'center',  
+            gap: 1  
+          }}>  
+            <MusicNoteIcon sx={{ color: colors.primary }} />  
+            TUS BEATS ({selectedSongs.length})  
+          </Typography>  
+          <IconButton   
+            onClick={handleClearAllSongs}  
+            size="small"  
+            sx={{   
+              color: colors.gray600,  
+              '&:hover': { color: colors.primary }  
+            }}  
+            title="Eliminar todas"  
+          >  
+            <DeleteSweepIcon />  
+          </IconButton>  
+        </Box>  
+
+        <Grow in timeout={500}>  
+          <Box>  
+            <SongCarousel   
+              songs={selectedSongs}   
+              title=""  
+              onRemoveSong={handleRemoveSong}  
+              showRemoveButton={true}  
+            />  
+          </Box>  
+        </Grow>  
+      </Box>  
+    )}  
+
+    <Box sx={{   
+      display: 'flex',   
+      alignItems: 'center',   
+      justifyContent: 'center',  
+      gap: 1.5,  
+      my: 4   
+    }}>  
+      <Box sx={{   
+        width: '40px',   
+        height: '2px',   
+        background: `linear-gradient(90deg, ${colors.primary}, ${alpha(colors.primary, 0.3)})`,  
+        borderRadius: '2px'  
+      }} />  
+      <Typography sx={{ color: alpha(colors.primary, 0.5), fontSize: '1.1rem' }}>♫</Typography>  
+      <Box sx={{   
+        width: '40px',   
+        height: '2px',   
+        background: `linear-gradient(90deg, ${alpha(colors.primary, 0.3)}, ${colors.primary})`,  
+        borderRadius: '2px'  
+      }} />  
+    </Box>  
+
+    <Box sx={{ mb: 6 }}>  
+      <RandomSongsDisplay />  
+    </Box>  
+
+    <Box sx={{ mb: 6 }}>  
+      <ArtistCarousel />  
+    </Box>  
+
+    <Box sx={{ mb: 6 }}>  
+      <PopularSongs />  
+    </Box>  
+
+    <Box sx={{   
+      mt: 6,   
+      pt: 4,   
+      pb: 2,   
+      textAlign: 'center',  
+      borderTop: `1px solid ${alpha(colors.primary, 0.1)}`  
+    }}>  
+      <Typography   
+        variant="body2"   
+        sx={{   
+          color: colors.gray600,  
+          fontWeight: 400,  
+          fontStyle: 'italic'  
+        }}  
+      >  
+
+      </Typography>  
+      <Typography   
+        variant="caption"   
+        sx={{   
+          color: alpha(colors.gray600, 0.6),  
+          display: 'block',  
+          mt: 1,  
+          letterSpacing: 1  
+        }}  
+      >  
+        EL SONIDO ES NUESTRO  
+      </Typography>  
+    </Box>  
+
+    {/* ========== NOTIFICACIONES ========== */}  
+    <Snackbar   
+      open={showCacheNotification}   
+      autoHideDuration={2000}   
+      onClose={() => setShowCacheNotification(false)}  
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}  
+    >  
+      <Alert   
+        severity="info"   
+        sx={{   
+          bgcolor: alpha(colors.primary, 0.08),   
+          color: colors.primary,  
+          border: `1px solid ${alpha(colors.primary, 0.2)}`  
+        }}  
+      >  
+        📦 Resultados desde caché • {searchMetrics?.time}ms  
+      </Alert>  
+    </Snackbar>  
+
+    <Snackbar
+      open={showLimitNotification}
+      autoHideDuration={2000}
+      onClose={() => setShowLimitNotification(false)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
     >
-      {label}
-    </Typography>
-  </Box>
-);
+      <Alert
+        severity="warning"
+        sx={{
+          bgcolor: '#FFF3E0',
+          color: '#E65100',
+          border: `1px solid ${alpha(colors.primary, 0.3)}`
+        }}
+      >
+        🎵 Máximo {MAX_SELECTED_SONGS} canciones guardadas
+      </Alert>
+    </Snackbar>
 
-const ActionItem = ({ label, onClick }) => (
-  <Box
-    onClick={onClick}
-    sx={{
-      px: 2,
-      py: 1.5,
-      cursor: "pointer",
-      color: "#00838F",
-      fontSize: "0.85rem",
-      fontWeight: 500,
-      textAlign: "center",
-      transition: 'background-color 0.2s',
-      "&:hover": {
-        bgcolor: "rgba(0, 131, 143, 0.08)",
-      },
-    }}
-  >
-    {label}
-  </Box>
-);
+    <Snackbar
+      open={showAddNotification}
+      autoHideDuration={1500}
+      onClose={() => setShowAddNotification(false)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >  
+      <Alert   
+        severity="success"   
+        sx={{   
+          bgcolor: '#E8F5E9',   
+          color: '#2E7D32',  
+          '& .MuiAlert-icon': { color: '#4CAF50' }  
+        }}  
+      >  
+        ✅ Añadido: <strong>{newlyAddedSong?.title}</strong> · {newlyAddedSong?.artist}  
+      </Alert>  
+    </Snackbar>  
+  </Container>  
+</Box>
 
-export default SearchResults;
+);
+};
+
+export default MainPage;
