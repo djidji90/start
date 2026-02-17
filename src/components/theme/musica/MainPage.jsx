@@ -117,7 +117,7 @@ const Hero = () => {
         }}>
           <Box
             component="button"
-            onClick={() => navigate('/explorar')}
+            onClick={() => navigate('')}
             sx={{
               bgcolor: colors.primary,
               color: "white",
@@ -142,7 +142,7 @@ const Hero = () => {
 
           <Box
             component="button"
-            onClick={() => navigate('/subir')}
+            onClick={() => navigate('')}
             sx={{
               bgcolor: "white",
               color: colors.textDark,
