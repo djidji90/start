@@ -106,7 +106,7 @@ const Hero = ({
             fontSize: "0.9rem"
           }}
         >
-          DJIDJIMUSIC
+        
         </Typography>
 
         <Typography
@@ -119,7 +119,7 @@ const Hero = ({
             color: "white"
           }}
         >
-          La casa digital de la{' '}
+          La casa de la{' '}
           <Box component="span" sx={{
             background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
             WebkitBackgroundClip: 'text',
@@ -127,7 +127,7 @@ const Hero = ({
           }}>
             música urbana
           </Box>{' '}
-          de Guinea.
+          de Guinea ecuatorial.
         </Typography>
 
         <Typography
@@ -140,76 +140,9 @@ const Hero = ({
             mx: "auto"
           }}
         >
-          Escucha, descubre y apoya a los artistas que están marcando la diferencia.
+          Escucha, descubre y apoya a los artistas que estan marcando la diferecia.
           Sube tu música, construye tu audiencia y forma parte del movimiento.
         </Typography>
-
-        {/* SEARCHBAR INTEGRADO EN HERO */}
-        <Box
-          ref={searchBarRef}
-          sx={{
-            maxWidth: "600px",
-            mx: "auto",
-            mb: 4,
-            width: "100%",
-            position: "relative"
-          }}
-        >
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: "16px",
-              bgcolor: "rgba(255,255,255,0.1)",
-              backdropFilter: "blur(10px)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              '&:focus-within': {
-                borderColor: colors.primary,
-                boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.3)}`,
-              },
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <SearchBar
-              query={query}
-              onQueryChange={setQuery}
-              loading={loading}
-              autoFocus={false}
-              placeholder="Busca artistas, canciones, géneros..."
-              sx={{
-                input: { color: "white" },
-                '& .MuiInputBase-input::placeholder': {
-                  color: "rgba(255,255,255,0.5)"
-                }
-              }}
-            />
-          </Paper>
-
-          {/* Resultados de búsqueda */}
-          {showResults && (
-            <Fade in timeout={200}>
-              <Box ref={resultsRef} sx={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                zIndex: 1400,
-                mt: 1
-              }}>
-                <SearchResults
-                  results={structuredResults}
-                  loading={loading}
-                  error={error?.message}
-                  isOpen={showResults}
-                  onClose={() => {
-                    setShowResults(false);
-                    closeResults?.();
-                  }}
-                  onSelect={handleSelectResult}
-                />
-              </Box>
-            </Fade>
-          )}
-        </Box>
 
         {/* CTA Buttons con React Router */}
         <Box sx={{
@@ -217,7 +150,8 @@ const Hero = ({
           flexDirection: { xs: "column", sm: "row" },
           alignItems: "center",
           justifyContent: "center",
-          gap: 2
+          gap: 2,
+          mb: 4
         }}>
           <Box
             component="button"
@@ -270,16 +204,83 @@ const Hero = ({
           </Box>
         </Box>
 
+        {/* SEARCHBAR INTEGRADO EN HERO (DEBAJO DE LOS BOTONES) */}
+        <Box
+          ref={searchBarRef}
+          sx={{
+            maxWidth: "600px",
+            mx: "auto",
+            mb: 4,
+            width: "100%",
+            position: "relative"
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: "16px",
+              bgcolor: "rgba(255,255,255,0.1)",
+              backdropFilter: "blur(10px)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              '&:focus-within': {
+                borderColor: colors.primary,
+                boxShadow: `0 0 0 3px ${alpha(colors.primary, 0.3)}`,
+              },
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <SearchBar
+              query={query}
+              onQueryChange={setQuery}
+              loading={loading}
+              autoFocus={false}
+              placeholder="Busca artistas, canciones..."
+              sx={{
+                input: { color: "white" },
+                '& .MuiInputBase-input::placeholder': {
+                  color: "rgba(255,255,255,0.5)"
+                }
+              }}
+            />
+          </Paper>
+
+          {/* Resultados de búsqueda */}
+          {showResults && (
+            <Fade in timeout={200}>
+              <Box ref={resultsRef} sx={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                zIndex: 1400,
+                mt: 1
+              }}>
+                <SearchResults
+                  results={structuredResults}
+                  loading={loading}
+                  error={error?.message}
+                  isOpen={showResults}
+                  onClose={() => {
+                    setShowResults(false);
+                    closeResults?.();
+                  }}
+                  onSelect={handleSelectResult}
+                />
+              </Box>
+            </Fade>
+          )}
+        </Box>
+
         {/* Social Proof */}
         <Typography
           sx={{
-            mt: 6,
+            mt: 2,
             fontSize: "0.8rem",
             color: "rgba(255,255,255,0.4)",
             letterSpacing: "2px"
           }}
         >
-          TODA • GUINEA ECUATORIAL
+          para toda mi gente
         </Typography>
       </Box>
     </Box>
