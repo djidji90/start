@@ -139,7 +139,7 @@ const Hero = () => {
 
           <Box
             component="button"
-            onClick={() => window.location.href = "/subir-musica"}
+            onClick={() => window.location.href = ""}
             sx={{
               bgcolor: "white",
               color: colors.textDark,
@@ -172,7 +172,7 @@ const Hero = () => {
             letterSpacing: "2px"
           }}
         >
-          MALABO • BATA • GUINEA ECUATORIAL
+          TODO LO QUE SUENA EN LAS CALLES
         </Typography>
       </Box>
     </Box>
