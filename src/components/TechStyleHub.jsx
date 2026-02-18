@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Box, Typography, styled, Button, alpha, IconButton } from "@mui/material";
@@ -371,4 +370,3 @@ te mandamos un fuerte abrazo 🎵✨
 };
 
 export default ConstructionBanner;
-
