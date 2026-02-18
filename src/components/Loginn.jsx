@@ -11,21 +11,23 @@ import {
   CircularProgress,
   styled,
   Link,
-  alpha
+  alpha,
+  useMediaQuery,
+  useTheme
 } from "@mui/material";
 import { Visibility, VisibilityOff, Login as LoginIcon, Person, Lock, Verified } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { keyframes } from "@emotion/react";
 import { useConfig } from "./hook/useConfig";
 import { AuthContext } from "./hook/UseAut";
 
-// Animación única y sutil
+// Animación solo para desktop
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 `;
 
-// Paleta de colores - premium
+// Paleta de colores
 const colors = {
   primary: '#FF6B35',
   primaryLight: '#FF8B5C',
@@ -41,37 +43,51 @@ const colors = {
 };
 
 // Container principal
-const LoginContainer = styled(Box)({
+const LoginContainer = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
   display: 'flex',
+  flexDirection: 'column',
   background: colors.gray100,
-});
+  [theme.breakpoints.up('md')]: {
+    flexDirection: 'row',
+  },
+}));
 
-// Hero izquierdo
-const HeroSection = styled(Box)({
+// Hero section desktop
+const HeroSection = styled(Box)(({ theme }) => ({
   flex: 1,
   position: 'relative',
-  display: { xs: 'none', md: 'flex' },
+  display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
-  padding: '0 80px',
   color: 'white',
   overflow: 'hidden',
-});
+  padding: theme.spacing(4),
+  [theme.breakpoints.up('md')]: {
+    padding: theme.spacing(0, 10),
+  },
+}));
 
-// Login box - minimalista
-const LoginBox = styled(Box)({
+// Login box - padding ultra responsive
+const LoginBox = styled(Box)(({ theme }) => ({
   background: 'white',
   borderRadius: '24px',
   boxShadow: '0 10px 40px rgba(0,0,0,0.05)',
-  padding: '40px',
+  padding: theme.spacing(2),
   width: '100%',
   maxWidth: '400px',
-  animation: `${fadeIn} 0.3s ease-out`,
-});
+  margin: '0 auto',
+  [theme.breakpoints.up('sm')]: {
+    padding: theme.spacing(3),
+  },
+  [theme.breakpoints.up('md')]: {
+    padding: theme.spacing(5),
+    animation: `${fadeIn} 0.3s ease-out`,
+  },
+}));
 
-// Inputs limpios
-const StyledTextField = styled(TextField)({
+// Inputs
+const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiOutlinedInput-root': {
     backgroundColor: colors.gray100,
     borderRadius: '12px',
@@ -84,54 +100,63 @@ const StyledTextField = styled(TextField)({
       boxShadow: `0 0 0 2px ${colors.primary}`,
     },
   },
-});
+  // Asegurar que los placeholders sean legibles en pantallas pequeñas
+  '& input': {
+    fontSize: { xs: '0.9rem', sm: '1rem' },
+  },
+}));
 
-// Botón principal
-const StyledButton = styled(Button)({
+// Botón con ancho mínimo fijo
+const StyledButton = styled(Button)(({ theme }) => ({
   background: colors.primary,
   color: 'white',
-  padding: '14px',
+  padding: theme.spacing(1.75),
   borderRadius: '12px',
   fontWeight: 600,
   fontSize: '1rem',
   textTransform: 'none',
+  minWidth: '150px',
   transition: 'all 0.2s ease',
   '&:hover': {
     background: colors.primaryDark,
-    transform: 'translateY(-1px)',
-    boxShadow: `0 8px 20px ${alpha(colors.primary, 0.2)}`,
+    ...(theme.breakpoints.up('md') && {
+      transform: 'translateY(-1px)',
+      boxShadow: `0 8px 20px ${alpha(colors.primary, 0.2)}`,
+    }),
   },
-});
+}));
 
-// Badge de plataforma oficial
-const OfficialBadge = () => (
+// Badge responsive
+const OfficialBadge = ({ isMobile }) => (
   <Box sx={{
     display: 'inline-flex',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 0.5,
-    px: 1.5,
+    px: { xs: 1, sm: 1.5 },
     py: 0.5,
     borderRadius: '20px',
-    bgcolor: alpha(colors.primary, 0.15),
+    bgcolor: alpha(colors.primary, isMobile ? 0.1 : 0.15),
     color: colors.primary,
-    fontSize: '0.75rem',
+    fontSize: { xs: '0.6rem', sm: '0.7rem' },
     fontWeight: 600,
     letterSpacing: '0.3px',
     mb: 2,
-    backdropFilter: 'blur(4px)',
+    ...(!isMobile && {
+      backdropFilter: 'blur(4px)',
+    }),
   }}>
-    <Verified sx={{ fontSize: '14px' }} />
-    PLATAFORMA OFICIAL DE LA MÚSICA ECUATOGUINEANA
+    <Verified sx={{ fontSize: { xs: '12px', sm: '14px' } }} />
+    PLATAFORMA OFICIAL DE MÚSICA ECUATOGUINEANA
   </Box>
 );
 
 // ============================================
-// HERO SECTION - CON IMAGEN COMO MAINPAGE
+// HERO DESKTOP - Solo se renderiza en desktop
 // ============================================
-const LoginHero = () => {
+const DesktopHero = () => {
   return (
     <HeroSection>
-      {/* Imagen de fondo - EXACTAMENTE como MainPage */}
       <Box
         component="img"
         src="/futur.jpg"
@@ -146,7 +171,6 @@ const LoginHero = () => {
         }}
       />
       
-      {/* Overlay oscuro premium */}
       <Box
         sx={{
           position: 'absolute',
@@ -155,14 +179,13 @@ const LoginHero = () => {
         }}
       />
 
-      {/* Contenido */}
       <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 520 }}>
-        <OfficialBadge />
+        <OfficialBadge isMobile={false} />
         
         <Typography
           variant="h1"
           sx={{
-            fontSize: { xs: '2.5rem', lg: '3.5rem' },
+            fontSize: { lg: '3.5rem' },
             fontWeight: 700,
             lineHeight: 1.1,
             letterSpacing: '-1px',
@@ -182,10 +205,15 @@ const LoginHero = () => {
           }}
         >
           Descubre, publica y haz crecer tu música. 
-          La plataforma que conecta tu talento con el mundo.
+          La plataforma que conecta el talento local con el mundo.
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 3, mt: 4 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 3, 
+          mt: 4,
+          flexWrap: 'wrap',
+        }}>
           {['+50K canciones', '+5K artistas', '100% local'].map((text, i) => (
             <Typography key={i} sx={{ fontSize: '0.9rem', opacity: 0.6, color: 'white' }}>
               {text}
@@ -196,6 +224,39 @@ const LoginHero = () => {
     </HeroSection>
   );
 };
+
+// ============================================
+// HERO MÓVIL
+// ============================================
+const MobileHero = () => (
+  <Box sx={{ 
+    mb: 4, 
+    textAlign: 'center',
+    px: 2,
+  }}>
+    <OfficialBadge isMobile={true} />
+    <Typography 
+      variant="h4" 
+      sx={{ 
+        fontWeight: 700, 
+        color: colors.textDark, 
+        mb: 1,
+        fontSize: { xs: '1.5rem', sm: '2rem' },
+        lineHeight: { xs: 1.3, sm: 1.2 },
+        wordBreak: 'break-word',
+      }}
+    >
+      La nueva era del sonido en Guinea.
+    </Typography>
+    <Typography sx={{ 
+      color: colors.gray600, 
+      fontSize: { xs: '0.9rem', sm: '0.95rem' },
+      lineHeight: 1.4,
+    }}>
+      Descubre música. Publica tu talento.
+    </Typography>
+  </Box>
+);
 
 // ============================================
 // LOGIN CONTENT
@@ -249,23 +310,26 @@ const LoginContent = () => {
           fontWeight: 700,
           color: colors.textDark,
           mb: 1,
+          fontSize: { xs: '1.75rem', sm: '2rem' },
+          textAlign: { xs: 'center', md: 'left' },
         }}
       >
-   
+        djidjimusic
       </Typography>
 
       <Typography
         sx={{
           color: colors.gray600,
-          fontSize: '0.9rem',
-          mb: 4,
+          fontSize: { xs: '0.85rem', sm: '0.9rem' },
+          mb: { xs: 3, sm: 4 },
+          textAlign: { xs: 'center', md: 'left' },
         }}
       >
         Inicia sesión en tu cuenta
       </Typography>
 
       <form onSubmit={handleSubmit}>
-        <Grid container spacing={2.5}>
+        <Grid container spacing={{ xs: 1.5, sm: 2.5 }}>
           <Grid item xs={12}>
             <StyledTextField
               fullWidth
@@ -324,7 +388,7 @@ const LoginContent = () => {
             </Grid>
           )}
 
-          <Grid item xs={12} sx={{ mt: 1 }}>
+          <Grid item xs={12} sx={{ mt: { xs: 0.5, sm: 1 } }}>
             <StyledButton
               fullWidth
               type="submit"
@@ -336,12 +400,13 @@ const LoginContent = () => {
           </Grid>
 
           <Grid item xs={12}>
-            <Box sx={{ textAlign: 'center', mt: 2 }}>
+            <Box sx={{ textAlign: 'center', mt: { xs: 1, sm: 2 } }}>
               <Typography sx={{ color: colors.gray600, fontSize: '0.9rem', mb: 1 }}>
                 ¿No tienes cuenta?
               </Typography>
               <Link 
-                href="/SingInPage"
+                component={RouterLink}
+                to="/SingInPage"
                 sx={{
                   color: colors.primary,
                   fontWeight: 600,
@@ -366,28 +431,28 @@ const LoginContent = () => {
 // COMPONENTE PRINCIPAL
 // ============================================
 const Login = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   return (
     <LoginContainer>
-      <LoginHero />
+      {/* Hero DESKTOP - NO se renderiza en móviles (desaparece del DOM) */}
+      {!isMobile && <DesktopHero />}
+      
+      {/* Lado derecho - siempre visible */}
       <Box sx={{
         flex: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         bgcolor: 'white',
-        px: 3,
+        px: { xs: 2, sm: 3 },
+        py: { xs: 3, sm: 4, md: 0 },
+        minHeight: { xs: '100vh', md: 'auto' },
       }}>
         <Box sx={{ width: '100%', maxWidth: 400 }}>
-          {/* Versión móvil del hero */}
-          <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 4 }}>
-            <OfficialBadge />
-            <Typography variant="h4" sx={{ fontWeight: 700, color: colors.textDark, mb: 1 }}>
-              La nueva era del sonido en Guinea.
-            </Typography>
-            <Typography sx={{ color: colors.gray600 }}>
-              Descubre música. Publica tu talento.
-            </Typography>
-          </Box>
+          {/* Hero MÓVIL - solo se renderiza en móviles */}
+          {isMobile && <MobileHero />}
           <LoginContent />
         </Box>
       </Box>
