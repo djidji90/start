@@ -14,7 +14,7 @@ import axios from "axios";
 import '@fontsource-variable/inter';
 
 // ============================================
-// 🎨 CONFIGURACIÓN DE MARCA (IDÉNTICA A LOGIN/REGISTER)
+// 🎨 CONFIGURACIÓN DE MARCA
 // ============================================
 const colors = {
   primary: '#FF6B35',
@@ -31,171 +31,621 @@ const GradientText = styled(Typography)(({ theme }) => ({
 }));
 
 // ============================================
-// 🔑 TU API KEY DE OPENWEATHERMAP
+// 🔑 API KEY
 // ============================================
 const OPENWEATHER_API_KEY = "0c6117bedab72bcd80aa6bc795a68753";
 
 // ============================================
-// 🌍 LISTA COMPLETA DE DESTINOS GUINEA ECUATORIAL (15 DESTINOS)
+// 🌍 LISTA COMPLETA DE DESTINOS (15)
 // ============================================
 const destinos = [
   // 🏛️ CAPITALES Y CIUDADES PRINCIPALES
-  { 
+  {
     id: "malabo",
-    nombre: "Malabo", 
-    tipo: "capital", 
-    descripcion: "capital económica y cultural de nuestro hermoso pais", 
-    lat: "3.75", 
+    nombre: "Malabo",
+    tipo: "capital",
+    descripcion: "capital económica y cultural de nuestro hermoso pais",
+    lat: "3.75",
     lon: "8.78",
     datoCurioso: "Fundada en 1827 por los británicos como Port Clarence"
   },
-  { 
+  {
     id: "bata",
-    nombre: "Bata", 
-    tipo: "ciudad", 
-    descripcion: "ciudad del amor, Puerta del continente 🌊", 
-    lat: "1.86", 
+    nombre: "Bata",
+    tipo: "ciudad",
+    descripcion: "ciudad del amor, Puerta del continente 🌊",
+    lat: "1.86",
     lon: "9.77",
     datoCurioso: "Ciudad más poblada del país, principal puerto continental"
   },
-  
-  // 🏡 PUEBLOS DE BIOKO NORTE (los que me diste)
-  { 
+  {
     id: "baney",
-    nombre: "Baney", 
-    tipo: "pueblo", 
-    descripcion: "baney yeyeba, capital de la isla de Bioko, que nadie se enfade 😂", 
-    lat: "3.70", 
+    nombre: "Baney",
+    tipo: "pueblo",
+    descripcion: "baney yeyeba, capital de la isla de Bioko, que nadie se enfade 😂",
+    lat: "3.70",
     lon: "8.91",
     datoCurioso: "Conocido por sus espectaculares playas volcánicas"
   },
-  { 
+  {
     id: "lea",
-    nombre: "lía", 
-    tipo: "pueblo", 
-    descripcion: "pueblo de grandes artistas seguro que tu cantante favorito ha estado ahí", 
-    lat: "3.68", 
+    nombre: "lía",
+    tipo: "pueblo",
+    descripcion: "pueblo de grandes artistas seguro que tu cantante favorito ha estado ahí",
+    lat: "3.68",
     lon: "8.85",
     datoCurioso: "nos gusta hacer nfuga y bailar nzanga"
   },
-  { 
+  {
     id: "rebola",
-    nombre: "Rebola", 
-    tipo: "pueblo", 
-    descripcion: "Tierra de gente fuerte y talentosa 🪺", 
-    lat: "3.72", 
+    nombre: "Rebola",
+    tipo: "pueblo",
+    descripcion: "Tierra de gente fuerte y talentosa 🪺",
+    lat: "3.72",
     lon: "8.83",
     datoCurioso: "deberías visitarnos estamos a pocos kilómetros de malabo"
   },
-  { 
+  {
     id: "comandachina",
-    nombre: "Comandachina", 
-    tipo: "pueblo", 
-    descripcion: "de gente muy amable situado en el corazón de bata 🫂", 
-    lat: "3.75", 
+    nombre: "Comandachina",
+    tipo: "pueblo",
+    descripcion: "de gente muy amable situado en el corazón de bata 🫂",
+    lat: "3.75",
     lon: "8.80",
     datoCurioso: "Nombre único con historia de principios del XX"
   },
-  
-  // 🏡 PUEBLOS DE RÍO MUNI
-  { 
+  {
     id: "rio_campo",
-    nombre: "Río Campo", 
-    tipo: "pueblo", 
-    descripcion: "Frontera natural con Camerún te estamos esperando 🌴", 
-    lat: "2.33", 
+    nombre: "Río Campo",
+    tipo: "pueblo",
+    descripcion: "Frontera natural con Camerún te estamos esperando 🌴",
+    lat: "2.33",
     lon: "9.82",
     datoCurioso: "Sobre el río Campo, frontera natural con Camerún"
   },
-  { 
+  {
     id: "akurenam",
-    nombre: "Akurenam", 
-    tipo: "pueblo", 
-    descripcion: "Corazón continental, con las chicas muy guapas ❤️", 
-    lat: "1.23", 
+    nombre: "Akurenam",
+    tipo: "pueblo",
+    descripcion: "Corazón continental, con las chicas muy guapas ❤️",
+    lat: "1.23",
     lon: "10.12",
     datoCurioso: "Localidad del interior, rodeada de selva tropical"
   },
-  { 
+  {
     id: "mongomo",
-    nombre: "Mongomo", 
-    tipo: "ciudad", 
-    descripcion: "capital de la provincia de welenzas ❤️", 
-    lat: "1.63", 
+    nombre: "Mongomo",
+    tipo: "ciudad",
+    descripcion: "capital de la provincia de welenzas ❤️",
+    lat: "1.63",
     lon: "11.32",
-    datoCurioso: "tierra de origen de grandes artistas "
+    datoCurioso: "tierra de origen de grandes artistas"
   },
-  
-  // 🏙️ MÁS CIUDADES IMPORTANTES
-  { 
+  {
     id: "ebebiyin",
-    nombre: "Ebebiyín", 
-    tipo: "ciudad", 
-    descripcion: "tierra de comerciantes y artistas importantes 🌿", 
-    lat: "2.15", 
+    nombre: "Ebebiyín",
+    tipo: "ciudad",
+    descripcion: "tierra de comerciantes y artistas importantes 🌿",
+    lat: "2.15",
     lon: "11.33",
     datoCurioso: "Centro comercial en la frontera con cameroun"
   },
-  { 
+  {
     id: "evinayong",
-    nombre: "Evinayong", 
-    tipo: "ciudad", 
-    descripcion: "Centro del país, espectacular con una rica historia 🏔️ ", 
-    lat: "1.45", 
+    nombre: "Evinayong",
+    tipo: "ciudad",
+    descripcion: "Centro del país, espectacular con una rica historia 🏔️",
+    lat: "1.45",
     lon: "10.57",
     datoCurioso: "Capital de la provincia de Centro Sur"
   },
-  { 
+  {
     id: "luba",
-    nombre: "Luba", 
-    tipo: "ciudad", 
-    descripcion: "Puerto natural, Bioko Sur ⚓", 
-    lat: "3.46", 
+    nombre: "Luba",
+    tipo: "ciudad",
+    descripcion: "Puerto natural, Bioko Sur ⚓",
+    lat: "3.46",
     lon: "8.55",
     datoCurioso: "Segunda ciudad de Bioko, antiguo puerto esclavista"
   },
-  { 
+  {
     id: "annobon",
-    nombre: "Annobón", 
-    tipo: "isla", 
-    descripcion: "San Antonio de Palé, hemisferio sur 🌅", 
-    lat: "-1.43", 
+    nombre: "Annobón",
+    tipo: "isla",
+    descripcion: "San Antonio de Palé, hemisferio sur 🌅",
+    lat: "-1.43",
     lon: "5.63",
     datoCurioso: "Única provincia en el hemisferio sur, descubierta el 1 de enero"
   },
-  
-  // 🌊 PUEBLOS COSTEROS ADICIONALES
-  { 
+  {
     id: "kogo",
-    nombre: "Kogo", 
-    tipo: "pueblo", 
-    descripcion: "Estuario del Muni 🌊", 
-    lat: "1.08", 
+    nombre: "Kogo",
+    tipo: "pueblo",
+    descripcion: "Estuario del Muni 🌊",
+    lat: "1.08",
     lon: "9.70",
     datoCurioso: "Puerto fluvial sobre el estuario del Muni"
   },
-  { 
+  {
     id: "mbini",
-    nombre: "Mbini", 
-    tipo: "pueblo", 
-    descripcion: "Desembocadura del río Benito 🏞️", 
-    lat: "1.58", 
+    nombre: "Mbini",
+    tipo: "pueblo",
+    descripcion: "Desembocadura del río Benito 🏞️",
+    lat: "1.58",
     lon: "9.62",
     datoCurioso: "En la desembocadura del río Mbini, el más largo del país"
   },
-  { 
+  {
     id: "nsok",
-    nombre: "Nsok", 
-    tipo: "pueblo", 
-    descripcion: "Frontera con Gabón 🌄", 
-    lat: "1.12", 
+    nombre: "Nsok",
+    tipo: "pueblo",
+    descripcion: "Frontera con Gabón 🌄",
+    lat: "1.12",
     lon: "11.25",
     datoCurioso: "Localidad fronteriza en la selva continental"
   },
 ];
 
 // ============================================
-// 🎨 COMPONENTE DE CLIMA
+// 🎴 CIUDADES DESTACADAS PARA EL HERO (6)
+// ============================================
+const ciudadesDestacadas = [
+  {
+    id: 'malabo',
+    nombre: 'Malabo',
+    temp: '28',
+    icono: '☀️',
+    tipo: '🏛️ Capital',
+    descripcion: 'Capital económica y cultural',
+    datoCultural: 'Cuna del afrobeat local · Fundada en 1827',
+    color: colors.primary,
+  },
+  {
+    id: 'bata',
+    nombre: 'Bata',
+    temp: '26',
+    icono: '🌧️',
+    tipo: '🌊 Puerto',
+    descripcion: 'Puerta del continente',
+    datoCultural: 'Festival de música en agosto · Ciudad del amor',
+    color: '#4ECDC4',
+  },
+  {
+    id: 'mongomo',
+    nombre: 'Mongomo',
+    temp: '27',
+    icono: '☀️',
+    tipo: '⛰️ Ciudad',
+    descripcion: 'Tierra de welenzas',
+    datoCultural: 'Cuna de grandes artistas · Selva continental',
+    color: '#FFE66D',
+  },
+  {
+    id: 'luba',
+    nombre: 'Luba',
+    temp: '27',
+    icono: '⛅',
+    tipo: '⚓ Puerto',
+    descripcion: 'Bioko Sur',
+    datoCultural: 'Segunda ciudad de Bioko · Puerto natural',
+    color: '#FF9F1C',
+  },
+  {
+    id: 'baney',
+    nombre: 'Baney',
+    temp: '26',
+    icono: '🌤️',
+    tipo: '🏡 Pueblo',
+    descripcion: 'Capital de la isla de Bioko',
+    datoCultural: 'Playas volcánicas · Gente acogedora',
+    color: '#2EC4B6',
+  },
+  {
+    id: 'annobon',
+    nombre: 'Annobón',
+    temp: '29',
+    icono: '🏝️',
+    tipo: '🌅 Isla',
+    descripcion: 'Hemisferio sur',
+    datoCultural: 'Única provincia en el hemisferio sur · San Antonio de Palé',
+    color: '#E71D36',
+  },
+];
+
+// ============================================
+// 🎴 CARD DE CIUDAD PARA HERO
+// ============================================
+const CityCard = ({ ciudad }) => {
+  const [hover, setHover] = useState(false);
+  
+  return (
+    <motion.div
+      onHoverStart={() => setHover(true)}
+      onHoverEnd={() => setHover(false)}
+      whileHover={{ y: -8 }}
+      transition={{ duration: 0.3, type: "spring", stiffness: 300 }}
+      style={{ cursor: 'pointer' }}
+    >
+      <Box
+        sx={{
+          bgcolor: hover 
+            ? 'rgba(255,255,255,0.18)' 
+            : 'rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid',
+          borderColor: hover 
+            ? colors.primary 
+            : 'rgba(255,255,255,0.1)',
+          borderRadius: 4,
+          p: 2.5,
+          width: { xs: 160, sm: 180, md: 200 },
+          transition: 'all 0.3s ease',
+          boxShadow: hover 
+            ? `0 20px 40px ${alpha(colors.primary, 0.3)}`
+            : 'none',
+        }}
+      >
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: alpha(colors.primary, 0.9),
+            fontWeight: 600,
+            letterSpacing: '1px',
+            fontSize: '0.65rem',
+            display: 'block',
+            mb: 1,
+          }}
+        >
+          {ciudad.tipo}
+        </Typography>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          <motion.div
+            animate={hover ? { rotate: [0, 10, -10, 0] } : {}}
+            transition={{ duration: 0.5 }}
+          >
+            <Typography sx={{ fontSize: '2.2rem' }}>
+              {ciudad.icono}
+            </Typography>
+          </motion.div>
+          <Box>
+            <Typography 
+              variant="h3" 
+              sx={{ 
+                fontWeight: 700, 
+                color: 'white',
+                lineHeight: 1,
+                fontSize: '2rem',
+              }}
+            >
+              {ciudad.temp}°
+            </Typography>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: 'rgba(255,255,255,0.6)',
+                fontSize: '0.65rem',
+              }}
+            >
+              Sensación {parseInt(ciudad.temp) - 2}°
+            </Typography>
+          </Box>
+        </Box>
+        
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            fontWeight: 700, 
+            color: 'white',
+            fontSize: '1.2rem',
+            lineHeight: 1.2,
+            mb: 0.5,
+          }}
+        >
+          {ciudad.nombre}
+        </Typography>
+        
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: 'rgba(255,255,255,0.7)',
+            display: 'block',
+            fontSize: '0.75rem',
+            mb: 1,
+          }}
+        >
+          {ciudad.descripcion}
+        </Typography>
+        
+        <motion.div
+          animate={{ 
+            height: hover ? 'auto' : 0, 
+            opacity: hover ? 1 : 0,
+            marginTop: hover ? 8 : 0,
+          }}
+          transition={{ duration: 0.2 }}
+          style={{ overflow: 'hidden' }}
+        >
+          <Box
+            sx={{
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              pt: 1,
+            }}
+          >
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: colors.primaryLight,
+                fontSize: '0.7rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+              }}
+            >
+              <span>✨</span> {ciudad.datoCultural}
+            </Typography>
+          </Box>
+        </motion.div>
+      </Box>
+    </motion.div>
+  );
+};
+
+// ============================================
+// 🎵 HERO PREMIUM
+// ============================================
+const PremiumHero = () => {
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        width: '100%',
+        minHeight: { xs: 'auto', md: '90vh' },
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        py: { xs: 8, md: 0 },
+      }}
+    >
+      {/* Fondo con futur.jpg */}
+      <Box
+        component="img"
+        src="/futur.jpg"
+        alt="Guinea Ecuatorial"
+        sx={{
+          position: 'absolute',
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          filter: 'brightness(0.7) saturate(1.3)',
+        }}
+      />
+      
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(255,107,53,0.15) 100%)',
+        }}
+      />
+
+      <Box
+        sx={{
+          position: 'relative',
+          zIndex: 2,
+          maxWidth: '1200px',
+          width: '100%',
+          px: { xs: 2, md: 4 },
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <Box
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 1,
+              px: 2,
+              py: 1,
+              borderRadius: '40px',
+              bgcolor: 'rgba(0,0,0,0.3)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,107,53,0.3)',
+              mb: 4,
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: colors.primary,
+                boxShadow: `0 0 10px ${colors.primary}`,
+              }}
+            />
+            <Typography
+              sx={{
+                color: 'white',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                letterSpacing: '1px',
+              }}
+            >
+              🇬🇶 VENTANA A GUINEA ECUATORIAL
+            </Typography>
+          </Box>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Typography
+            variant="h1"
+            sx={{
+              fontSize: { xs: '2.2rem', sm: '3rem', md: '4rem' },
+              fontWeight: 700,
+              lineHeight: 1.1,
+              color: 'white',
+              textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              mb: 1,
+            }}
+          >
+            El latido de
+            <Box
+              component="span"
+              sx={{
+                color: colors.primary,
+                display: 'block',
+                fontWeight: 800,
+                mt: 1,
+              }}
+            >
+              nuestras ciudades
+            </Box>
+          </Typography>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Typography
+            sx={{
+              fontSize: { xs: '1rem', md: '1.2rem' },
+              color: 'rgba(255,255,255,0.9)',
+              maxWidth: '600px',
+              mb: 5,
+              fontWeight: 300,
+            }}
+          >
+            Clima en vivo + cultura local · Malabo, Bata, Mongomo, 
+            Luba, Baney y Annobón
+          </Typography>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+        >
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(6, 1fr)',
+              },
+              gap: { xs: 2, md: 3 },
+              justifyItems: 'center',
+              mb: 5,
+            }}
+          >
+            {ciudadesDestacadas.map((ciudad, index) => (
+              <motion.div
+                key={ciudad.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 + index * 0.1 }}
+              >
+                <CityCard ciudad={ciudad} />
+              </motion.div>
+            ))}
+          </Box>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 1.2 }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 2,
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              pt: 3,
+            }}
+          >
+            <Box sx={{ display: 'flex', gap: 3 }}>
+              <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                <span style={{ color: colors.primary, fontWeight: 700 }}>15</span> ciudades
+              </Typography>
+              <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                <span style={{ color: colors.primary, fontWeight: 700 }}>24/7</span> clima real
+              </Typography>
+              <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                <span style={{ color: colors.primary, fontWeight: 700 }}>100%</span> local
+              </Typography>
+            </Box>
+            
+            <Typography
+              sx={{
+                color: 'rgba(255,255,255,0.4)',
+                fontSize: '0.75rem',
+                letterSpacing: '1px',
+              }}
+            >
+              HAZ CLIC EN CADA CIUDAD PARA DESCUBRIR SU LATIDO CULTURAL
+            </Typography>
+          </Box>
+        </motion.div>
+      </Box>
+
+      <motion.div
+        animate={{ y: [0, 10, 0] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 2,
+        }}
+      >
+        <Box
+          sx={{
+            width: 26,
+            height: 42,
+            borderRadius: '13px',
+            border: '2px solid rgba(255,255,255,0.3)',
+            display: 'flex',
+            justifyContent: 'center',
+            p: 0.5,
+          }}
+        >
+          <Box
+            sx={{
+              width: 3,
+              height: 8,
+              borderRadius: 2,
+              bgcolor: colors.primary,
+              animation: 'scroll 2s infinite',
+              '@keyframes scroll': {
+                '0%': { transform: 'translateY(0)', opacity: 1 },
+                '100%': { transform: 'translateY(20px)', opacity: 0 },
+              },
+            }}
+          />
+        </Box>
+      </motion.div>
+    </Box>
+  );
+};
+
+// ============================================
+// 🎨 COMPONENTE DE CLIMA (TU EXISTENTE)
 // ============================================
 const ClimaWidget = ({ destino, weather, loading }) => {
   const getWeatherEmoji = (main) => {
@@ -254,7 +704,7 @@ const ClimaWidget = ({ destino, weather, loading }) => {
           {getWeatherEmoji(weather.weather[0].main)}
         </Typography>
       </motion.div>
-      
+
       <Box sx={{ textAlign: "left" }}>
         <Typography variant="h3" sx={{ fontWeight: 700, lineHeight: 1, color: "white" }}>
           {Math.round(weather.main.temp)}°
@@ -277,22 +727,18 @@ const ClimaWidget = ({ destino, weather, loading }) => {
 // 🚀 COMPONENTE PRINCIPAL
 // ============================================
 const ConstructionBanner = () => {
-  // Estados
   const [destinoIndex, setDestinoIndex] = useState(0);
   const [weatherData, setWeatherData] = useState({});
   const [loadingWeather, setLoadingWeather] = useState({});
   const [weatherError, setWeatherError] = useState({});
   const [destinoAnimado, setDestinoAnimado] = useState(false);
 
-  // ========================================
-  // 🌤️ FETCH CLIMA PARA UN DESTINO
-  // ========================================
   const fetchWeatherForDestino = async (destino) => {
-    if (weatherData[destino.id]) return; // Ya tenemos datos
+    if (weatherData[destino.id]) return;
 
     setLoadingWeather(prev => ({ ...prev, [destino.id]: true }));
     setWeatherError(prev => ({ ...prev, [destino.id]: false }));
-
+    
     try {
       const response = await axios.get(
         `https://api.openweathermap.org/data/2.5/weather`,
@@ -306,7 +752,6 @@ const ConstructionBanner = () => {
           }
         }
       );
-
       setWeatherData(prev => ({ ...prev, [destino.id]: response.data }));
       setWeatherError(prev => ({ ...prev, [destino.id]: false }));
     } catch (error) {
@@ -317,14 +762,9 @@ const ConstructionBanner = () => {
     }
   };
 
-  // ========================================
-  // 🗺️ CARGA INICIAL Y CAMBIO DE DESTINO
-  // ========================================
   useEffect(() => {
-    // Cargar clima del destino actual
     fetchWeatherForDestino(destinos[destinoIndex]);
 
-    // Precargar destinos vecinos (mejora la experiencia)
     const nextIndex = (destinoIndex + 1) % destinos.length;
     const prevIndex = (destinoIndex - 1 + destinos.length) % destinos.length;
     
@@ -334,9 +774,6 @@ const ConstructionBanner = () => {
     }, 1000);
   }, [destinoIndex]);
 
-  // ========================================
-  // 🕒 ROTACIÓN AUTOMÁTICA (CADA 8 SEGUNDOS)
-  // ========================================
   useEffect(() => {
     const interval = setInterval(() => {
       setDestinoAnimado(true);
@@ -349,9 +786,6 @@ const ConstructionBanner = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // ========================================
-  // 🎮 CONTROLES MANUALES
-  // ========================================
   const handlePrevDestino = () => {
     setDestinoAnimado(true);
     setTimeout(() => {
@@ -386,7 +820,10 @@ const ConstructionBanner = () => {
         color: "white",
       }}
     >
-      {/* ========== FONDO ANIMADO ========== */}
+      {/* HERO PREMIUM */}
+      <PremiumHero />
+
+      {/* Fondo animado */}
       <motion.div
         animate={{
           backgroundPosition: ["0% 0%", "100% 100%"],
@@ -400,7 +837,7 @@ const ConstructionBanner = () => {
         }}
       />
 
-      {/* ========== NOTAS FLOTANTES ========== */}
+      {/* Notas flotantes */}
       {[...Array(20)].map((_, i) => (
         <motion.div
           key={i}
@@ -428,10 +865,8 @@ const ConstructionBanner = () => {
         </motion.div>
       ))}
 
-      {/* ========== CONTENIDO PRINCIPAL ========== */}
-      <Box sx={{ position: "relative", zIndex: 2, maxWidth: "900px", width: "100%" }}>
-        
-        {/* 🚀 LOGO COHETE */}
+      {/* Contenido principal */}
+      <Box sx={{ position: "relative", zIndex: 2, maxWidth: "900px", width: "100%", mt: 4 }}>
         <motion.div
           initial={{ scale: 0, rotate: -45 }}
           animate={{ scale: 1, rotate: -5 }}
@@ -441,7 +876,6 @@ const ConstructionBanner = () => {
           <Box sx={{ fontSize: { xs: "60px", md: "80px" } }}>🚀</Box>
         </motion.div>
 
-        {/* 🎵 TÍTULO */}
         <GradientText
           variant="h2"
           sx={{
@@ -466,7 +900,6 @@ const ConstructionBanner = () => {
           Construyendo la banda sonora de Guinea Ecuatorial 🇬🇶
         </Typography>
 
-        {/* ========== 🌤️ TARJETA DE CLIMA + DESTINO ========== */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -483,12 +916,11 @@ const ConstructionBanner = () => {
               boxShadow: `0 20px 40px ${alpha(colors.secondary, 0.3)}`,
             }}
           >
-            {/* CABECERA */}
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Typography 
-                variant="overline" 
-                sx={{ 
-                  color: alpha(colors.primary, 0.9), 
+              <Typography
+                variant="overline"
+                sx={{
+                  color: alpha(colors.primary, 0.9),
                   fontWeight: 700,
                   fontSize: "0.9rem",
                   letterSpacing: 2,
@@ -501,65 +933,73 @@ const ConstructionBanner = () => {
               </Typography>
             </Box>
 
-            {/* CONTENEDOR DESTINO + CLIMA */}
-            <Box sx={{ 
-              display: "flex", 
-              flexDirection: { xs: "column", md: "row" }, 
-              alignItems: { xs: "center", md: "stretch" },
-              gap: 3 
-            }}>
-              
-              {/* 🗺️ PRÓXIMA PARADA (IZQUIERDA) */}
-              <Box sx={{ 
-                flex: 1, 
-                display: "flex", 
-                flexDirection: "column",
-                justifyContent: "center",
-                borderRight: { xs: "none", md: "1px solid rgba(255,255,255,0.1)" },
-                pr: { xs: 0, md: 3 },
-              }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", md: "row" },
+                alignItems: { xs: "center", md: "stretch" },
+                gap: 3,
+              }}
+            >
+              <Box
+                sx={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  borderRight: { xs: "none", md: "1px solid rgba(255,255,255,0.1)" },
+                  pr: { xs: 0, md: 3 },
+                }}
+              >
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                  <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <LocationOnIcon sx={{ fontSize: 16 }} /> PRÓXIMA PARADA
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "rgba(255,255,255,0.6)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                    }}
+                  >
+                    <LocationOnIcon sx={{ fontSize: 16 }} />
+                    PRÓXIMA PARADA
                   </Typography>
-                  
-                  {/* CONTROLES DE NAVEGACIÓN */}
                   <Box sx={{ display: "flex", gap: 0.5 }}>
-                    <IconButton 
+                    <IconButton
                       onClick={handlePrevDestino}
                       size="small"
-                      sx={{ 
+                      sx={{
                         color: "rgba(255,255,255,0.5)",
-                        "&:hover": { color: colors.primary, background: alpha(colors.primary, 0.1) }
+                        "&:hover": { color: colors.primary, background: alpha(colors.primary, 0.1) },
                       }}
                     >
                       <ArrowBackIosIcon sx={{ fontSize: 14 }} />
                     </IconButton>
-                    <IconButton 
+                    <IconButton
                       onClick={handleNextDestino}
                       size="small"
-                      sx={{ 
+                      sx={{
                         color: "rgba(255,255,255,0.5)",
-                        "&:hover": { color: colors.primary, background: alpha(colors.primary, 0.1) }
+                        "&:hover": { color: colors.primary, background: alpha(colors.primary, 0.1) },
                       }}
                     >
                       <ArrowForwardIosIcon sx={{ fontSize: 14 }} />
                     </IconButton>
                   </Box>
                 </Box>
-                
+
                 <motion.div
-                  animate={{ 
+                  animate={{
                     x: destinoAnimado ? [0, -10, 10, 0] : 0,
-                    opacity: destinoAnimado ? [1, 0.8, 1] : 1
+                    opacity: destinoAnimado ? [1, 0.8, 1] : 1,
                   }}
                   transition={{ duration: 0.4 }}
                 >
-                  <Typography 
-                    variant="h3" 
-                    sx={{ 
-                      fontWeight: 800, 
-                      color: colors.primary, 
+                  <Typography
+                    variant="h3"
+                    sx={{
+                      fontWeight: 800,
+                      color: colors.primary,
                       lineHeight: 1.2,
                       fontSize: { xs: "2rem", md: "2.5rem" },
                       mb: 1,
@@ -567,41 +1007,42 @@ const ConstructionBanner = () => {
                   >
                     {destinoActual.nombre}
                   </Typography>
-                  
                   <Typography variant="body1" sx={{ color: "white", fontWeight: 500, mb: 0.5 }}>
                     {destinoActual.descripcion}
                   </Typography>
-                  
-                  <Typography variant="caption" sx={{ 
-                    display: "inline-block", 
-                    color: alpha(colors.primary, 0.8),
-                    background: alpha(colors.primary, 0.1),
-                    px: 1.5,
-                    py: 0.5,
-                    borderRadius: 2,
-                    mb: 1,
-                  }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: "inline-block",
+                      color: alpha(colors.primary, 0.8),
+                      background: alpha(colors.primary, 0.1),
+                      px: 1.5,
+                      py: 0.5,
+                      borderRadius: 2,
+                      mb: 1,
+                    }}
+                  >
                     {destinoActual.tipo === "capital" && "🏛️ CAPITAL"}
                     {destinoActual.tipo === "ciudad" && "🏙️ CIUDAD"}
                     {destinoActual.tipo === "pueblo" && "🏡 PUEBLO"}
                     {destinoActual.tipo === "isla" && "🏝️ ISLA"}
                   </Typography>
-                  
                   <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 1, fontStyle: "italic" }}>
                     📍 {destinoActual.datoCurioso}
                   </Typography>
                 </motion.div>
               </Box>
 
-              {/* 🌤️ CLIMA ACTUAL (DERECHA) */}
-              <Box sx={{ 
-                flex: 1, 
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: { xs: "center", md: "flex-start" },
-                pl: { xs: 0, md: 3 },
-              }}>
-                <ClimaWidget 
+              <Box
+                sx={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: { xs: "center", md: "flex-start" },
+                  pl: { xs: 0, md: 3 },
+                }}
+              >
+                <ClimaWidget
                   destino={destinoActual}
                   weather={weatherData[destinoActual.id]}
                   loading={loadingWeather[destinoActual.id]}
@@ -611,7 +1052,6 @@ const ConstructionBanner = () => {
           </Box>
         </motion.div>
 
-        {/* ========== MENSAJE DE CONSTRUCCIÓN ========== */}
         <Typography
           variant="body1"
           sx={{
@@ -622,13 +1062,10 @@ const ConstructionBanner = () => {
             px: 2,
           }}
         >
-  
-
- {destinoActual.nombre}, {destinoActual.descripcion.toLowerCase()} — 
+          {destinoActual.nombre}, {destinoActual.descripcion.toLowerCase()} —
           te mandamos un fuerte abrazo 🎵✨
         </Typography>
 
-        {/* ========== BOTÓN TIENDA ========== */}
         <Button
           variant="contained"
           href="/Todo"
@@ -655,7 +1092,6 @@ const ConstructionBanner = () => {
           🛍️ Ir a la Tienda
         </Button>
 
-        {/* ========== FOOTER IDENTITARIO ========== */}
         <Typography
           variant="caption"
           sx={{
@@ -668,7 +1104,6 @@ const ConstructionBanner = () => {
         >
           HECHO CON 🩷 DESDE GUINEA ECUATORIAL PARA EL MUNDO 🌍
         </Typography>
-        
         <Typography
           variant="caption"
           sx={{
@@ -677,7 +1112,7 @@ const ConstructionBanner = () => {
             fontSize: "0.7rem",
           }}
         >
-         
+          djidjimusic · La música es nuestra
         </Typography>
       </Box>
     </Box>
