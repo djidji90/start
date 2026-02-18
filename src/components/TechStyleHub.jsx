@@ -161,7 +161,7 @@ const DjidjiTrust = () => {
                   color: colors.textPrimary,
                 }}
               >
-                djidji
+                djidjilive
               </Typography>
 
               {/* Claim estratégico */}
@@ -174,7 +174,7 @@ const DjidjiTrust = () => {
                   lineHeight: 1.3,
                 }}
               >
-                La banda sonora de Guinea.
+                la música que suena en tu barrio.
                 <Box component="span" sx={{ display: "block", color: colors.textTertiary, fontSize: "1.1rem", mt: 1 }}>
                   Hecha aquí, para el mundo.
                 </Box>
@@ -184,7 +184,7 @@ const DjidjiTrust = () => {
               <Box sx={{ mb: 5 }}>
                 <Button
                   variant="contained"
-                  href="/explorar"
+                  href="/MainPage"
                   size="large"
                   sx={{
                     bgcolor: colors.primary,
