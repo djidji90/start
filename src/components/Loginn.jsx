@@ -147,7 +147,7 @@ const OfficialBadge = ({ isMobile }) => (
     }),
   }}>
     <Verified sx={{ fontSize: { xs: '12px', sm: '14px' } }} />
-    PLATAFORMA OFICIAL DE MÚSICA ECUATOGUINEANA
+    PLATAFORMA OFICIAL DE LA MÚSICA ECUATOGUINEANA
   </Box>
 );
 
@@ -314,7 +314,6 @@ const LoginContent = () => {
           textAlign: { xs: 'center', md: 'left' },
         }}
       >
-        djidjimusic
       </Typography>
 
       <Typography
