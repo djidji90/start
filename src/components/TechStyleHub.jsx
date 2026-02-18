@@ -1,16 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Box, Typography, styled, Button, alpha, IconButton } from "@mui/material";
-import ConstructionIcon from "@mui/icons-material/Construction";
-import MusicNoteIcon from "@mui/icons-material/MusicNote";
-import WbSunnyIcon from "@mui/icons-material/WbSunny";
-import CloudIcon from "@mui/icons-material/Cloud";
-import UmbrellaIcon from "@mui/icons-material/Umbrella";
-import AcUnitIcon from "@mui/icons-material/AcUnit";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
-import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos";
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Box, Typography, Button, Container, useMediaQuery, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import '@fontsource-variable/inter';
 
 // ============================================
@@ -20,653 +11,414 @@ const colors = {
   primary: '#FF6B35',
   primaryLight: '#FF8B5C',
   primaryDark: '#E55A2B',
-  secondary: '#2D3047',
+  background: '#0A0F1E',
+  surface: '#0E1424',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255,255,255,0.7)',
+  textTertiary: 'rgba(255,255,255,0.4)',
+  border: 'rgba(255,255,255,0.06)',
 };
 
-const GradientText = styled(Typography)(({ theme }) => ({
-  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
-  WebkitBackgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-  fontFamily: "'Inter Variable', sans-serif",
-}));
-
 // ============================================
-// 🔑 API KEY
+// ❓ PREGUNTAS ESTRATÉGICAS (8 FAQ)
 // ============================================
-const OPENWEATHER_API_KEY = "0c6117bedab72bcd80aa6bc795a68753";
-
-// ============================================
-// 🌍 LISTA DE DESTINOS
-// ============================================
-const destinos = [
+const preguntas = [
   {
-    id: "malabo",
-    nombre: "Malabo",
-    tipo: "capital",
-    descripcion: "capital económica y cultural de nuestro hermoso pais",
-    lat: "3.75",
-    lon: "8.78",
-    datoCurioso: "Fundada en 1827 por los británicos como Port Clarence"
+    pregunta: "¿Qué es djidjimusic?",
+    respuesta: "Plataforma digital dedicada a impulsar y difundir la música de Guinea Ecuatorial. Conectamos artistas, oyentes y colaboradores en un mismo espacio."
   },
   {
-    id: "bata",
-    nombre: "Bata",
-    tipo: "ciudad",
-    descripcion: "ciudad del amor, Puerta del continente 🌊",
-    lat: "1.86",
-    lon: "9.77",
-    datoCurioso: "Ciudad más poblada del país, principal puerto continental"
+    pregunta: "¿Qué música puedo encontrar?",
+    respuesta: "Música urbana, afrobeat, gospel, tradicional, pop y otros géneros creados por artistas de Guinea Ecuatorial y la diáspora."
   },
   {
-    id: "baney",
-    nombre: "Baney",
-    tipo: "pueblo",
-    descripcion: "baney yeyeba, capital de la isla de Bioko, que nadie se enfade 😂",
-    lat: "3.70",
-    lon: "8.91",
-    datoCurioso: "Conocido por sus espectaculares playas volcánicas"
+    pregunta: "¿Cómo descubro nuevos artistas?",
+    respuesta: "Destacamos artistas emergentes, lanzamientos recientes y tendencias locales. Puedes explorar por género o por ciudad."
   },
   {
-    id: "lea",
-    nombre: "lía",
-    tipo: "pueblo",
-    descripcion: "pueblo de grandes artistas seguro que tu cantante favorito ha estado ahí",
-    lat: "3.68",
-    lon: "8.85",
-    datoCurioso: "nos gusta hacer nfuga y bailar nzanga"
+    pregunta: "¿Cómo subo mi música?",
+    respuesta: "Los artistas pueden solicitar acceso a través de nuestro formulario de publicación. Revisamos cada propuesta con mirada curatorial."
   },
   {
-    id: "rebola",
-    nombre: "Rebola",
-    tipo: "pueblo",
-    descripcion: "Tierra de gente fuerte y talentosa 🪺",
-    lat: "3.72",
-    lon: "8.83",
-    datoCurioso: "deberías visitarnos estamos a pocos kilómetros de malabo"
+    pregunta: "¿Es gratuita?",
+    respuesta: "Sí, el acceso básico es gratuito. Próximamente funciones premium para apoyar directamente a los artistas."
   },
   {
-    id: "comandachina",
-    nombre: "Comandachina",
-    tipo: "pueblo",
-    descripcion: "de gente muy amable situado en el corazón de bata 🫂",
-    lat: "3.75",
-    lon: "8.80",
-    datoCurioso: "Nombre único con historia de principios del XX"
+    pregunta: "¿Cómo colaborar?",
+    respuesta: "Trabajamos con marcas, instituciones culturales y proyectos que compartan nuestra visión. Contáctanos en nuestra sección de colaboración."
   },
   {
-    id: "rio_campo",
-    nombre: "Río Campo",
-    tipo: "pueblo",
-    descripcion: "Frontera natural con Camerún te estamos esperando 🌴",
-    lat: "2.33",
-    lon: "9.82",
-    datoCurioso: "Sobre el río Campo, frontera natural con Camerún"
+    pregunta: "¿Cómo se protege la música?",
+    respuesta: "Respetamos los derechos de autor con acuerdos claros de distribución. Cada artista mantiene el control sobre su obra."
   },
   {
-    id: "akurenam",
-    nombre: "Akurenam",
-    tipo: "pueblo",
-    descripcion: "Corazón continental, con las chicas muy guapas ❤️",
-    lat: "1.23",
-    lon: "10.12",
-    datoCurioso: "Localidad del interior, rodeada de selva tropical"
-  },
-  {
-    id: "mongomo",
-    nombre: "Mongomo",
-    tipo: "ciudad",
-    descripcion: "capital de la provincia de welenzas ❤️",
-    lat: "1.63",
-    lon: "11.32",
-    datoCurioso: "tierra de origen de grandes artistas "
-  },
-  {
-    id: "ebebiyin",
-    nombre: "Ebebiyín",
-    tipo: "ciudad",
-    descripcion: "tierra de comerciantes y artistas importantes 🌿",
-    lat: "2.15",
-    lon: "11.33",
-    datoCurioso: "Centro comercial en la frontera con cameroun"
-  },
-  {
-    id: "evinayong",
-    nombre: "Evinayong",
-    tipo: "ciudad",
-    descripcion: "Centro del país, espectacular con una rica historia 🏔️ ",
-    lat: "1.45",
-    lon: "10.57",
-    datoCurioso: "Capital de la provincia de Centro Sur"
-  },
-  {
-    id: "luba",
-    nombre: "Luba",
-    tipo: "ciudad",
-    descripcion: "Puerto natural, Bioko Sur ⚓",
-    lat: "3.46",
-    lon: "8.55",
-    datoCurioso: "Segunda ciudad de Bioko, antiguo puerto esclavista"
-  },
-  {
-    id: "annobon",
-    nombre: "Annobón",
-    tipo: "isla",
-    descripcion: "San Antonio de Palé, hemisferio sur 🌅",
-    lat: "-1.43",
-    lon: "5.63",
-    datoCurioso: "Única provincia en el hemisferio sur, descubierta el 1 de enero"
-  },
-  {
-    id: "kogo",
-    nombre: "Kogo",
-    tipo: "pueblo",
-    descripcion: "Estuario del Muni 🌊",
-    lat: "1.08",
-    lon: "9.70",
-    datoCurioso: "Puerto fluvial sobre el estuario del Muni"
-  },
-  {
-    id: "mbini",
-    nombre: "Mbini",
-    tipo: "pueblo",
-    descripcion: "Desembocadura del río Benito 🏞️",
-    lat: "1.58",
-    lon: "9.62",
-    datoCurioso: "En la desembocadura del río Mbini, el más largo del país"
-  },
-  {
-    id: "nsok",
-    nombre: "Nsok",
-    tipo: "pueblo",
-    descripcion: "Frontera con Gabón 🌄",
-    lat: "1.12",
-    lon: "11.25",
-    datoCurioso: "Localidad fronteriza en la selva continental"
-  },
+    pregunta: "¿Por qué enfocada en Guinea?",
+    respuesta: "Porque el talento local merece un espacio propio, con identidad y proyección internacional. djidjimusic nace para construir industria."
+  }
 ];
 
 // ============================================
-// 🎨 COMPONENTE DE CLIMA
+// 🤝 COLABORADORES (simulados)
 // ============================================
-const ClimaWidget = ({ destino, weather, loading }) => {
-  const getWeatherEmoji = (main) => {
-    const emojis = {
-      "Clear": "☀️",
-      "Clouds": "☁️",
-      "Rain": "🌧️",
-      "Drizzle": "🌦️",
-      "Thunderstorm": "⛈️",
-      "Snow": "❄️",
-      "Mist": "🌫️",
-      "Fog": "🌫️",
-      "Haze": "🌤️",
-    };
-    return emojis[main] || "🌤️";
-  };
-
-  const getWeatherAnimation = (main) => {
-    if (main === "Clear") return { scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] };
-    if (main === "Clouds") return { y: [0, -3, 0] };
-    if (main === "Rain") return { y: [0, 2, 0] };
-    return { scale: [1, 1.05, 1] };
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2 }}>
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity }}>
-          <Typography sx={{ fontSize: "40px" }}>🔄</Typography>
-        </motion.div>
-        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
-          Consultando clima...
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (!weather) {
-    return (
-      <Box sx={{ textAlign: "center" }}>
-        <Typography sx={{ fontSize: "40px", mb: 1 }}>🌍</Typography>
-        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
-          Clima no disponible
-        </Typography>
-      </Box>
-    );
-  }
-
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-      <motion.div
-        animate={getWeatherAnimation(weather.weather[0].main)}
-        transition={{ duration: 3, repeat: Infinity }}
-      >
-        <Typography sx={{ fontSize: "48px" }}>
-          {getWeatherEmoji(weather.weather[0].main)}
-        </Typography>
-      </motion.div>
-
-      <Box sx={{ textAlign: "left" }}>
-        <Typography variant="h3" sx={{ fontWeight: 700, lineHeight: 1, color: "white" }}>
-          {Math.round(weather.main.temp)}°
-        </Typography>
-        <Typography variant="body2" sx={{ color: colors.primaryLight, fontWeight: 600, textTransform: "capitalize" }}>
-          {weather.weather[0].description}
-        </Typography>
-        <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>
-          💧 {weather.main.humidity}% | 💨 {Math.round(weather.wind.speed)} m/s
-        </Typography>
-        <Typography variant="caption" sx={{ display: "block", color: "rgba(255,255,255,0.4)", mt: 0.5 }}>
-          Actualizado: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-        </Typography>
-      </Box>
-    </Box>
-  );
-};
+const colaboradores = [
+  { nombre: "Sello 1", logo: "◼" },
+  { nombre: "Sello 2", logo: "◼" },
+  { nombre: "Sello 3", logo: "◼" },
+  { nombre: "Sello 4", logo: "◼" },
+  { nombre: "Sello 5", logo: "◼" },
+];
 
 // ============================================
-// 🚀 COMPONENTE PRINCIPAL
+// 🌍 DATOS DE CLIMA (simulados)
 // ============================================
-const ConstructionBanner = () => {
-  const [destinoIndex, setDestinoIndex] = useState(0);
-  const [weatherData, setWeatherData] = useState({});
-  const [loadingWeather, setLoadingWeather] = useState({});
-  const [weatherError, setWeatherError] = useState({});
-  const [destinoAnimado, setDestinoAnimado] = useState(false);
+const climaData = [
+  { ciudad: "Malabo", temp: 27, estado: "Parcialmente nublado" },
+  { ciudad: "Bata", temp: 29, estado: "Soleado" },
+  { ciudad: "Annobón", temp: 26, estado: "Despejado" },
+];
 
-  const fetchWeatherForDestino = async (destino) => {
-    if (weatherData[destino.id]) return;
+// ============================================
+// 🎯 COMPONENTE PRINCIPAL
+// ============================================
+const DjidjiTrust = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [indicePregunta, setIndicePregunta] = useState(0);
 
-    setLoadingWeather(prev => ({ ...prev, [destino.id]: true }));
-    setWeatherError(prev => ({ ...prev, [destino.id]: false }));
-    
-    try {
-      const response = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather`,
-        {
-          params: {
-            lat: destino.lat,
-            lon: destino.lon,
-            appid: OPENWEATHER_API_KEY,
-            units: "metric",
-            lang: "es"
-          }
-        }
-      );
-      setWeatherData(prev => ({ ...prev, [destino.id]: response.data }));
-      setWeatherError(prev => ({ ...prev, [destino.id]: false }));
-    } catch (error) {
-      console.error(`Error fetching weather for ${destino.nombre}:`, error);
-      setWeatherError(prev => ({ ...prev, [destino.id]: true }));
-    } finally {
-      setLoadingWeather(prev => ({ ...prev, [destino.id]: false }));
-    }
-  };
-
-  useEffect(() => {
-    fetchWeatherForDestino(destinos[destinoIndex]);
-
-    const nextIndex = (destinoIndex + 1) % destinos.length;
-    const prevIndex = (destinoIndex - 1 + destinos.length) % destinos.length;
-    
-    setTimeout(() => {
-      fetchWeatherForDestino(destinos[nextIndex]);
-      fetchWeatherForDestino(destinos[prevIndex]);
-    }, 1000);
-  }, [destinoIndex]);
-
+  // Rotación automática de preguntas (cada 6 segundos)
   useEffect(() => {
     const interval = setInterval(() => {
-      setDestinoAnimado(true);
-      setTimeout(() => {
-        setDestinoIndex(prev => (prev + 1) % destinos.length);
-        setDestinoAnimado(false);
-      }, 400);
-    }, 8000);
-
+      setIndicePregunta((prev) => (prev + 1) % preguntas.length);
+    }, 6000);
     return () => clearInterval(interval);
   }, []);
 
-  const handlePrevDestino = () => {
-    setDestinoAnimado(true);
-    setTimeout(() => {
-      setDestinoIndex(prev => (prev - 1 + destinos.length) % destinos.length);
-      setDestinoAnimado(false);
-    }, 300);
-  };
-
-  const handleNextDestino = () => {
-    setDestinoAnimado(true);
-    setTimeout(() => {
-      setDestinoIndex(prev => (prev + 1) % destinos.length);
-      setDestinoAnimado(false);
-    }, 300);
-  };
-
-  const destinoActual = destinos[destinoIndex];
+  const preguntaActual = preguntas[indicePregunta];
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
         display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
         alignItems: "center",
-        p: 2,
-        textAlign: "center",
+        justifyContent: "center",
+        background: `
+          radial-gradient(circle at 20% 30%, ${alpha(colors.primary, 0.03)} 0%, transparent 50%),
+          radial-gradient(circle at 80% 70%, ${alpha(colors.primary, 0.02)} 0%, transparent 50%),
+          linear-gradient(145deg, ${colors.background} 0%, ${colors.surface} 100%)
+        `,
+        color: colors.textPrimary,
         position: "relative",
         overflow: "hidden",
-        background: "linear-gradient(145deg, #0A0F1E 0%, #1A1F2E 100%)",
-        color: "white",
       }}
     >
-      {/* FONDO ANIMADO */}
-      <motion.div
-        animate={{
-          backgroundPosition: ["0% 0%", "100% 100%"],
-        }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "radial-gradient(circle at 30% 50%, rgba(255,107,53,0.1) 0%, transparent 50%)",
-          zIndex: 0,
-        }}
-      />
-
-      {/* NOTAS FLOTANTES */}
-      {[...Array(20)].map((_, i) => (
-        <motion.div
-          key={i}
-          style={{
-            position: "absolute",
-            fontSize: 24 + Math.random() * 20,
-            color: alpha(colors.primary, 0.08),
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            zIndex: 0,
-          }}
-          animate={{
-            y: [0, -100 - Math.random() * 100],
-            x: [0, (Math.random() - 0.5) * 150],
-            opacity: [0, 1, 0],
-            rotate: [0, 360],
-          }}
-          transition={{
-            duration: 12 + Math.random() * 10,
-            repeat: Infinity,
-            delay: Math.random() * 8,
-          }}
-        >
-          {i % 3 === 0 ? "♪" : i % 3 === 1 ? "♫" : "♩"}
-        </motion.div>
-      ))}
-
-      {/* CONTENIDO PRINCIPAL */}
-      <Box sx={{ position: "relative", zIndex: 2, maxWidth: "900px", width: "100%" }}>
-        {/* LOGO COHETE */}
-        <motion.div
-          initial={{ scale: 0, rotate: -45 }}
-          animate={{ scale: 1, rotate: -5 }}
-          transition={{ type: "spring", duration: 1 }}
-          style={{ marginBottom: 20 }}
-        >
-          <Box sx={{ fontSize: { xs: "60px", md: "80px" } }}>🚀</Box>
-        </motion.div>
-
-        {/* TÍTULO */}
-        <GradientText
-          variant="h2"
+      <Container maxWidth="xl">
+        {/* Layout: dos columnas en desktop, una en móvil */}
+        <Box
           sx={{
-            fontWeight: 900,
-            fontSize: { xs: "2.2rem", md: "3.5rem" },
-            mb: 2,
-            letterSpacing: "-0.5px",
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+            gap: { xs: 6, md: 8 },
+            alignItems: "center",
+            minHeight: "100vh",
+            py: { xs: 6, md: 0 },
           }}
         >
-          djidjimusic
-        </GradientText>
-
-        <Typography
-          variant="h5"
-          sx={{
-            mb: 3,
-            fontWeight: 600,
-            color: "white",
-            textShadow: "0 2px 10px rgba(0,0,0,0.3)",
-          }}
-        >
-          Construyendo la banda sonora de Guinea Ecuatorial 🇬🇶
-        </Typography>
-
-        {/* TARJETA DE CLIMA + DESTINO */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Box
-            sx={{
-              background: "rgba(10, 15, 30, 0.7)",
-              backdropFilter: "blur(15px)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 4,
-              p: { xs: 2, md: 4 },
-              mb: 4,
-              boxShadow: `0 20px 40px ${alpha(colors.secondary, 0.3)}`,
-            }}
+          {/* ======================================== */}
+          {/* COLUMNA IZQUIERDA - MARCA + CTA */}
+          {/* ======================================== */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
           >
-            {/* CABECERA */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Box sx={{ maxWidth: "600px", mx: { xs: "auto", md: 0 } }}>
+              {/* Overline */}
               <Typography
                 variant="overline"
                 sx={{
-                  color: alpha(colors.primary, 0.9),
-                  fontWeight: 700,
-                  fontSize: "0.9rem",
-                  letterSpacing: 2,
+                  letterSpacing: "6px",
+                  fontSize: "0.7rem",
+                  color: colors.textTertiary,
+                  mb: 2,
+                  display: "block",
                 }}
               >
-                🇬🇶 GUINEA ECUATORIAL EN VIVO
+                GUINEA ECUATORIAL · PLATAFORMA MUSICAL
               </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.4)" }}>
-                {destinoIndex + 1} / {destinos.length}
-              </Typography>
-            </Box>
 
-            {/* CONTENEDOR DESTINO + CLIMA */}
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: { xs: "column", md: "row" },
-                alignItems: { xs: "center", md: "stretch" },
-                gap: 3,
-              }}
-            >
-              {/* PRÓXIMA PARADA */}
-              <Box
+              {/* Marca */}
+              <Typography
+                variant="h1"
                 sx={{
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  borderRight: { xs: "none", md: "1px solid rgba(255,255,255,0.1)" },
-                  pr: { xs: 0, md: 3 },
+                  fontWeight: 800,
+                  fontSize: { xs: "3.5rem", md: "5rem" },
+                  letterSpacing: "-2px",
+                  lineHeight: 1,
+                  mb: 2,
+                  color: colors.textPrimary,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "rgba(255,255,255,0.6)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.5,
-                    }}
-                  >
-                    <LocationOnIcon sx={{ fontSize: 16 }} />
-                    PRÓXIMA PARADA
-                  </Typography>
+                djidjimusic
+              </Typography>
 
-                  {/* CONTROLES */}
-                  <Box sx={{ display: "flex", gap: 0.5 }}>
-                    <IconButton
-                      onClick={handlePrevDestino}
-                      size="small"
-                      sx={{
-                        color: "rgba(255,255,255,0.5)",
-                        "&:hover": { color: colors.primary, background: alpha(colors.primary, 0.1) }
-                      }}
-                    >
-                      <ArrowBackIosIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                    <IconButton
-                      onClick={handleNextDestino}
-                      size="small"
-                      sx={{
-                        color: "rgba(255,255,255,0.5)",
-                        "&:hover": { color: colors.primary, background: alpha(colors.primary, 0.1) }
-                      }}
-                    >
-                      <ArrowForwardIosIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  </Box>
+              {/* Claim estratégico */}
+              <Typography
+                sx={{
+                  fontSize: { xs: "1.3rem", md: "1.5rem" },
+                  fontWeight: 300,
+                  color: colors.textSecondary,
+                  mb: 3,
+                  lineHeight: 1.3,
+                }}
+              >
+                La banda sonora de Guinea.
+                <Box component="span" sx={{ display: "block", color: colors.textTertiary, fontSize: "1.1rem", mt: 1 }}>
+                  Hecha aquí, para el mundo.
                 </Box>
+              </Typography>
 
-                <motion.div
-                  animate={{
-                    x: destinoAnimado ? [0, -10, 10, 0] : 0,
-                    opacity: destinoAnimado ? [1, 0.8, 1] : 1,
+              {/* CTA Principal + link secundario */}
+              <Box sx={{ mb: 5 }}>
+                <Button
+                  variant="contained"
+                  href="/explorar"
+                  size="large"
+                  sx={{
+                    bgcolor: colors.primary,
+                    color: "white",
+                    px: 5,
+                    py: 1.8,
+                    borderRadius: "40px",
+                    fontWeight: 500,
+                    fontSize: "1.1rem",
+                    textTransform: "none",
+                    boxShadow: `0 8px 20px ${alpha(colors.primary, 0.2)}`,
+                    "&:hover": {
+                      bgcolor: colors.primaryDark,
+                      boxShadow: `0 12px 28px ${alpha(colors.primary, 0.3)}`,
+                    },
+                    transition: "all 0.2s ease",
+                    mr: 2,
+                    mb: { xs: 1, sm: 0 },
                   }}
-                  transition={{ duration: 0.4 }}
                 >
-                  <Typography
-                    variant="h3"
-                    sx={{
-                      fontWeight: 800,
+                  Explorar música
+                </Button>
+                <Typography
+                  component="a"
+                  href="/artista"
+                  sx={{
+                    color: colors.textTertiary,
+                    textDecoration: "none",
+                    fontSize: "0.95rem",
+                    borderBottom: `1px dotted ${colors.textTertiary}`,
+                    cursor: "pointer",
+                    "&:hover": {
                       color: colors.primary,
-                      lineHeight: 1.2,
-                      fontSize: { xs: "2rem", md: "2.5rem" },
-                      mb: 1,
-                    }}
-                  >
-                    {destinoActual.nombre}
-                  </Typography>
-                  <Typography variant="body1" sx={{ color: "white", fontWeight: 500, mb: 0.5 }}>
-                    {destinoActual.descripcion}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      display: "inline-block",
-                      color: alpha(colors.primary, 0.8),
-                      background: alpha(colors.primary, 0.1),
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: 2,
-                      mb: 1,
-                    }}
-                  >
-                    {destinoActual.tipo === "capital" && "🏛️ CAPITAL"}
-                    {destinoActual.tipo === "ciudad" && "🏙️ CIUDAD"}
-                    {destinoActual.tipo === "pueblo" && "🏡 PUEBLO"}
-                    {destinoActual.tipo === "isla" && "🏝️ ISLA"}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 1, fontStyle: "italic" }}>
-                    📍 {destinoActual.datoCurioso}
-                  </Typography>
-                </motion.div>
+                      borderBottomColor: colors.primary,
+                    },
+                    transition: "all 0.2s ease",
+                    ml: { xs: 0, sm: 2 },
+                    display: { xs: "block", sm: "inline-block" },
+                    mt: { xs: 1, sm: 0 },
+                  }}
+                >
+                  ¿Eres artista?
+                </Typography>
               </Box>
 
-              {/* CLIMA ACTUAL */}
-              <Box
-                sx={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: { xs: "center", md: "flex-start" },
-                  pl: { xs: 0, md: 3 },
-                }}
-              >
-                <ClimaWidget
-                  destino={destinoActual}
-                  weather={weatherData[destinoActual.id]}
-                  loading={loadingWeather[destinoActual.id]}
-                />
+              {/* Colaboradores con contexto */}
+              <Box sx={{ mt: 6 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: colors.textTertiary,
+                    fontSize: "0.7rem",
+                    letterSpacing: "1px",
+                    display: "block",
+                    mb: 1.5,
+                  }}
+                >
+                  CONFÍAN EN EL TALENTO LOCAL
+                </Typography>
+                <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                  {colaboradores.map((col, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: "8px",
+                        bgcolor: alpha(colors.textPrimary, 0.05),
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: alpha(colors.textPrimary, 0.3),
+                        fontSize: "1.2rem",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          bgcolor: alpha(colors.primary, 0.1),
+                          color: colors.primary,
+                        },
+                      }}
+                    >
+                      {col.logo}
+                    </Box>
+                  ))}
+                  <Typography
+                    sx={{
+                      color: colors.textTertiary,
+                      fontSize: "0.85rem",
+                      alignSelf: "center",
+                    }}
+                  >
+                    +20 sellos independientes
+                  </Typography>
+                </Box>
               </Box>
             </Box>
-          </Box>
-        </motion.div>
+          </motion.div>
 
-        {/* MENSAJE */}
-        <Typography
-          variant="body1"
-          sx={{
-            mb: 4,
-            color: "rgba(255,255,255,0.9)",
-            fontSize: { xs: "1rem", md: "1.1rem" },
-            lineHeight: 1.7,
-            px: 2,
-          }}
-        >
-          {destinoActual.nombre}, {destinoActual.descripcion.toLowerCase()} —
-          te mandamos un fuerte abrazo 🎵✨
-        </Typography>
+          {/* ======================================== */}
+          {/* COLUMNA DERECHA - FAQ + CLIMA */}
+          {/* ======================================== */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Box sx={{ maxWidth: "500px", mx: { xs: "auto", md: 0 } }}>
+              {/* FAQ ROTATIVA con indicador */}
+              <Box sx={{ mb: 6 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 400,
+                    color: colors.textSecondary,
+                    mb: 2,
+                    fontSize: "1rem",
+                    letterSpacing: "1px",
+                  }}
+                >
+                  Preguntas frecuentes
+                </Typography>
 
-        {/* BOTÓN TIENDA */}
-        <Button
-          variant="contained"
-          href="/Todo"
-          size="large"
-          sx={{
-            background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
-            color: "white",
-            px: 5,
-            py: 1.8,
-            borderRadius: 3,
-            fontWeight: 700,
-            fontSize: "1.1rem",
-            textTransform: "none",
-            boxShadow: `0 8px 30px ${alpha(colors.primary, 0.4)}`,
-            "&:hover": {
-              background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)`,
-              transform: "translateY(-2px)",
-              boxShadow: `0 12px 40px ${alpha(colors.primary, 0.6)}`,
-            },
-            transition: "all 0.3s ease",
-            mb: 3,
-          }}
-        >
-          🛍️ Ir a la Tienda
-        </Button>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={indicePregunta}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <Box sx={{ mb: 3 }}>
+                      <Typography
+                        sx={{
+                          fontSize: "1.3rem",
+                          fontWeight: 500,
+                          color: colors.textPrimary,
+                          mb: 1.5,
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {preguntaActual.pregunta}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "1rem",
+                          color: colors.textSecondary,
+                          lineHeight: 1.6,
+                          fontWeight: 300,
+                        }}
+                      >
+                        {preguntaActual.respuesta}
+                      </Typography>
+                    </Box>
+                  </motion.div>
+                </AnimatePresence>
 
-        {/* FOOTER */}
-        <Typography
-          variant="caption"
-          sx={{
-            display: "block",
-            color: "rgba(255,255,255,0.5)",
-            fontSize: "0.8rem",
-            letterSpacing: 2,
-            mb: 0.5,
-          }}
-        >
-          HECHO CON 🩷 DESDE GUINEA ECUATORIAL PARA EL MUNDO 🌍
-        </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            display: "block",
-            color: "rgba(255,255,255,0.3)",
-            fontSize: "0.7rem",
-          }}
-        >
-          djidjimusic · La música es nuestra
-        </Typography>
-      </Box>
+                {/* Indicador de progreso (puntos) */}
+                <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
+                  {preguntas.map((_, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        bgcolor: i === indicePregunta ? colors.primary : alpha(colors.textPrimary, 0.2),
+                        transition: "all 0.3s ease",
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {/* CLIMA EN VIVO (contexto país, siempre secundario) */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: colors.textTertiary,
+                    fontSize: "0.7rem",
+                    letterSpacing: "1px",
+                    display: "block",
+                    mb: 1.5,
+                  }}
+                >
+                  GUINEA EN VIVO
+                </Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  {climaData.map((ciudad, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        py: 0.5,
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          color: colors.textSecondary,
+                          fontSize: "0.9rem",
+                          minWidth: "70px",
+                          fontWeight: 400,
+                        }}
+                      >
+                        {ciudad.ciudad}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: colors.textPrimary,
+                          fontSize: "1rem",
+                          fontWeight: 500,
+                          minWidth: "40px",
+                        }}
+                      >
+                        {ciudad.temp}°
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: colors.textTertiary,
+                          fontSize: "0.85rem",
+                          fontWeight: 300,
+                        }}
+                      >
+                        {ciudad.estado}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          </motion.div>
+        </Box>
+      </Container>
     </Box>
   );
 };
 
-export default ConstructionBanner;
+export default DjidjiTrust;
