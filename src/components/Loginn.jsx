@@ -147,7 +147,7 @@ const OfficialBadge = ({ isMobile }) => (
     }),
   }}>
     <Verified sx={{ fontSize: { xs: '12px', sm: '14px' } }} />
-    PLATAFORMA OFICIAL DE LA MÚSICA ECUATOGUINEANA
+    PLATAFORMA OFICIAL DE MÚSICA ECUATOGUINEANA
   </Box>
 );
 
@@ -205,7 +205,7 @@ const DesktopHero = () => {
           }}
         >
           Descubre, publica y haz crecer tu música. 
-          La plataforma que conecta el talento local con el mundo.
+          La plataforma que conecta tu talento con el mundo.
         </Typography>
 
         <Box sx={{ 
