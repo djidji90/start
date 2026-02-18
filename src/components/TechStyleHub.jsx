@@ -226,7 +226,7 @@ const GuineaEsencia = () => {
     <HeroContainer>
       {/* Imagen de fondo */}
       <HeroImage>
-        <img src="/futur.jpg" alt="Guinea Ecuatorial" />
+        <img src="/igor.jpg" alt="Guinea Ecuatorial" />
         <Overlay />
       </HeroImage>
 
