@@ -75,6 +75,8 @@ const climaData = [
   { ciudad: "Malabo", temp: 27, estado: "Parcialmente nublado" },
   { ciudad: "Bata", temp: 29, estado: "Soleado" },
   { ciudad: "Annobón", temp: 26, estado: "Despejado" },
+{ ciudad: "baney", temp: 24, estado: "Parcialmente nublado" },
+
 ];
 
 // ============================================
@@ -144,7 +146,7 @@ const DjidjiTrust = () => {
                   display: "block",
                 }}
               >
-                GUINEA ECUATORIAL · PLATAFORMA MUSICAL
+                CULTURA • SONIDO • IDENTIDAD
               </Typography>
 
               {/* Marca */}
@@ -159,7 +161,7 @@ const DjidjiTrust = () => {
                   color: colors.textPrimary,
                 }}
               >
-                djidjimusic
+                djidji
               </Typography>
 
               {/* Claim estratégico */}
@@ -207,7 +209,7 @@ const DjidjiTrust = () => {
                 </Button>
                 <Typography
                   component="a"
-                  href="/artista"
+                  href="/MainPage"
                   sx={{
                     color: colors.textTertiary,
                     textDecoration: "none",
@@ -240,7 +242,7 @@ const DjidjiTrust = () => {
                     mb: 1.5,
                   }}
                 >
-                  CONFÍAN EN EL TALENTO LOCAL
+                  CONFÍAN EN EL TALENTO NACIONAL
                 </Typography>
                 <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
                   {colaboradores.map((col, i) => (
