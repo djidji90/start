@@ -9,7 +9,7 @@ import ThemeProviderWrapper from "./components/theme/ThemeProviderWrapper";
 import { AuthProvider } from "./components/hook/UseAut";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Box, CircularProgress, Typography } from "@mui/material";
-
+import DownloadsPage from "./components/context/DownloadsPage";
 // 🎵 Import Player
 import { PlayerProvider } from "./components/PlayerContext";
 import PlayerBar from "./components/theme/musica/PlayerBar";
@@ -108,6 +108,7 @@ export default function App() {
                   <Route path="/ProfilePage" element={<ProfilePage />} />
                   <Route path="/Todo/*" element={<Todo />} />
                   <Route path="/TechStyleHub" element={<TechStyleHub />} />
+                  <Route path="/downloads" element={<DownloadsPage />} />
                   <Route
                     path="/song/:songId"
                     element={

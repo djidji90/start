@@ -1,4 +1,8 @@
-import React, { useState, useMemo } from "react";
+// ============================================
+// components/Navbar.jsx - VERSIÓN MEJORADA
+// ============================================
+
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   AppBar,
   Toolbar,
@@ -16,7 +20,14 @@ import {
   ThemeProvider,
   ListItemIcon,
   ListItemText,
-  alpha
+  alpha,
+  Badge,
+  Tooltip,
+  Chip,
+  CircularProgress,
+  Popper,
+  Paper,
+  Fade
 } from "@mui/material";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -28,19 +39,86 @@ import InfoIcon from "@mui/icons-material/Info";
 import StoreIcon from "@mui/icons-material/Store";
 import SearchIcon from "@mui/icons-material/Search";
 import ExploreIcon from "@mui/icons-material/Explore";
+import DownloadIcon from "@mui/icons-material/Download";
+import DownloadingIcon from "@mui/icons-material/Downloading";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PendingIcon from "@mui/icons-material/Pending";
+import ErrorIcon from "@mui/icons-material/Error";
+import useDownload from "../components/hook/services/useDownload"; // ✅ Importar hook real
+import useOffline from "../components/hook/services/useOffline"; // ✅ Para estado offline
 
 // Paleta naranja consistente con Login
 const colors = {
   primary: '#FF6B35',
   primaryLight: '#FF8B5C',
   primaryDark: '#E55A2B',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6'
 };
 
 const Navbar = () => {
-  const [darkMode, setDarkMode] = useState(false); // Light mode por defecto
+  const [darkMode, setDarkMode] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [downloadAnchor, setDownloadAnchor] = useState(null); // ✅ Para popover de descargas
   const navigate = useNavigate();
   const location = useLocation();
+
+  // ✅ Usar hooks reales en lugar de window.downloadAPI
+  const download = useDownload();
+  const { isOnline, isWifi } = useOffline();
+
+  // ✅ Estados derivados
+  const downloadCount = download.getAllDownloads()?.length || 0;
+  const activeDownloadsCount = Object.keys(download.downloading || {}).length;
+  const queueCount = download.queue?.length || 0;
+  const hasDownloads = downloadCount > 0 || activeDownloadsCount > 0;
+
+  // ✅ Calcular total en progreso (activas + cola)
+  const totalInProgress = activeDownloadsCount + queueCount;
+
+  // ✅ Obtener lista de descargas activas para el popover
+  const getActiveDownloadsList = useCallback(() => {
+    const active = [];
+    
+    // Descargas activas
+    Object.entries(download.downloading || {}).forEach(([id]) => {
+      const info = download.getDownloadInfo?.(id);
+      active.push({
+        id,
+        title: info?.title || 'Descargando...',
+        artist: info?.artist || '',
+        progress: download.progress?.[id] || 0,
+        status: 'downloading'
+      });
+    });
+
+    // Cola
+    (download.queue || []).forEach((item, index) => {
+      active.push({
+        id: item.songId,
+        title: item.songTitle,
+        artist: item.artistName,
+        progress: 0,
+        status: 'queued',
+        position: index + 1
+      });
+    });
+
+    return active.slice(0, 5); // Mostrar solo primeras 5
+  }, [download]);
+
+  const activeDownloadsList = getActiveDownloadsList();
+
+  // ✅ Manejar popover
+  const handleDownloadClick = (event) => {
+    setDownloadAnchor(event.currentTarget);
+  };
+
+  const handleDownloadClose = () => {
+    setDownloadAnchor(null);
+  };
 
   const theme = useMemo(
     () =>
@@ -70,10 +148,12 @@ const Navbar = () => {
 
   const isActive = (path) => location.pathname === path || (path !== "/" && location.pathname.startsWith(path));
 
+  const open = Boolean(downloadAnchor);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <StyledAppBar position="static" darkmode={darkMode ? "true" : "false"}>
+      <StyledAppBar position="sticky" darkmode={darkMode ? "true" : "false"}>
         <Toolbar sx={{ justifyContent: "space-between", py: 1 }}>
           {/* Logo y título */}
           <TitleContainer>
@@ -93,7 +173,241 @@ const Navbar = () => {
           </TitleContainer>
 
           {/* Controles lado derecho */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            
+            {/* ✅ BOTÓN DE DESCARGA MEJORADO */}
+            <Tooltip title={
+              hasDownloads 
+                ? `${downloadCount} descargadas • ${totalInProgress} en progreso` 
+                : "Mis Descargas"
+            }>
+              <IconButton
+                onClick={handleDownloadClick}
+                onMouseEnter={handleDownloadClick}
+                sx={{
+                  color: isActive('/downloads') ? colors.primary : 'inherit',
+                  position: 'relative',
+                  '&:hover': {
+                    color: colors.primary,
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <Badge 
+                  badgeContent={downloadCount} 
+                  color="primary"
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      bgcolor: colors.primary,
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: '0.7rem',
+                      minWidth: 18,
+                      height: 18,
+                      animation: hasDownloads ? 'pulse 2s infinite' : 'none',
+                      '@keyframes pulse': {
+                        '0%': { transform: 'scale(1)' },
+                        '50%': { transform: 'scale(1.1)' },
+                        '100%': { transform: 'scale(1)' },
+                      }
+                    }
+                  }}
+                >
+                  <DownloadIcon />
+                </Badge>
+                
+                {/* Indicador de descargas activas */}
+                {activeDownloadsCount > 0 && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: -2,
+                      right: -2,
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      bgcolor: colors.primary,
+                      animation: 'pulseActive 1.5s infinite',
+                      '@keyframes pulseActive': {
+                        '0%': { transform: 'scale(1)', opacity: 1 },
+                        '50%': { transform: 'scale(1.5)', opacity: 0.7 },
+                        '100%': { transform: 'scale(1)', opacity: 1 },
+                      }
+                    }}
+                  />
+                )}
+              </IconButton>
+            </Tooltip>
+
+            {/* ✅ POPOVER DE DESCARGA - VISTA PREVIA */}
+            <Popper 
+              open={open} 
+              anchorEl={downloadAnchor}
+              placement="bottom-end"
+              transition
+              sx={{ zIndex: 9999 }}
+              onMouseLeave={handleDownloadClose}
+            >
+              {({ TransitionProps }) => (
+                <Fade {...TransitionProps} timeout={350}>
+                  <Paper
+                    sx={{
+                      mt: 1,
+                      minWidth: 280,
+                      maxWidth: 320,
+                      background: darkMode ? alpha("#1A1D29", 0.98) : alpha("#FFF", 0.98),
+                      backdropFilter: "blur(10px)",
+                      border: `1px solid ${alpha(colors.primary, 0.2)}`,
+                      boxShadow: `0 8px 32px ${alpha(darkMode ? "#000" : colors.primary, 0.2)}`,
+                      borderRadius: 3,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Header del popover */}
+                    <Box sx={{ 
+                      p: 2, 
+                      borderBottom: `1px solid ${alpha(colors.primary, 0.1)}`,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        Mis Descargas
+                      </Typography>
+                      <Chip 
+                        size="small"
+                        label={`${downloadCount} canciones`}
+                        sx={{ 
+                          bgcolor: alpha(colors.primary, 0.1),
+                          color: colors.primary,
+                          fontWeight: 600
+                        }}
+                      />
+                    </Box>
+
+                    {/* Lista de descargas activas */}
+                    <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
+                      {activeDownloadsList.length > 0 ? (
+                        activeDownloadsList.map((item) => (
+                          <Box
+                            key={item.id}
+                            sx={{
+                              p: 1.5,
+                              borderBottom: `1px solid ${alpha(colors.primary, 0.05)}`,
+                              '&:hover': { bgcolor: alpha(colors.primary, 0.02) }
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                              {item.status === 'downloading' ? (
+                                <DownloadingIcon sx={{ fontSize: 16, color: colors.primary }} />
+                              ) : (
+                                <PendingIcon sx={{ fontSize: 16, color: colors.warning }} />
+                              )}
+                              <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }} noWrap>
+                                {item.title}
+                              </Typography>
+                              {item.status === 'queued' && (
+                                <Chip 
+                                  label={`#${item.position}`}
+                                  size="small"
+                                  sx={{ height: 20, fontSize: '0.6rem' }}
+                                />
+                              )}
+                            </Box>
+                            
+                            {item.artist && (
+                              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', ml: 3 }}>
+                                {item.artist}
+                              </Typography>
+                            )}
+                            
+                            {item.status === 'downloading' && (
+                              <Box sx={{ ml: 3, mt: 0.5 }}>
+                                <LinearProgress 
+                                  variant="determinate" 
+                                  value={item.progress}
+                                  sx={{
+                                    height: 4,
+                                    borderRadius: 2,
+                                    bgcolor: alpha(colors.primary, 0.1),
+                                    '& .MuiLinearProgress-bar': {
+                                      bgcolor: colors.primary
+                                    }
+                                  }}
+                                />
+                                <Typography variant="caption" sx={{ color: colors.primary, mt: 0.25, display: 'block' }}>
+                                  {item.progress}%
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        ))
+                      ) : (
+                        <Box sx={{ p: 3, textAlign: 'center' }}>
+                          {downloadCount > 0 ? (
+                            <>
+                              <CheckCircleIcon sx={{ fontSize: 40, color: colors.success, mb: 1, opacity: 0.5 }} />
+                              <Typography variant="body2" color="text.secondary">
+                                {downloadCount} canciones descargadas
+                              </Typography>
+                            </>
+                          ) : (
+                            <>
+                              <DownloadIcon sx={{ fontSize: 40, color: alpha(colors.primary, 0.3), mb: 1 }} />
+                              <Typography variant="body2" color="text.secondary">
+                                No hay descargas
+                              </Typography>
+                            </>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Footer con acción */}
+                    <Box sx={{ 
+                      p: 1.5, 
+                      borderTop: `1px solid ${alpha(colors.primary, 0.1)}`,
+                      display: 'flex',
+                      gap: 1
+                    }}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        size="small"
+                        onClick={() => {
+                          navigate('/downloads');
+                          handleDownloadClose();
+                        }}
+                        sx={{
+                          bgcolor: colors.primary,
+                          '&:hover': { bgcolor: colors.primaryDark },
+                          textTransform: 'none',
+                          borderRadius: 2
+                        }}
+                      >
+                        Ver todas
+                      </Button>
+                      {activeDownloadsCount > 0 && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          color="error"
+                          onClick={() => {
+                            // Cancelar todas? O mostrar opciones
+                            handleDownloadClose();
+                          }}
+                          sx={{ textTransform: 'none', borderRadius: 2 }}
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                    </Box>
+                  </Paper>
+                </Fade>
+              )}
+            </Popper>
+
             {/* Switch dark mode */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               {darkMode ? (
@@ -126,7 +440,7 @@ const Navbar = () => {
             </IconButton>
           </Box>
 
-          {/* Menú móvil con iconos */}
+          {/* Menú móvil */}
           <Menu
             id="nav-menu"
             anchorEl={anchorEl}
@@ -143,6 +457,32 @@ const Navbar = () => {
               }
             }}
           >
+            {/* Item de descargas en móvil */}
+            <MenuItem
+              onClick={() => { navigate('/downloads'); handleMenuClose(); }}
+              sx={{
+                py: 1.5,
+                px: 2,
+                color: isActive('/downloads') ? colors.primary : "inherit",
+                fontWeight: isActive('/downloads') ? 600 : 400,
+                background: isActive('/downloads') ? alpha(colors.primary, darkMode ? 0.15 : 0.08) : "transparent",
+                borderLeft: isActive('/downloads') ? `3px solid ${colors.primary}` : "3px solid transparent",
+                borderBottom: `1px solid ${alpha(colors.primary, 0.1)}`,
+              }}
+            >
+              <ListItemIcon sx={{ color: isActive('/downloads') ? colors.primary : "inherit", minWidth: 36 }}>
+                <Badge badgeContent={downloadCount} color="primary">
+                  <DownloadIcon />
+                </Badge>
+              </ListItemIcon>
+              <ListItemText 
+                primary="Mis Descargas" 
+                secondary={totalInProgress > 0 ? `${totalInProgress} en progreso` : null}
+                secondaryTypographyProps={{ color: colors.primary }}
+              />
+            </MenuItem>
+
+            {/* Resto de items */}
             {menuItems.map((item) => (
               <MenuItem
                 key={item.label}
@@ -158,14 +498,48 @@ const Navbar = () => {
                   "&:hover": { background: alpha(colors.primary, darkMode ? 0.2 : 0.1), borderLeft: `3px solid ${alpha(colors.primary, 0.7)}` }
                 }}
               >
-                <ListItemIcon sx={{ color: isActive(item.path) ? colors.primary : "inherit", minWidth: 36 }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 600 : 400 }} />
+                <ListItemIcon sx={{ color: isActive(item.path) ? colors.primary : "inherit", minWidth: 36 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.label} />
               </MenuItem>
             ))}
           </Menu>
 
           {/* Links desktop */}
           <NavButtonsContainer>
+            {/* Link de descargas desktop */}
+            <NavButton
+              component={Link}
+              to="/downloads"
+              isactive={isActive('/downloads') ? "true" : "false"}
+              darkmode={darkMode ? "true" : "false"}
+              startIcon={
+                <Badge badgeContent={downloadCount} color="primary">
+                  <DownloadIcon />
+                </Badge>
+              }
+            >
+              Mis Descargas
+              {totalInProgress > 0 && (
+                <Box
+                  component="span"
+                  sx={{
+                    ml: 1,
+                    px: 0.75,
+                    py: 0.25,
+                    fontSize: '0.7rem',
+                    bgcolor: alpha(colors.primary, 0.2),
+                    color: colors.primary,
+                    borderRadius: 1,
+                    fontWeight: 600
+                  }}
+                >
+                  {totalInProgress}
+                </Box>
+              )}
+            </NavButton>
+
             {menuItems.map((item) => (
               <NavButton
                 key={item.label}
@@ -173,6 +547,7 @@ const Navbar = () => {
                 to={item.path}
                 isactive={isActive(item.path) ? "true" : "false"}
                 darkmode={darkMode ? "true" : "false"}
+                startIcon={item.icon}
               >
                 {item.label}
               </NavButton>
@@ -184,7 +559,7 @@ const Navbar = () => {
   );
 };
 
-// ---------- Estilos ----------
+// ---------- Estilos (sin cambios) ----------
 const StyledAppBar = styled(AppBar, { shouldForwardProp: (prop) => prop !== 'darkmode' })(({ darkmode }) => ({
   background: darkmode === "true" ? alpha("#1A1D29", 0.95) : alpha("#FFF", 0.98),
   boxShadow: darkmode === "true" ? `0 4px 20px ${alpha("#000", 0.25)}` : `0 4px 20px ${alpha(colors.primary, 0.08)}`,
@@ -250,5 +625,25 @@ const NavButton = styled(Button, { shouldForwardProp: (prop) => prop !== 'isacti
     "&::after": { width: "70%" },
   },
 }));
+
+// Componente LinearProgress local para no importar
+const LinearProgress = ({ variant, value, sx }) => (
+  <Box sx={{ ...sx, position: 'relative', overflow: 'hidden' }}>
+    <Box sx={{ 
+      width: '100%', 
+      height: '100%', 
+      bgcolor: alpha(colors.primary, 0.1),
+      borderRadius: sx?.borderRadius
+    }}>
+      <Box sx={{ 
+        width: `${value}%`, 
+        height: '100%', 
+        bgcolor: colors.primary,
+        borderRadius: sx?.borderRadius,
+        transition: 'width 0.3s ease'
+      }} />
+    </Box>
+  </Box>
+);
 
 export default Navbar;

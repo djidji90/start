@@ -14,6 +14,10 @@ import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
 
+
+// 🔥 NUEVO: Importar hook de descarga
+import useDownload from "../../../components/hook/services/useDownload";
+
 // ============================================
 // 🎨 IDENTIDAD VISUAL
 // ============================================
@@ -278,6 +282,9 @@ const MainPage = () => {
     searchMetrics
   } = useSearch();
 
+  // 🔥 NUEVO: Hook de descarga
+  const download = useDownload();
+
   const [showResults, setShowResults] = useState(false);
   const [selectedSongs, setSelectedSongs] = useState(() => {
     try {
@@ -297,6 +304,19 @@ const MainPage = () => {
   const selectedSongsRef = useRef(null);
 
   const MAX_SELECTED_SONGS = 50;
+
+  // 🔥 NUEVO: Exponer download API globalmente para pruebas
+  useEffect(() => {
+    window.downloadAPI = download;
+    console.log('✅ downloadAPI disponible globalmente');
+    console.log('📦 Métodos:', Object.keys(download));
+    console.log('💡 Para probar: window.downloadAPI.downloadSong("70", "merci beaucoup", "pop_smoke")');
+    
+    // Limpiar al desmontar
+    return () => {
+      delete window.downloadAPI;
+    };
+  }, [download]);
 
   // Persistencia
   useEffect(() => {
