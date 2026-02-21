@@ -1,53 +1,22 @@
-// ============================================
-// src/components/songs/SongCarousel.jsx
-// VERSIÓN OPTIMIZADA - COMPATIBLE CON MAINPAGE OSCURA
-// ============================================
 
+// src/components/songs/SongCarousel.jsx - VERSIÓN OPTIMIZADA
 import React from "react";
 import { 
   Grid, 
   Box, 
   Typography,
   IconButton,
-  Tooltip,
-  alpha
+  Tooltip
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import SongCard from "../songs/SongCard";
 
-// ============================================
-// 🎨 IDENTIDAD VISUAL - MISMA QUE MAINPAGE
-// ============================================
-const colors = {
-  primary: '#FF6B35',
-  primaryLight: '#FF8B5C',
-  primaryDark: '#E55A2B',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255,255,255,0.85)',
-  textTertiary: 'rgba(255,255,255,0.65)',
-  background: {
-    dark: '#0A0A0A',
-    medium: '#121212',
-    light: '#1A1A1A',
-    paper: 'rgba(30,30,30,0.9)'
-  }
-};
-
-// ============================================
-// 🎨 SOMBRAS UNIFORMES
-// ============================================
-const shadows = {
-  small: (opacity = 0.2) => `0 4px 12px ${alpha('#000', opacity)}`,
-  medium: (opacity = 0.25) => `0 8px 20px ${alpha('#000', opacity)}`,
-  primary: (opacity = 0.3) => `0 8px 20px ${alpha(colors.primary, opacity)}`,
-};
-
 const SongCarousel = ({ 
   songs = [], 
   title,
-  onRemoveSong,
-  showRemoveButton = false,
-  sx = {}
+  onRemoveSong,           // Callback para eliminar canción (opcional)
+  showRemoveButton = false, // Mostrar botón eliminar (opcional)
+  sx = {}                 // Estilos adicionales
 }) => {
   if (!songs.length) return null;
 
@@ -62,9 +31,10 @@ const SongCarousel = ({
     console.log("Más opciones:", song);
   };
 
+  // Manejar eliminación con confirmación
   const handleRemoveClick = (songId, e) => {
-    e.stopPropagation();
-    e.preventDefault();
+    e.stopPropagation(); // Evitar propagación de eventos
+    e.preventDefault();  // Prevenir comportamiento por defecto
 
     if (onRemoveSong && window.confirm("¿Eliminar esta canción de la lista?")) {
       onRemoveSong(songId);
@@ -73,44 +43,33 @@ const SongCarousel = ({
 
   return (
     <Box sx={{ mb: 4, ...sx }}>
-      {/* Header con título y contador */}
+      {/* Header con título opcional */}
       {(title || showRemoveButton) && (
         <Box sx={{ 
           mb: 3, 
           display: 'flex', 
           justifyContent: 'space-between',
-          alignItems: 'center',
-          borderBottom: `2px solid ${alpha(colors.primary, 0.2)}`,
-          pb: 1.5
+          alignItems: 'center'
         }}>
           {title && (
             <Typography
               variant="h5"
               sx={{
-                fontWeight: 700,
-                background: `linear-gradient(135deg, ${colors.primary} 30%, ${colors.primaryLight} 100%)`,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                color: colors.primary, // fallback
-                fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.6rem' }
+                fontWeight: 600,
+                color: "#1B5E20"
               }}
             >
               {title}
             </Typography>
           )}
 
-          {/* Contador de canciones - blanco con opacidad */}
+          {/* Contador de canciones */}
           <Typography
             variant="body2"
             sx={{
-              color: colors.textSecondary,
+              color: "#666",
               fontSize: '0.875rem',
-              fontWeight: 500,
-              bgcolor: alpha(colors.primary, 0.1),
-              px: 2,
-              py: 0.5,
-              borderRadius: 4,
-              border: `1px solid ${alpha(colors.primary, 0.2)}`
+              fontWeight: 500
             }}
           >
             {songs.length} {songs.length === 1 ? 'canción' : 'canciones'}
@@ -134,10 +93,10 @@ const SongCarousel = ({
               height: '100%',
               '&:hover .remove-button': {
                 opacity: 1,
-                transform: 'translateY(0) scale(1)'
+                transform: 'translateY(0)'
               }
             }}>
-              {/* Botón eliminar - optimizado para fondo oscuro */}
+              {/* Botón eliminar - solo visible si está habilitado */}
               {showRemoveButton && onRemoveSong && (
                 <Tooltip title="Eliminar de la lista" arrow>
                   <IconButton
@@ -149,21 +108,17 @@ const SongCarousel = ({
                       top: 8,
                       right: 8,
                       zIndex: 10,
-                      backgroundColor: alpha(colors.background.dark, 0.8),
-                      backdropFilter: 'blur(4px)',
-                      color: colors.primary,
-                      boxShadow: shadows.small(0.2),
-                      border: `1px solid ${alpha(colors.primary, 0.3)}`,
-                      opacity: 0,
-                      transform: 'translateY(-4px) scale(0.9)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      color: '#d32f2f',
+                      boxShadow: 1,
+                      opacity: 0.7,
+                      transform: 'translateY(-4px)',
                       transition: 'all 0.2s ease',
                       '&:hover': {
-                        backgroundColor: colors.background.light,
+                        backgroundColor: '#ffebee',
                         opacity: 1,
                         transform: 'scale(1.1)',
-                        color: colors.primaryLight,
-                        borderColor: colors.primary,
-                        boxShadow: shadows.primary(0.3)
+                        color: '#b71c1c'
                       }
                     }}
                   >
@@ -172,7 +127,7 @@ const SongCarousel = ({
                 </Tooltip>
               )}
 
-              {/* SongCard con estilos adaptados */}
+              {/* Card de canción - sin modificaciones */}
               <SongCard
                 song={song}
                 variant="default"
@@ -181,21 +136,10 @@ const SongCarousel = ({
                 onMoreActions={() => handleMoreActions(song)}
                 sx={{
                   height: "100%",
-                  bgcolor: colors.background.paper,
-                  backdropFilter: 'blur(8px)',
-                  border: `1px solid ${alpha(colors.primary, 0.1)}`,
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
                   "&:hover": {
                     transform: "translateY(-4px)",
-                    boxShadow: shadows.medium(0.3),
-                    borderColor: alpha(colors.primary, 0.3)
-                  },
-                  // Asegurar que los textos dentro de SongCard sean blancos
-                  '& .MuiTypography-root': {
-                    color: colors.textPrimary
-                  },
-                  '& .MuiTypography-secondary': {
-                    color: colors.textSecondary
+                    boxShadow: 4
                   }
                 }}
               />
