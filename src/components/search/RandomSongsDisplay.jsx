@@ -1,5 +1,3 @@
-ciertos colores de este componente no podrían ajustarse a fin de ser completamente compatible con la mainpage, o está bien como está? 
-
 import React from "react";
 import {
   Container,
