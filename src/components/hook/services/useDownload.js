@@ -1,8 +1,10 @@
 // ============================================
-// hooks/useDownload.js - VERSIÓN CORREGIDA
+// hooks/useDownload.js - VERSIÓN COMPLETA CON REPRODUCCIÓN OFFLINE
 // ✅ isDownloaded SÍNCRONO (para UI)
 // ✅ getDownloadInfo rápido
-// ✅ Verificación asíncrona real
+// ✅ getOfflineAudioUrl - Para reproducir desde cache
+// ✅ getDownloadStatus - Estado completo con verificación
+// ✅ verifyDownload - Verifica integridad del archivo
 // ============================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -22,7 +24,7 @@ const DOWNLOAD_CONFIG = {
   API_BASE_URL: 'https://api.djidjimusic.com/api2',
   STORAGE_KEY: 'djidji_downloads',
   CACHE_NAME: 'djidji-audio-v1',
-  ENABLE_LOGGING: true,
+  ENABLE_LOGGING: false, // Cambiado a false para producción
   MIN_FILE_SIZE: 1024,
   MOBILE_REGEX: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
 };
@@ -103,7 +105,7 @@ const useDownload = () => {
   }, []);
 
   // ============================================
-  // ✅ FUNCIÓN PRINCIPAL: isDownloaded (SÍNCRONA)
+  // ✅ FUNCIÓN: isDownloaded (SÍNCRONA)
   // ============================================
   const isDownloaded = useCallback((songId) => {
     if (!songId) return false;
@@ -161,7 +163,154 @@ const useDownload = () => {
   }, []);
 
   // ============================================
-  // ✅ FUNCIÓN: removeDownload
+  // ✅ NUEVA FUNCIÓN: verifyDownload (ASÍNCRONA)
+  // ============================================
+  const verifyDownload = useCallback(async (songId) => {
+    try {
+      const cache = await caches.open(DOWNLOAD_CONFIG.CACHE_NAME);
+      const response = await cache.match(`/song/${songId}/audio`);
+      
+      if (!response) return false;
+      
+      const blob = await response.blob();
+      const isValid = blob.size > DOWNLOAD_CONFIG.MIN_FILE_SIZE;
+      
+      log('debug', 'Verificación de descarga', { songId, isValid, size: blob.size });
+      return isValid;
+    } catch (error) {
+      log('error', 'Error verificando descarga', { error: error.message });
+      return false;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ NUEVA FUNCIÓN: getOfflineAudioUrl (ASÍNCRONA)
+  // ============================================
+  const getOfflineAudioUrl = useCallback(async (songId) => {
+    try {
+      log('debug', 'Obteniendo URL offline', { songId });
+      
+      // 1️⃣ Verificar si existe en cache
+      const cache = await caches.open(DOWNLOAD_CONFIG.CACHE_NAME);
+      const response = await cache.match(`/song/${songId}/audio`);
+      
+      if (!response) {
+        log('warn', 'No encontrado en cache', { songId });
+        return null;
+      }
+      
+      // 2️⃣ Obtener el blob
+      const blob = await response.blob();
+      
+      // 3️⃣ Verificar tamaño mínimo
+      if (blob.size < DOWNLOAD_CONFIG.MIN_FILE_SIZE) {
+        log('warn', 'Archivo corrupto (tamaño insuficiente)', { songId, size: blob.size });
+        return null;
+      }
+      
+      // 4️⃣ Crear URL blob
+      const url = URL.createObjectURL(blob);
+      
+      // 5️⃣ Auto-limpiar después de 1 minuto (opcional)
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+          log('debug', 'URL blob limpiada', { songId });
+        } catch (e) {
+          // Ignorar
+        }
+      }, 60000);
+      
+      log('info', 'URL offline generada', { songId, urlType: 'blob' });
+      return url;
+      
+    } catch (error) {
+      log('error', 'Error obteniendo URL offline', { error: error.message, songId });
+      return null;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ NUEVA FUNCIÓN: getDownloadStatus (ASÍNCRONA)
+  // ============================================
+  const getDownloadStatus = useCallback(async (songId) => {
+    if (!songId) return { 
+      isDownloaded: false, 
+      isDownloading: false, 
+      url: null, 
+      info: null,
+      error: null,
+      progress: 0
+    };
+
+    try {
+      const isDownloading = downloading[songId] || false;
+      const downloadProgress = progress[songId] || 0;
+      const error = errors[songId] || null;
+      
+      // Si está descargando, no verificar cache
+      if (isDownloading) {
+        return {
+          isDownloaded: false,
+          isDownloading: true,
+          progress: downloadProgress,
+          error: null,
+          url: null,
+          info: null
+        };
+      }
+
+      // Verificar si está descargada
+      const info = getDownloadInfo(songId);
+      if (!info) {
+        return { 
+          isDownloaded: false, 
+          isDownloading: false, 
+          progress: 0,
+          error: null, 
+          url: null, 
+          info: null 
+        };
+      }
+
+      // Verificar integridad y obtener URL
+      const isValid = await verifyDownload(songId);
+      if (!isValid) {
+        return {
+          isDownloaded: false,
+          isDownloading: false,
+          progress: 0,
+          error: 'Archivo corrupto',
+          url: null,
+          info: info
+        };
+      }
+
+      const url = await getOfflineAudioUrl(songId);
+
+      return {
+        isDownloaded: true,
+        isDownloading: false,
+        progress: 100,
+        error: null,
+        url: url,
+        info: info
+      };
+    } catch (error) {
+      log('error', 'Error en getDownloadStatus', { error: error.message });
+      return { 
+        isDownloaded: false, 
+        isDownloading: false, 
+        progress: 0,
+        error: error.message, 
+        url: null, 
+        info: null 
+      };
+    }
+  }, [downloading, progress, errors, getDownloadInfo, verifyDownload, getOfflineAudioUrl, log]);
+
+  // ============================================
+  // ✅ FUNCIÓN: removeDownload (MEJORADA)
   // ============================================
   const removeDownload = useCallback(async (songId) => {
     try {
@@ -177,7 +326,7 @@ const useDownload = () => {
         return newMap;  
       });  
 
-      // Eliminar de cache si existe  
+      // Eliminar de cache  
       try {  
         const cache = await caches.open(DOWNLOAD_CONFIG.CACHE_NAME);  
         await cache.delete(`/song/${songId}/audio`);  
@@ -196,7 +345,7 @@ const useDownload = () => {
   }, [log]);
 
   // ============================================
-  // ✅ FUNCIÓN: clearAllDownloads
+  // ✅ FUNCIÓN: clearAllDownloads (MEJORADA)
   // ============================================
   const clearAllDownloads = useCallback(async () => {
     try {
@@ -587,7 +736,7 @@ const useDownload = () => {
   }, []);
 
   // ============================================
-  // API PÚBLICA
+  // API PÚBLICA - VERSIÓN COMPLETA
   // ============================================
   return {
     // ✅ ACCIONES
@@ -603,10 +752,15 @@ const useDownload = () => {
     errors,  
     queue: queueVisual,  
 
-    // ✅ CONSULTAS SÍNCRONAS (AHORA FUNCIONAN)  
+    // ✅ CONSULTAS SÍNCRONAS  
     isDownloaded,        // 🔥 SÍNCRONO - true SOLO si tiene archivo  
     getDownloadInfo,     // 🔥 SÍNCRONO - info completa o null  
     getAllDownloads,     // 🔥 SÍNCRONO - lista filtrada  
+
+    // ✅ NUEVAS FUNCIONES PARA REPRODUCCIÓN OFFLINE
+    getOfflineAudioUrl,  // 🔥 Obtener URL blob para reproducir
+    getDownloadStatus,   // 🔥 Estado completo con verificación
+    verifyDownload,      // 🔥 Verificar integridad del archivo
 
     // ✅ UTILIDADES  
     getAuthToken
