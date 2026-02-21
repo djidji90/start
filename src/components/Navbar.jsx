@@ -1,17 +1,14 @@
 // ============================================
-// components/Navbar.jsx - VERSIÓN PREMIUM CON MICROINTERACCIONES
+// components/Navbar.jsx - VERSIÓN PREMIUM SIN DESCARGAS
 // ============================================
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   AppBar,
   Toolbar,
   Typography,
   Box,
   Button,
-  Menu,
-  MenuItem,
-  IconButton,
   styled,
   CssBaseline,
   createTheme,
@@ -19,14 +16,12 @@ import {
   ListItemIcon,
   ListItemText,
   alpha,
-  Badge,
   Tooltip,
-  Drawer,
-  Divider,
-  Fade
+  Divider
 } from "@mui/material";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import MenuIcon from "@mui/icons-material/Menu";
+import CloseIcon from "@mui/icons-material/Close";
 import djidji from "../assets/imagenes/djidji.png";
 import NightlightRoundIcon from "@mui/icons-material/NightlightRound";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
@@ -35,11 +30,8 @@ import InfoIcon from "@mui/icons-material/Info";
 import StoreIcon from "@mui/icons-material/Store";
 import SearchIcon from "@mui/icons-material/Search";
 import ExploreIcon from "@mui/icons-material/Explore";
-import DownloadIcon from "@mui/icons-material/Download";
-import CloseIcon from "@mui/icons-material/Close";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import MusicNoteIcon from "@mui/icons-material/MusicNote";
 
+// Paleta naranja consistente
 const colors = {
   primary: '#FF6B35',
   primaryLight: '#FF8B5C',
@@ -49,42 +41,8 @@ const colors = {
 const Navbar = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [downloadCount, setDownloadCount] = useState(0);
-  const [recentDownloads, setRecentDownloads] = useState([]);
-  const [showDownloadTooltip, setShowDownloadTooltip] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Efecto mejorado para descargas con más contexto
-  useEffect(() => {
-    const updateDownloadInfo = () => {
-      try {
-        if (window.downloadAPI?.getAllDownloads) {
-          const downloads = window.downloadAPI.getAllDownloads();
-          setDownloadCount(downloads?.length || 0);
-          setRecentDownloads(downloads?.slice(-3) || []); // Últimas 3 descargas
-          
-          // Mostrar tooltip momentáneo cuando hay nueva descarga
-          setShowDownloadTooltip(true);
-          setTimeout(() => setShowDownloadTooltip(false), 3000);
-        }
-      } catch (error) {
-        console.error('Error obteniendo información:', error);
-      }
-    };
-
-    updateDownloadInfo();
-
-    const handleUpdate = () => updateDownloadInfo();
-
-    window.addEventListener('downloads-updated', handleUpdate);
-    window.addEventListener('download-completed', handleUpdate);
-
-    return () => {
-      window.removeEventListener('downloads-updated', handleUpdate);
-      window.removeEventListener('download-completed', handleUpdate);
-    };
-  }, []);
 
   const theme = useMemo(
     () =>
@@ -101,6 +59,7 @@ const Navbar = () => {
     [darkMode]
   );
 
+  // 🎯 Links de navegación principal
   const mainNavItems = [
     { label: "Inicio", path: "/", icon: <HomeIcon /> },
     { label: "Explorar", path: "/TechStyleHub", icon: <ExploreIcon /> },
@@ -109,16 +68,10 @@ const Navbar = () => {
     { label: "Nosotros", path: "/AboutUs", icon: <InfoIcon /> },
   ];
 
+  // 🎯 Menú móvil (navegación + utilidades)
   const mobileMenuItems = [
     ...mainNavItems,
     { type: 'divider' },
-    { 
-      label: "Mis Descargas", 
-      path: "/downloads", 
-      icon: <DownloadIcon />,
-      badge: downloadCount,
-      isUtility: true 
-    },
     { 
       label: darkMode ? "Modo claro" : "Modo oscuro", 
       action: () => setDarkMode(!darkMode),
@@ -142,53 +95,12 @@ const Navbar = () => {
     setMobileMenuOpen(false);
   };
 
-  // Tooltip personalizado para descargas
-  const DownloadTooltip = () => (
-    <Fade in={showDownloadTooltip && downloadCount > 0}>
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '100%',
-          right: 0,
-          mt: 1,
-          p: 1.5,
-          minWidth: 200,
-          bgcolor: darkMode ? alpha('#1A1D29', 0.95) : 'background.paper',
-          borderRadius: 2,
-          boxShadow: 3,
-          border: `1px solid ${alpha(colors.primary, 0.2)}`,
-          zIndex: 2000,
-        }}
-      >
-        <Typography variant="subtitle2" sx={{ color: colors.primary, mb: 1 }}>
-          ✓ Descarga completada
-        </Typography>
-        {recentDownloads.map((download, index) => (
-          <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <MusicNoteIcon sx={{ fontSize: 16, color: alpha(colors.primary, 0.7) }} />
-            <Typography variant="caption" noWrap sx={{ flex: 1 }}>
-              {download.title || 'Canción'}
-            </Typography>
-          </Box>
-        ))}
-        <Button
-          size="small"
-          endIcon={<ArrowForwardIcon />}
-          onClick={() => navigate('/downloads')}
-          sx={{ mt: 1, color: colors.primary, fontSize: '0.75rem' }}
-        >
-          Ver todas
-        </Button>
-      </Box>
-    </Fade>
-  );
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <StyledAppBar position="sticky" darkmode={darkMode ? "true" : "false"}>
         <Toolbar sx={{ justifyContent: "space-between", py: 0.5 }}>
-          {/* Logo + Título */}
+          {/* ⚡ Lado izquierdo: Logo + Título */}
           <TitleContainer>
             <Logo
               src={djidji}
@@ -204,7 +116,7 @@ const Navbar = () => {
             </Title>
           </TitleContainer>
 
-          {/* Links desktop */}
+          {/* ⚡ Centro: Links principales - SOLO DESKTOP */}
           <NavLinksContainer>
             {mainNavItems.map((item) => (
               <NavLink
@@ -219,47 +131,8 @@ const Navbar = () => {
             ))}
           </NavLinksContainer>
 
-          {/* Utilidades con mejor espaciado */}
+          {/* ⚡ Lado derecho: Utilidades */}
           <UtilityContainer>
-            {/* ⬇️ Descargas con tratamiento premium */}
-            <Box sx={{ position: 'relative' }}>
-              <Tooltip 
-                title={downloadCount > 0 ? `${downloadCount} canciones descargadas` : "Descargas"}
-                arrow
-              >
-                <DownloadButton
-                  onClick={() => navigate('/downloads')}
-                  isactive={isActive('/downloads') ? "true" : "false"}
-                  darkmode={darkMode ? "true" : "false"}
-                  hasdownloads={downloadCount > 0 ? "true" : "false"}
-                >
-                  <Badge
-                    badgeContent={downloadCount}
-                    color="primary"
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        bgcolor: colors.primary,
-                        color: 'white',
-                        fontWeight: 600,
-                        fontSize: '0.7rem',
-                        minWidth: 18,
-                        height: 18,
-                        animation: downloadCount > 0 ? 'pulse 2s infinite' : 'none',
-                        '@keyframes pulse': {
-                          '0%': { transform: 'scale(1)' },
-                          '50%': { transform: 'scale(1.1)' },
-                          '100%': { transform: 'scale(1)' },
-                        },
-                      },
-                    }}
-                  >
-                    <DownloadIcon />
-                  </Badge>
-                </DownloadButton>
-              </Tooltip>
-              <DownloadTooltip />
-            </Box>
-
             {/* 🌙 Dark mode toggle */}
             <Tooltip title={darkMode ? "Modo claro" : "Modo oscuro"} arrow>
               <UtilityIconButton
@@ -270,7 +143,7 @@ const Navbar = () => {
               </UtilityIconButton>
             </Tooltip>
 
-            {/* ☰ Menú hamburguesa */}
+            {/* ☰ Menú hamburguesa - SOLO MOBILE */}
             <Tooltip title="Menú" arrow>
               <MenuButton
                 edge="end"
@@ -285,7 +158,7 @@ const Navbar = () => {
           </UtilityContainer>
         </Toolbar>
 
-        {/* 📱 Menú móvil mejorado */}
+        {/* 📱 Menú móvil desplegable */}
         <MobileMenu open={mobileMenuOpen} darkmode={darkMode ? "true" : "false"}>
           {mobileMenuItems.map((item, index) => {
             if (item.type === 'divider') {
@@ -304,22 +177,10 @@ const Navbar = () => {
                   color: item.path && isActive(item.path) ? colors.primary : 'inherit',
                   minWidth: 44
                 }}>
-                  {item.badge ? (
-                    <Badge badgeContent={item.badge} color="primary">
-                      {item.icon}
-                    </Badge>
-                  ) : (
-                    item.icon
-                  )}
+                  {item.icon}
                 </ListItemIcon>
                 <ListItemText 
                   primary={item.label}
-                  secondary={item.badge ? `${item.badge} canciones` : null}
-                  secondaryTypographyProps={{ 
-                    color: colors.primary, 
-                    variant: 'caption',
-                    sx: { fontWeight: 500 }
-                  }}
                   primaryTypographyProps={{
                     fontWeight: item.isUtility ? 400 : 500
                   }}
@@ -334,7 +195,7 @@ const Navbar = () => {
 };
 
 // ============================================
-// ESTILOS PREMIUM MEJORADOS
+// ESTILOS OPTIMIZADOS
 // ============================================
 
 const StyledAppBar = styled(AppBar, { shouldForwardProp: (prop) => prop !== 'darkmode' })(({ darkmode }) => ({
@@ -430,29 +291,10 @@ const NavLink = styled(Button, {
 const UtilityContainer = styled(Box)({
   display: "flex",
   alignItems: "center",
-  gap: 12, // Aumentado de 4 a 12
+  gap: 8,
   zIndex: 1200,
 });
 
-// 🎯 Botón de descarga con tratamiento premium
-const DownloadButton = styled(IconButton, {
-  shouldForwardProp: (prop) => prop !== 'isactive' && prop !== 'darkmode' && prop !== 'hasdownloads'
-})(({ isactive, darkmode, hasdownloads }) => ({
-  backgroundColor: hasdownloads === "true" 
-    ? alpha(colors.primary, darkmode === "true" ? 0.15 : 0.08)
-    : 'transparent',
-  padding: 10,
-  transition: 'all 0.2s ease',
-  color: isactive === "true" || hasdownloads === "true" 
-    ? colors.primary 
-    : 'inherit',
-  '&:hover': {
-    backgroundColor: alpha(colors.primary, darkmode === "true" ? 0.25 : 0.15),
-    transform: 'scale(1.05)',
-  },
-}));
-
-// 🎯 Botón de utilidad genérico
 const UtilityIconButton = styled(IconButton, {
   shouldForwardProp: (prop) => prop !== 'darkmode'
 })(({ darkmode }) => ({
@@ -466,7 +308,6 @@ const UtilityIconButton = styled(IconButton, {
   },
 }));
 
-// 🎯 Botón menú con animación
 const MenuButton = styled(IconButton, {
   shouldForwardProp: (prop) => prop !== 'darkmode' && prop !== 'isopen'
 })(({ darkmode, isopen }) => ({
@@ -507,7 +348,7 @@ const MobileMenuItem = styled(Box, {
 })(({ isactive, darkmode, isutility }) => ({
   display: "flex",
   alignItems: "center",
-  padding: "16px 24px", // Aumentado de 12px a 16px
+  padding: "16px 24px",
   cursor: "pointer",
   color: isactive === "true" 
     ? colors.primary 
