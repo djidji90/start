@@ -1,7 +1,22 @@
+// ============================================
+// components/theme/musica/MainPage.jsx
+// VERSIÓN PREMIUM OPTIMIZADA - NIVEL SPOTIFY+
+// ============================================
+
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Box, Container, Typography, Paper, useTheme,
-  useMediaQuery, Fade, Alert, Snackbar, Grow, IconButton, alpha
+import { 
+  Box, 
+  Container, 
+  Typography, 
+  Paper, 
+  useTheme, 
+  useMediaQuery, 
+  Fade, 
+  Alert, 
+  Snackbar, 
+  Grow, 
+  IconButton, 
+  alpha 
 } from "@mui/material";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
@@ -14,25 +29,35 @@ import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
 
-
 // 🔥 NUEVO: Importar hook de descarga
 import useDownload from "../../../components/hook/services/useDownload";
 
 // ============================================
-// 🎨 IDENTIDAD VISUAL
+// 🎨 IDENTIDAD VISUAL OPTIMIZADA
 // ============================================
 const colors = {
   primary: '#FF6B35',
   primaryLight: '#FF8B5C',
   primaryDark: '#E55A2B',
-  textDark: '#1a1a1a',
-  textLight: '#FFFFFF',
-  gray600: '#666666',
-  gray500: '#9E9E9E',
-  gray400: '#BDBDBD',
-  gray300: '#E0E0E0',
-  gray200: '#e0e0e0',
-  gray100: '#fafafa',
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255,255,255,0.7)', // WCAG AA compliant
+  textTertiary: 'rgba(255,255,255,0.5)', // Para elementos decorativos
+  background: {
+    dark: '#0A0A0A',
+    medium: '#121212',
+    light: '#1A1A1A',
+  }
+};
+
+// ============================================
+// 🎨 SHADOWS UNIFORMES
+// ============================================
+const shadows = {
+  small: (opacity = 0.15) => `0 4px 12px ${alpha('#000', opacity)}`,
+  medium: (opacity = 0.2) => `0 8px 20px ${alpha('#000', opacity)}`,
+  large: (opacity = 0.25) => `0 12px 28px ${alpha('#000', opacity)}`,
+  primary: (opacity = 0.25) => `0 8px 20px ${alpha(colors.primary, opacity)}`,
+  glow: (opacity = 0.15) => `0 0 20px ${alpha(colors.primary, opacity)}`,
 };
 
 // ============================================
@@ -61,35 +86,40 @@ const getSongImageUrl = (song) => {
 };
 
 // ============================================
-// 🎵 HERO SECTION PROFESIONAL (Opción 8)
+// 🎵 HERO SECTION OPTIMIZADO
 // ============================================
 const Hero = () => {
   const navigate = useNavigate();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const heroRef = useRef(null);
 
   return (
-    <Box
-      component="section"
-      sx={{
-        position: "relative",
-        width: "100%",
-        height: "90vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        overflow: "hidden",
-        mb: 4
+    <Box 
+      ref={heroRef}
+      component="section" 
+      sx={{ 
+        position: "relative", 
+        width: "100%", 
+        minHeight: { xs: "70vh", md: "90vh" },
+        maxHeight: { xs: "600px", md: "none" },
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center", 
+        color: "white", 
+        overflow: "hidden", 
+        mb: 4 
       }}
     >
-      {/* Background Image con efecto zoom suave */}
-      <Box sx={{ position: "absolute", inset: 0 }}>
+      {/* Background Image con optimización de performance */}
+      <Box sx={{ position: "absolute", inset: 0, willChange: 'transform' }}>
         {!imageError ? (
           <Box
             component="img"
             src="/igor.jpg"
             alt="Igor - Artista destacado"
+            loading="eager"
+            fetchpriority="high"
             onLoad={() => setImageLoaded(true)}
             onError={() => {
               console.log('Error cargando imagen');
@@ -100,71 +130,60 @@ const Hero = () => {
               height: "100%",
               objectFit: "cover",
               opacity: imageLoaded ? 1 : 0,
-              transition: 'opacity 0.5s ease-in-out, transform 8s ease',
+              transition: 'opacity 0.5s ease-in-out, transform 0.3s ease',
               transform: 'scale(1.02)',
-              '&:hover': {
-                transform: 'scale(1.05)',
+              '@media (hover: hover)': {
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                }
               }
             }}
           />
         ) : (
-          // Fallback si la imagen no existe
-          <Box
-            sx={{
-              width: "100%",
-              height: "100%",
-              background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 50%, #FFA07A 100%)`,
-            }}
-          />
+          <Box sx={{ 
+            width: "100%", 
+            height: "100%", 
+            background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 50%, #FFA07A 100%)`,
+          }} />
         )}
 
-        {/* Overlay profesional multicapa */}
+        {/* Overlay profesional optimizado */}
         <Box sx={{
           position: "absolute",
           inset: 0,
           background: `
             linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%),
-            linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.2) 100%),
-            radial-gradient(circle at 30% 50%, transparent 0%, rgba(0,0,0,0.2) 100%)
+            linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.2) 100%)
           `,
           '&::before': {
             content: '""',
             position: "absolute",
             inset: 0,
-            background: `radial-gradient(circle at 70% 30%, ${alpha(colors.primary, 0.1)} 0%, transparent 60%)`,
-            mixBlendMode: 'overlay'
+            background: `radial-gradient(circle at 70% 30%, ${alpha(colors.primary, 0.08)} 0%, transparent 60%)`,
+            mixBlendMode: 'overlay',
+            pointerEvents: 'none'
           }
-        }} />
-
-        {/* Efecto de luz superior */}
-        <Box sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "30%",
-          background: "linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%)",
-          pointerEvents: "none"
         }} />
       </Box>
 
-      {/* Content con sombras para legibilidad */}
+      {/* Content con espaciado optimizado */}
       <Box sx={{
         position: "relative",
         zIndex: 10,
         maxWidth: "800px",
         textAlign: "center",
-        px: 3
+        px: { xs: 2, sm: 3 },
+        py: { xs: 4, sm: 0 }
       }}>
         <Typography
           variant="h1"
           sx={{
-            fontSize: { xs: "2.5rem", md: "4rem" },
+            fontSize: { xs: "2rem", sm: "2.5rem", md: "4rem" },
             fontWeight: 800,
             lineHeight: 1.2,
-            mb: 3,
-            color: "white",
-            textShadow: '2px 2px 4px rgba(0,0,0,0.3), 4px 4px 8px rgba(0,0,0,0.2)',
+            mb: { xs: 2, md: 3 },
+            color: colors.textPrimary,
+            textShadow: '0 4px 8px rgba(0,0,0,0.3)',
           }}
         >
           La casa digital de los amantes del EcuaBeats.
@@ -173,46 +192,47 @@ const Hero = () => {
         <Typography
           variant="body1"
           sx={{
-            fontSize: { xs: "1.1rem", md: "1.3rem" },
-            color: "rgba(255,255,255,0.95)",
-            mb: 5,
+            fontSize: { xs: "1rem", sm: "1.1rem", md: "1.3rem" },
+            color: colors.textSecondary,
+            mb: { xs: 3, md: 5 },
             maxWidth: "600px",
             mx: "auto",
-            textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
           }}
         >
           Escucha, descubre y apoya a los artistas que estan marcando la diferencia.
           Sube tu música, construye tu audiencia y forma parte del movimiento.
         </Typography>
 
-        {/* CTA Buttons con efecto glassmorphism */}
+        {/* CTA Buttons - Espaciado optimizado */}
         <Box sx={{
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           alignItems: "center",
           justifyContent: "center",
-          gap: 2
+          gap: { xs: 1.5, sm: 2 },
+          px: { xs: 2, sm: 0 }
         }}>
           <Box
             component="button"
             onClick={() => navigate('')}
             sx={{
+              width: { xs: '100%', sm: 'auto' },
               bgcolor: colors.primary,
-              color: "white",
+              color: colors.textPrimary,
               border: "none",
-              px: 5,
-              py: 2,
+              px: { xs: 3, md: 5 },
+              py: { xs: 1.5, md: 2 },
               borderRadius: "16px",
-              fontSize: "1.1rem",
+              fontSize: { xs: "1rem", md: "1.1rem" },
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s ease",
-              boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
+              boxShadow: shadows.primary(0.3),
               backdropFilter: "blur(4px)",
               "&:hover": {
                 bgcolor: colors.primaryDark,
                 transform: "translateY(-2px)",
-                boxShadow: `0 8px 20px ${alpha(colors.primary, 0.4)}`
+                boxShadow: shadows.primary(0.4)
               }
             }}
           >
@@ -223,23 +243,24 @@ const Hero = () => {
             component="button"
             onClick={() => navigate('')}
             sx={{
-              bgcolor: "rgba(255,255,255,0.15)",
-              color: "white",
-              border: "2px solid rgba(255,255,255,0.3)",
-              px: 5,
-              py: 2,
+              width: { xs: '100%', sm: 'auto' },
+              bgcolor: "rgba(255,255,255,0.1)",
+              color: colors.textPrimary,
+              border: "1.5px solid rgba(255,255,255,0.2)",
+              px: { xs: 3, md: 5 },
+              py: { xs: 1.5, md: 2 },
               borderRadius: "16px",
-              fontSize: "1.1rem",
+              fontSize: { xs: "1rem", md: "1.1rem" },
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s ease",
               backdropFilter: "blur(4px)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              boxShadow: shadows.small(0.1),
               "&:hover": {
-                bgcolor: "rgba(255,255,255,0.25)",
+                bgcolor: "rgba(255,255,255,0.15)",
                 transform: "translateY(-2px)",
-                borderColor: "white",
-                boxShadow: "0 8px 20px rgba(0,0,0,0.15)"
+                borderColor: "rgba(255,255,255,0.3)",
+                boxShadow: shadows.medium(0.15)
               }
             }}
           >
@@ -250,11 +271,10 @@ const Hero = () => {
         {/* Social Proof */}
         <Typography
           sx={{
-            mt: 8,
-            fontSize: "0.8rem",
-            color: "rgba(255,255,255,0.6)",
+            mt: { xs: 6, md: 8 },
+            fontSize: "0.75rem",
+            color: colors.textTertiary,
             letterSpacing: "2px",
-            textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
           }}
         >
           TODO LO QUE SUENA EN LAS CALLES
@@ -265,21 +285,78 @@ const Hero = () => {
 };
 
 // ============================================
-// 🎵 MAIN PAGE COMPLETA
+// 🎵 COMPONENTE DE NOTIFICACIÓN UNIFICADO
+// ============================================
+const CustomSnackbar = ({ open, onClose, severity, message, icon, duration = 2000 }) => {
+  const severityStyles = {
+    info: {
+      bgcolor: alpha('#1E1E1E', 0.95),
+      color: colors.textPrimary,
+      border: `1px solid ${alpha(colors.primary, 0.3)}`,
+      iconColor: colors.primary
+    },
+    warning: {
+      bgcolor: alpha('#332211', 0.95),
+      color: '#FFB74D',
+      border: '1px solid #FFB74D40',
+      iconColor: '#FFB74D'
+    },
+    success: {
+      bgcolor: alpha('#1A3322', 0.95),
+      color: '#81C784',
+      border: '1px solid #81C78440',
+      iconColor: '#81C784'
+    }
+  };
+
+  const style = severityStyles[severity];
+
+  return (
+    <Snackbar 
+      open={open} 
+      autoHideDuration={duration} 
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      <Alert 
+        icon={icon}
+        severity={severity}
+        sx={{ 
+          bgcolor: style.bgcolor,
+          color: style.color,
+          backdropFilter: 'blur(12px)',
+          border: style.border,
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          '& .MuiAlert-icon': {
+            color: style.iconColor
+          }
+        }}
+      >
+        {message}
+      </Alert>
+    </Snackbar>
+  );
+};
+
+// ============================================
+// 🎵 MAIN PAGE COMPLETA - VERSIÓN OPTIMIZADA
 // ============================================
 const MainPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const {
-    query,
-    setQuery,
-    structuredResults = { songs: [], artists: [], genres: [] },
-    loading,
-    error,
-    closeResults,
-    isOpen: hookIsOpen,
-    searchMetrics
+  const { 
+    query, 
+    setQuery, 
+    structuredResults = { songs: [], artists: [], genres: [] }, 
+    loading, 
+    error, 
+    closeResults, 
+    isOpen: hookIsOpen, 
+    searchMetrics 
   } = useSearch();
 
   // 🔥 NUEVO: Hook de descarga
@@ -294,10 +371,12 @@ const MainPage = () => {
       return [];
     }
   });
-  const [showCacheNotification, setShowCacheNotification] = useState(false);
+  const [notifications, setNotifications] = useState({
+    cache: false,
+    limit: false,
+    add: false
+  });
   const [newlyAddedSong, setNewlyAddedSong] = useState(null);
-  const [showAddNotification, setShowAddNotification] = useState(false);
-  const [showLimitNotification, setShowLimitNotification] = useState(false);
 
   const searchBarRef = useRef(null);
   const resultsRef = useRef(null);
@@ -309,10 +388,7 @@ const MainPage = () => {
   useEffect(() => {
     window.downloadAPI = download;
     console.log('✅ downloadAPI disponible globalmente');
-    console.log('📦 Métodos:', Object.keys(download));
-    console.log('💡 Para probar: window.downloadAPI.downloadSong("70", "merci beaucoup", "pop_smoke")');
-    
-    // Limpiar al desmontar
+
     return () => {
       delete window.downloadAPI;
     };
@@ -323,19 +399,19 @@ const MainPage = () => {
     localStorage.setItem("djidjimusic_selected_songs", JSON.stringify(selectedSongs));
   }, [selectedSongs]);
 
-  // Notificaciones
+  // Notificaciones optimizadas
   useEffect(() => {
     if (searchMetrics?.fromCache) {
-      setShowCacheNotification(true);
-      setTimeout(() => setShowCacheNotification(false), 2000);
+      setNotifications(prev => ({ ...prev, cache: true }));
+      setTimeout(() => setNotifications(prev => ({ ...prev, cache: false })), 2000);
     }
   }, [searchMetrics]);
 
   useEffect(() => {
     if (newlyAddedSong) {
-      setShowAddNotification(true);
+      setNotifications(prev => ({ ...prev, add: true }));
       setTimeout(() => {
-        setShowAddNotification(false);
+        setNotifications(prev => ({ ...prev, add: false }));
         setNewlyAddedSong(null);
       }, 1500);
     }
@@ -343,10 +419,9 @@ const MainPage = () => {
 
   // Control de resultados
   useEffect(() => {
-    const hasResults =
-      structuredResults?.songs?.length > 0 ||
-      structuredResults?.artists?.length > 0 ||
-      structuredResults?.genres?.length > 0;
+    const hasResults = structuredResults?.songs?.length > 0 || 
+                      structuredResults?.artists?.length > 0 || 
+                      structuredResults?.genres?.length > 0;
 
     setShowResults(hookIsOpen || (hasResults && query.length >= 2));
   }, [hookIsOpen, structuredResults, query]);
@@ -355,10 +430,10 @@ const MainPage = () => {
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
-        showResults &&
-        searchBarRef.current &&
-        !searchBarRef.current.contains(e.target) &&
-        resultsRef.current &&
+        showResults && 
+        searchBarRef.current && 
+        !searchBarRef.current.contains(e.target) && 
+        resultsRef.current && 
         !resultsRef.current.contains(e.target)
       ) {
         setShowResults(false);
@@ -385,17 +460,14 @@ const MainPage = () => {
     }
 
     if (selectedSongs.length >= MAX_SELECTED_SONGS) {
-      setShowLimitNotification(true);
-      setTimeout(() => setShowLimitNotification(false), 2000);
+      setNotifications(prev => ({ ...prev, limit: true }));
+      setTimeout(() => setNotifications(prev => ({ ...prev, limit: false })), 2000);
       setShowResults(false);
       closeResults?.();
       return;
     }
 
-    // Determinar la URL de la imagen correcta
     const imageUrl = item.image_url || item.cover || item.album_cover || item.thumbnail || null;
-
-    // Si no hay imagen, usar placeholder con iniciales
     const finalImageUrl = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=FF6B35&color=fff&size=200&bold=true&length=2&font-size=0.50`;
 
     const newSong = {
@@ -435,54 +507,67 @@ const MainPage = () => {
   };
 
   return (
-    <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh" }}>
-      {/* HERO - Versión profesional */}
+    <Box sx={{ 
+      background: `linear-gradient(180deg, 
+        ${colors.background.dark} 0%, 
+        ${colors.background.medium} 30%, 
+        ${colors.background.light} 70%, 
+        ${alpha(colors.primary, 0.05)} 100%)`,
+      minHeight: "100vh",
+      transition: "background 0.3s ease"
+    }}>
+      {/* HERO */}
       <Hero />
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
-        {/* CONTADOR FLOTANTE */}
+        {/* CONTADOR FLOTANTE OPTIMIZADO */}
         {selectedSongs.length > 0 && (
           <Box
             sx={{
               position: 'fixed',
-              top: 60,
-              right: 16,
+              top: { xs: 16, sm: 24, md: 32 },
+              right: { xs: 16, sm: 24, md: 32 },
               zIndex: 1300,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 40,
-              height: 40,
-              borderRadius: '12px',
+              width: { xs: 44, sm: 48 },
+              height: { xs: 44, sm: 48 },
+              borderRadius: '16px',
               background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
-              color: 'white',
-              fontSize: '0.95rem',
+              color: colors.textPrimary,
+              fontSize: { xs: '0.9rem', sm: '1rem' },
               fontWeight: 700,
-              boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
+              boxShadow: shadows.primary(0.3),
               cursor: 'pointer',
-              transition: 'transform 0.2s',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              border: '1px solid rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(4px)',
               '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: `0 6px 16px ${alpha(colors.primary, 0.4)}`
+                transform: 'scale(1.08) translateY(-2px)',
+                boxShadow: shadows.primary(0.4)
               }
             }}
             onClick={() => selectedSongsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             title={`${selectedSongs.length} canción(es) seleccionada(s)`}
           >
-            <MusicNoteIcon sx={{ fontSize: 18, mr: 0.5 }} />
+            <MusicNoteIcon sx={{ fontSize: { xs: 18, sm: 20 }, mr: 0.5 }} />
             {selectedSongs.length}
           </Box>
         )}
 
-        {/* BARRA DE BÚSQUEDA */}
+        {/* BARRA DE BÚSQUEDA OPTIMIZADA */}
         <Box ref={searchBarRef} sx={{ maxWidth: 600, mx: "auto", mb: 4, position: "relative" }}>
           <Paper elevation={0} sx={{
-            borderRadius: "12px",
-            bgcolor: colors.gray100,
-            border: `1px solid ${colors.gray200}`,
+            borderRadius: "16px",
+            bgcolor: "rgba(30,30,30,0.8)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: shadows.medium(0.3),
             '&:focus-within': {
-              borderColor: colors.gray500,
-              boxShadow: `0 0 0 3px ${alpha(colors.gray500, 0.15)}`,
+              borderColor: colors.primary,
+              bgcolor: "rgba(40,40,40,0.9)",
+              boxShadow: shadows.primary(0.2),
             },
             transition: 'all 0.2s ease'
           }}>
@@ -492,9 +577,43 @@ const MainPage = () => {
               loading={loading}
               autoFocus={!isMobile}
               placeholder="Buscar canciones, artistas..."
+              sx={{
+                input: { 
+                  color: colors.textPrimary,
+                  fontSize: { xs: '0.95rem', sm: '1rem' },
+                  "&::placeholder": {
+                    color: colors.textTertiary,
+                    fontSize: { xs: '0.9rem', sm: '0.95rem' }
+                  }
+                },
+                "& .MuiInputBase-input": {
+                  py: { xs: 1.5, sm: 1.8 }
+                },
+                "& .MuiSvgIcon-root": {
+                  color: colors.textTertiary,
+                  fontSize: { xs: '1.3rem', sm: '1.4rem' }
+                }
+              }}
             />
           </Paper>
 
+          {!query && (
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
+                textAlign: 'center',
+                mt: 2,
+                color: colors.textTertiary,
+                fontStyle: 'italic',
+                fontSize: { xs: '0.8rem', sm: '0.85rem' }
+              }}
+            >
+              🎧 busca, descubre y disfruta
+            </Typography>
+          )}
+
+          {/* Resultados de búsqueda */}
           {showResults && (
             <Fade in timeout={200}>
               <Box ref={resultsRef} sx={{
@@ -503,7 +622,7 @@ const MainPage = () => {
                 left: 0,
                 right: 0,
                 zIndex: 1400,
-                mt: 1
+                mt: 1.5
               }}>
                 <SearchResults
                   results={structuredResults}
@@ -516,51 +635,44 @@ const MainPage = () => {
               </Box>
             </Fade>
           )}
-
-          {!query && (
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                textAlign: 'center',
-                mt: 1.5,
-                color: colors.gray600,
-                fontStyle: 'italic'
-              }}
-            >
-              🎧 busca descubre y disfruta
-            </Typography>
-          )}
         </Box>
 
         {/* CANCIONES SELECCIONADAS */}
         {selectedSongs.length > 0 && (
-          <Box ref={selectedSongsRef} sx={{ mb: 6 }}>
+          <Box ref={selectedSongsRef} sx={{ mb: 8 }}>
             <Box sx={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              mb: 2,
+              mb: 3,
               borderBottom: `2px solid ${alpha(colors.primary, 0.2)}`,
-              pb: 1
+              pb: 1.5
             }}>
               <Typography variant="h5" sx={{
-                fontWeight: 600,
-                color: colors.textDark,
+                fontWeight: 700,
+                color: colors.textPrimary,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 1
+                gap: 1.5,
+                fontSize: { xs: '1.2rem', sm: '1.4rem', md: '1.6rem' }
               }}>
-                <MusicNoteIcon sx={{ color: colors.primary }} />
+                <MusicNoteIcon sx={{ color: colors.primary, fontSize: { xs: '1.5rem', md: '1.8rem' } }} />
                 TUS BEATS ({selectedSongs.length})
               </Typography>
               <IconButton
                 onClick={handleClearAllSongs}
                 size="small"
-                sx={{ color: colors.gray600, '&:hover': { color: colors.primary } }}
+                sx={{ 
+                  color: colors.textTertiary, 
+                  '&:hover': { 
+                    color: colors.primary,
+                    backgroundColor: alpha(colors.primary, 0.1)
+                  },
+                  p: { xs: 1, sm: 1.5 }
+                }}
                 title="Eliminar todas"
               >
-                <DeleteSweepIcon />
+                <DeleteSweepIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.4rem' } }} />
               </IconButton>
             </Box>
 
@@ -577,97 +689,116 @@ const MainPage = () => {
           </Box>
         )}
 
-        {/* SEPARADOR */}
+        {/* SEPARADOR ELEGANTE OPTIMIZADO */}
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 1.5,
-          my: 4
+          gap: { xs: 1.5, sm: 2 },
+          my: { xs: 5, sm: 6 }
         }}>
           <Box sx={{
-            width: '40px',
-            height: '2px',
-            background: `linear-gradient(90deg, ${colors.primary}, ${alpha(colors.primary, 0.3)})`,
-            borderRadius: '2px'
+            width: { xs: '40px', sm: '60px' },
+            height: '3px',
+            background: `linear-gradient(90deg, transparent, ${colors.primary}, transparent)`,
+            borderRadius: '3px',
+            opacity: 0.5
           }} />
-          <Typography sx={{ color: alpha(colors.primary, 0.5), fontSize: '1.1rem' }}>♫</Typography>
+          <Typography sx={{ 
+            color: alpha(colors.primary, 0.6), 
+            fontSize: { xs: '1.2rem', sm: '1.5rem' },
+            transform: 'rotate(15deg)',
+          }}>
+            ✦
+          </Typography>
           <Box sx={{
-            width: '40px',
-            height: '2px',
-            background: `linear-gradient(90deg, ${alpha(colors.primary, 0.3)}, ${colors.primary})`,
-            borderRadius: '2px'
+            width: { xs: '40px', sm: '60px' },
+            height: '3px',
+            background: `linear-gradient(90deg, transparent, ${colors.primary}, transparent)`,
+            borderRadius: '3px',
+            opacity: 0.5
           }} />
         </Box>
 
         {/* SECCIONES DE CONTENIDO */}
-        <Box sx={{ mb: 6 }}>
+        <Box sx={{ mb: 8 }}>
           <RandomSongsDisplay />
         </Box>
 
-        <Box sx={{ mb: 6 }}>
+        <Box sx={{ mb: 8 }}>
           <ArtistCarousel />
         </Box>
 
-        <Box sx={{ mb: 6 }}>
+        <Box sx={{ mb: 8 }}>
           <PopularSongs />
         </Box>
 
-        {/* FOOTER */}
+        {/* FOOTER OPTIMIZADO */}
         <Box sx={{
-          mt: 6,
-          pt: 4,
-          pb: 2,
+          mt: 8,
+          pt: 5,
+          pb: 3,
           textAlign: 'center',
-          borderTop: `1px solid ${alpha(colors.primary, 0.1)}`
+          borderTop: `1px solid ${alpha(colors.primary, 0.12)}`,
         }}>
-          <Typography variant="body2" sx={{ color: colors.gray600, fontWeight: 400 }}>
+          <Typography variant="body1" sx={{ 
+            color: colors.textSecondary,
+            fontWeight: 500,
+            fontSize: { xs: '0.85rem', sm: '0.95rem' },
+            letterSpacing: '2px',
+            mb: 1
+          }}>
             EL SONIDO ES NUESTRO
           </Typography>
-          <Typography variant="caption" sx={{ color: alpha(colors.gray600, 0.6), display: 'block', mt: 1 }}>
-
+          <Typography variant="caption" sx={{ 
+            color: colors.textTertiary,
+            display: 'block', 
+            mt: 1.5,
+            fontSize: { xs: '0.7rem', sm: '0.75rem' },
+            letterSpacing: '1px'
+          }}>
+            djidjimusic © {new Date().getFullYear()} • todos los ritmos, un solo lugar
           </Typography>
         </Box>
 
-        {/* NOTIFICACIONES */}
-        <Snackbar open={showCacheNotification} autoHideDuration={2000} onClose={() => setShowCacheNotification(false)}>
-          <Alert severity="info" sx={{ bgcolor: alpha(colors.primary, 0.08), color: colors.primary }}>
-            📦 Resultados desde caché • {searchMetrics?.time}ms
-          </Alert>
-        </Snackbar>
+        {/* NOTIFICACIONES UNIFICADAS */}
+        <CustomSnackbar
+          open={notifications.cache}
+          onClose={() => setNotifications(prev => ({ ...prev, cache: false }))}
+          severity="info"
+          message={`📦 Resultados desde caché • ${searchMetrics?.time}ms`}
+        />
 
-        <Snackbar open={showLimitNotification} autoHideDuration={2000} onClose={() => setShowLimitNotification(false)}>
-          <Alert severity="warning" sx={{ bgcolor: '#FFF3E0', color: '#E65100' }}>
-            🎵 Máximo {MAX_SELECTED_SONGS} canciones
-          </Alert>
-        </Snackbar>
+        <CustomSnackbar
+          open={notifications.limit}
+          onClose={() => setNotifications(prev => ({ ...prev, limit: false }))}
+          severity="warning"
+          message={`🎵 Máximo ${MAX_SELECTED_SONGS} canciones`}
+        />
 
-        <Snackbar open={showAddNotification} autoHideDuration={1500} onClose={() => setShowAddNotification(false)}>
-          <Alert 
-            severity="success" 
-            sx={{ 
-              bgcolor: '#E8F5E9', 
-              color: '#2E7D32',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}
-          >
-            {newlyAddedSong?.cover && (
-              <Box
-                component="img"
-                src={newlyAddedSong.cover}
-                sx={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: '4px',
-                  objectFit: 'cover'
-                }}
-              />
-            )}
-            ✅ Añadido: {newlyAddedSong?.title}
-          </Alert>
-        </Snackbar>
+        <CustomSnackbar
+          open={notifications.add}
+          onClose={() => setNotifications(prev => ({ ...prev, add: false }))}
+          severity="success"
+          message={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {newlyAddedSong?.cover && (
+                <Box
+                  component="img"
+                  src={newlyAddedSong.cover}
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '4px',
+                    objectFit: 'cover',
+                    border: `1px solid ${alpha(colors.primary, 0.3)}`
+                  }}
+                />
+              )}
+              {newlyAddedSong?.title}
+            </Box>
+          }
+        />
       </Container>
     </Box>
   );
