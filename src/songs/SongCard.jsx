@@ -1,904 +1,824 @@
-// src/components/songs/SongCard.jsx - VERSIÓN CON DESCARGA INTEGRADA
+// src/components/songs/SongCard.jsx - VERSIÓN ULTRA PREMIUM
 import React, { useState } from "react";
 import {
-  Card,
-  CardContent,
-  CardMedia,
-  Typography,
-  IconButton,
-  Box,
-  CircularProgress,
-  Chip,
-  Tooltip,
-  LinearProgress,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  Snackbar,
-  Alert
+Card, CardContent, CardMedia, Typography,
+IconButton, Box, Chip, Tooltip, Menu, MenuItem,
+ListItemIcon, ListItemText, Divider, Snackbar, Alert,
+Dialog, DialogTitle, DialogContent, DialogContentText,
+DialogActions, Drawer, Fade, Zoom, alpha, useMediaQuery,
+styled
 } from "@mui/material";
 import {
-  PlayArrow,
-  Pause,
-  Favorite,
-  FavoriteBorder,
-  VolumeUp,
-  AccessTime,
-  Download,
-  Error as ErrorIcon,
-  CheckCircle,
-  Cancel,
-  Delete,
-  History,
-  MoreVert
+PlayArrow, Pause, Favorite, FavoriteBorder,
+Download, CheckCircle, Cancel, Delete, MoreVert,
+Info, Refresh, CalendarToday, Storage as StorageIcon,
+Close as CloseIcon, Warning as WarningIcon,
+GraphicEq as QualityIcon, Speed as SpeedIcon
 } from "@mui/icons-material";
-import { useTheme, alpha } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { useAudioPlayer } from "../components/hook/services/usePlayer";
-import useDownload from "../components/hook/services/useDownload"; // 🔥 IMPORTAR EL HOOK DE DESCARGA
+import useDownload from "../components/hook/services/useDownload";
 
+// ============================================ //
+// SISTEMA DE DISEÑO PREMIUM AVANZADO
+// ============================================ //
+const designTokens = {
+colors: {
+primary: '#FF6B35',
+success: '#10B981',
+error: '#EF4444',
+warning: '#F59E0B',
+gray: {
+50: '#F9FAFB',
+100: '#F3F4F6',
+200: '#E5E7EB',
+300: '#D1D5DB',
+400: '#9CA3AF',
+500: '#6B7280',
+600: '#4B5563',
+700: '#374151',
+800: '#1F2937',
+900: '#111827'
+}
+},
+shadows: {
+card: '0 4px 20px -2px rgba(0,0,0,0.06)',
+hover: '0 12px 28px -8px rgba(0,0,0,0.12)',
+button: '0 4px 12px rgba(0,0,0,0.08)',
+drawer: '0 -8px 32px rgba(0,0,0,0.08)'
+},
+borderRadius: {
+card: 16,
+button: 999,
+menu: 12,
+dialog: 20,
+chip: 6
+},
+animation: {
+default: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+smooth: '0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+bounce: '0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+}
+};
+
+// ============================================ //
+// COMPONENTES STYLED
+// ============================================ //
+const ProgressBar = styled(Box)(({ value, color }) => ({
+position: 'absolute',
+top: 0,
+left: 0,
+right: 0,
+height: 3,
+zIndex: 10,
+backgroundColor: alpha(color, 0.1),
+overflow: 'hidden',
+'&::after': {
+content: '""',
+position: 'absolute',
+top: 0,
+left: 0,
+height: '100%',
+width: ${value}%,
+backgroundColor: color,
+transition: 'width 0.3s linear',
+backgroundImage: linear-gradient(90deg, ${alpha(color, 0.8)} 0%, ${color} 100%)
+}
+}));
+
+const StatusDot = styled(Box)(({ color, isActive }) => ({
+width: 10,
+height: 10,
+borderRadius: '50%',
+backgroundColor: color,
+position: 'absolute',
+top: 12,
+left: 12,
+zIndex: 2,
+boxShadow: '0 0 0 2px white',
+animation: isActive ? 'pulse 2s infinite' : 'none',
+'@keyframes pulse': {
+'0%': { boxShadow: '0 0 0 2px white, 0 0 0 0 rgba(255,255,255,0.7)' },
+'70%': { boxShadow: '0 0 0 2px white, 0 0 0 8px rgba(255,255,255,0)' },
+'100%': { boxShadow: '0 0 0 2px white, 0 0 0 0 rgba(255,255,255,0)' }
+}
+}));
+
+const MainButton = styled(IconButton)(({ theme, color, isActive }) => ({
+position: 'absolute',
+bottom: 16,
+right: 16,
+width: 56,
+height: 56,
+backgroundColor: alpha('#FFFFFF', 0.98),
+color: color,
+boxShadow: designTokens.shadows.button,
+backdropFilter: 'blur(8px)',
+border: 1px solid ${alpha(color, 0.2)},
+transition: all ${designTokens.animation.bounce},
+transform: isActive ? 'scale(1)' : 'scale(0.9)',
+opacity: isActive ? 1 : 0,
+'&:hover': {
+backgroundColor: '#FFFFFF',
+transform: 'scale(1.08)',
+boxShadow: 0 16px 32px -12px ${alpha(color, 0.4)},
+borderColor: alpha(color, 0.4)
+}
+}));
+
+const MetadataChip = styled(Chip)({
+height: 24,
+fontSize: '0.7rem',
+borderRadius: designTokens.borderRadius.chip,
+backgroundColor: alpha(designTokens.colors.gray[500], 0.08),
+color: designTokens.colors.gray[600],
+'& .MuiChip-label': {
+px: 1
+}
+});
+
+// ============================================ //
+// COMPONENTE PRINCIPAL
+// ============================================ //
 const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
-  const theme = useTheme();
-  const [liked, setLiked] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+const theme = useTheme();
+const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+const [liked, setLiked] = useState(false);
+const [isHovered, setIsHovered] = useState(false);
+const [imageError, setImageError] = useState(false);
+const [anchorEl, setAnchorEl] = useState(null);
+const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+const [downloadInfoDialog, setDownloadInfoDialog] = useState(false);
 
-  // Hooks
-  const player = useAudioPlayer();
-  const download = useDownload(); // 🔥 INSTANCIAR EL HOOK DE DESCARGA
+// Hooks
+const player = useAudioPlayer();
+const download = useDownload();
 
-  // Estado específico de esta canción
-  const songStatus = player.getSongStatus(song.id);
-  const songId = song.id.toString();
+// Estados de la canción
+const songStatus = player.getSongStatus(song.id);
+const songId = song.id.toString();
+const isDownloading = download.downloading[songId];
+const downloadProgress = download.progress[songId] || 0;
+const downloadError = download.errors[songId];
+const isDownloaded = download.isDownloaded(songId);
+const downloadInfo = isDownloaded ? download.getDownloadInfo(songId) : null;
 
-  // 🔥 NUEVO: Estados de descarga
-  const isDownloading = download.downloading[songId];
-  const downloadProgress = download.progress[songId] || 0;
-  const downloadError = download.errors[songId];
-  const isDownloaded = download.isDownloaded(songId);
-  const downloadInfo = isDownloaded ? download.getDownloadInfo(songId) : null;
+// Determinar estado principal
+const getPrimaryState = () => {
+if (songStatus.isLoading) return 'loading';
+if (isDownloading) return 'downloading';
+if (downloadError) return 'error';
+if (isDownloaded) return 'downloaded';
+if (songStatus.isCurrent) return songStatus.isPlaying ? 'playing' : 'paused';
+return 'idle';
+};
 
-  // 🔥 NUEVO: Manejar menú de opciones
-  const handleMenuOpen = (event) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-  };
+const primaryState = getPrimaryState();
+const isActive = primaryState !== 'idle' || isHovered;
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+// Colores por estado
+const stateColors = {
+idle: designTokens.colors.primary,
+playing: '#F50057',
+paused: '#00838F',
+loading: designTokens.colors.warning,
+downloading: designTokens.colors.success,
+downloaded: designTokens.colors.success,
+error: designTokens.colors.error
+};
 
-  // 🔥 NUEVO: Manejar descarga
-  const handleDownload = async (event) => {
-    event.stopPropagation();
-    handleMenuClose();
+const currentColor = stateColors[primaryState];
 
-    try {
-      setSnackbar({
-        open: true,
-        message: `Iniciando descarga: ${song.title}`,
-        severity: 'info'
-      });
+// Tooltip por estado
+const getTooltipText = () => {
+switch (primaryState) {
+case 'loading': return ${songStatus.loadingMessage || 'Cargando'} ${songStatus.loadingProgress}%;
+case 'playing':
+const current = player.formatTime(songStatus.playbackCurrentTime);
+const total = player.formatTime(songStatus.playbackDuration);
+return ${current} / ${total};
+case 'paused': return 'Pausada';
+case 'downloading': return Descargando ${downloadProgress}%;
+case 'error': return Error: ${downloadError};
+case 'downloaded':
+const date = downloadInfo ? new Date(downloadInfo.downloadedAt).toLocaleDateString() : '';
+return Descargada el ${date};
+default: return ${song.title} · ${song.artist};
+}
+};
 
-      const result = await download.downloadSong(
-        songId,
-        song.title,
-        song.artist
-      );
+// Determinar ícono del botón principal
+const getButtonIcon = () => {
+if (songStatus.isLoading || isDownloading) return null;
+if (primaryState === 'playing') return <Pause />;
+if (primaryState === 'paused') return <PlayArrow />;
+if (downloadError) return <Refresh />;
+return <PlayArrow />;
+};
 
-      setSnackbar({
-        open: true,
-        message: `✅ Descarga completada: ${song.title}`,
-        severity: 'success'
-      });
+// Manejar clic en botón principal
+const handleMainButtonClick = async (e) => {
+e.stopPropagation();
 
-      console.log('Descarga exitosa:', result);
+if (isDownloading) {  
+  handleCancelDownload(e);  
+  return;  
+}  
 
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: `❌ Error: ${error.message}`,
-        severity: 'error'
-      });
-    }
-  };
+if (downloadError) {  
+  handleRetryDownload(e);  
+  return;  
+}  
 
-  // 🔥 NUEVO: Cancelar descarga
-  const handleCancelDownload = (event) => {
-    event.stopPropagation();
-    handleMenuClose();
-    download.cancelDownload(songId);
-    
-    setSnackbar({
-      open: true,
-      message: `Descarga cancelada: ${song.title}`,
-      severity: 'warning'
-    });
-  };
+if (songStatus.isCurrent) {  
+  player.toggle();  
+} else {  
+  await player.playSongFromCard(song);  
+}
 
-  // 🔥 NUEVO: Eliminar del historial
-  const handleRemoveDownload = (event) => {
-    event.stopPropagation();
-    handleMenuClose();
-    
-    if (window.confirm(`¿Eliminar "${song.title}" del historial de descargas?`)) {
-      download.removeDownload(songId);
-      
-      setSnackbar({
-        open: true,
-        message: `Eliminado del historial: ${song.title}`,
-        severity: 'info'
-      });
-    }
-  };
+};
 
-  // 🔥 NUEVO: Reintentar descarga con error
-  const handleRetryDownload = (event) => {
-    event.stopPropagation();
-    handleMenuClose();
-    download.clearError(songId);
-    handleDownload(event);
-  };
+// Handlers de descarga
+const handleDownload = async (e) => {
+e.stopPropagation();
+handleMenuClose();
 
-  // 🔥 NUEVO: Ver información de descarga
-  const handleViewDownloadInfo = (event) => {
-    event.stopPropagation();
-    handleMenuClose();
-    
-    if (downloadInfo) {
-      const fileSize = (downloadInfo.fileSize / (1024 * 1024)).toFixed(2);
-      const date = new Date(downloadInfo.downloadedAt).toLocaleString();
-      
-      setSnackbar({
-        open: true,
-        message: `📁 ${downloadInfo.fileName} (${fileSize} MB) - ${date}`,
-        severity: 'info'
-      });
-    }
-  };
+try {  
+  setSnackbar({ open: true, message: `Descargando ${song.title}...`, severity: 'info' });  
+  await download.downloadSong(songId, song.title, song.artist);  
+  setSnackbar({ open: true, message: 'Canción descargada', severity: 'success' });  
+} catch (error) {  
+  setSnackbar({ open: true, message: 'Error en descarga', severity: 'error' });  
+}
 
-  // 🔥 NUEVO: Obtener texto del tooltip (actualizado)
-  const getTooltipText = () => {
-    if (songStatus.isLoading) {
-      return `${songStatus.loadingMessage || 'Cargando'} (${songStatus.loadingProgress}%)`;
-    }
-    
-    if (songStatus.isCurrent) {
-      const currentTime = player.formatTime(songStatus.playbackCurrentTime);
-      const duration = player.formatTime(songStatus.playbackDuration);
-      
-      if (songStatus.isPlaying) {
-        return `▶️ Reproduciendo: ${currentTime} / ${duration}`;
-      } else {
-        return `⏸️ Pausada: ${currentTime} / ${duration}`;
-      }
-    }
+};
 
-    if (isDownloading) {
-      return `⬇️ Descargando: ${downloadProgress}%`;
-    }
+const handleCancelDownload = (e) => {
+e.stopPropagation();
+download.cancelDownload(songId);
+setSnackbar({ open: true, message: 'Descarga cancelada', severity: 'info' });
+};
 
-    if (downloadError) {
-      return `❌ Error: ${downloadError}`;
-    }
+const handleRetryDownload = (e) => {
+e.stopPropagation();
+download.clearError(songId);
+handleDownload(e);
+};
 
-    if (isDownloaded) {
-      return `✅ Descargada - ${new Date(downloadInfo?.downloadedAt).toLocaleDateString()}`;
-    }
-    
-    return `🎵 ${song.title} - ${song.artist} · ${player.formatTime(song.duration)}`;
-  };
+const handleRemoveDownload = () => {
+setConfirmDialogOpen(false);
+download.removeDownload(songId);
+setSnackbar({ open: true, message: 'Eliminada del dispositivo', severity: 'success' });
+};
 
-  // Determinar contenido del botón basado en estado
-  const getButtonContent = () => {
-    const isCurrent = songStatus.isCurrent;
-    const isLoading = songStatus.isLoading;
-    const isPlaying = songStatus.isPlaying;
+// Menú
+const handleMenuOpen = (event) => {
+event.stopPropagation();
+setAnchorEl(event.currentTarget);
+};
 
-    // Prioridad: Carga > Reproducción > Descarga
-    if (isLoading) {
-      return {
-        icon: <Download />,
-        color: '#FF9800',
-        tooltip: songStatus.loadingMessage || 'Cargando...',
-        showProgress: true,
-        progress: songStatus.loadingProgress,
-        disabled: false,
-        animation: 'spin'
-      };
-    }
+const handleMenuClose = () => setAnchorEl(null);
 
-    if (isCurrent && isPlaying) {
-      return {
-        icon: <Pause />,
-        color: '#f50057',
-        tooltip: 'Pausar',
-        showProgress: true,
-        progress: songStatus.playbackPercentage,
-        disabled: false,
-        animation: 'none'
-      };
-    }
+// Información de descarga
+const fileSize = downloadInfo ? (downloadInfo.fileSize / (1024 * 1024)).toFixed(1) : '0';
+const downloadDate = downloadInfo ? new Date(downloadInfo.downloadedAt).toLocaleString() : '';
 
-    if (isCurrent && !isPlaying) {
-      return {
-        icon: <PlayArrow />,
-        color: '#00838F',
-        tooltip: 'Reanudar',
-        showProgress: true,
-        progress: songStatus.playbackPercentage,
-        disabled: false,
-        animation: 'none'
-      };
-    }
+// URL de imagen
+const imageUrl = imageError || !song.image_url ? "/djidji.png" : song.image_url;
 
-    if (isDownloading) {
-      return {
-        icon: <Download />,
-        color: '#4CAF50',
-        tooltip: `Descargando: ${downloadProgress}%`,
-        showProgress: true,
-        progress: downloadProgress,
-        disabled: true,
-        animation: 'spin'
-      };
-    }
+// Metadata adicional (ejemplo)
+const bitrate = song.bitrate || '320kbps';
+const quality = song.quality || 'HD';
 
-    return {
-      icon: <PlayArrow />,
-      color: theme.palette.primary.main,
-      tooltip: `Reproducir: ${song.title}`,
-      showProgress: false,
-      progress: 0,
-      disabled: false,
-      animation: 'none'
-    };
-  };
+// ============================================ //
+// MENÚ PREMIUM
+// ============================================ //
+const renderMenu = () => {
+const menuItems = [
+!isDownloading && !downloadError && !isDownloaded && {
+label: 'Descargar',
+icon: <Download fontSize="small" />,
+onClick: handleDownload
+},
+isDownloading && {
+label: 'Cancelar descarga',
+icon: <Cancel fontSize="small" />,
+onClick: handleCancelDownload,
+color: designTokens.colors.error,
+progress: ${downloadProgress}%
+},
+downloadError && {
+label: 'Reintentar',
+icon: <Refresh fontSize="small" />,
+onClick: handleRetryDownload,
+color: designTokens.colors.warning
+},
+isDownloaded && {
+label: 'Información',
+icon: <Info fontSize="small" />,
+onClick: () => {
+setDownloadInfoDialog(true);
+handleMenuClose();
+}
+},
+isDownloaded && {
+label: 'Eliminar del dispositivo',
+icon: <Delete fontSize="small" />,
+onClick: () => {
+setConfirmDialogOpen(true);
+handleMenuClose();
+},
+color: designTokens.colors.error
+},
+(isDownloading || downloadError || isDownloaded) && { divider: true },
+{
+label: liked ? 'Quitar de favoritos' : 'Añadir a favoritos',
+icon: liked ? <Favorite fontSize="small" color="error" /> : <FavoriteBorder fontSize="small" />,
+onClick: (e) => {
+e.stopPropagation();
+handleMenuClose();
+const newLikedState = !liked;
+setLiked(newLikedState);
+onLike?.(song.id, newLikedState);
+}
+}
+].filter(Boolean);
 
-  const buttonContent = getButtonContent();
+// Mobile: Bottom Sheet  
+if (isMobile) {  
+  return (  
+    <Drawer  
+      anchor="bottom"  
+      open={Boolean(anchorEl)}  
+      onClose={handleMenuClose}  
+      PaperProps={{  
+        sx: {  
+          borderTopLeftRadius: designTokens.borderRadius.dialog,  
+          borderTopRightRadius: designTokens.borderRadius.dialog,  
+          maxWidth: 480,  
+          mx: 'auto'  
+        }  
+      }}  
+    >  
+      <Box sx={{ p: 2 }}>  
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>  
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Opciones</Typography>  
+          <IconButton onClick={handleMenuClose} size="small">  
+            <CloseIcon />  
+          </IconButton>  
+        </Box>  
+          
+        {menuItems.map((item, index) => (  
+          item.divider ? (  
+            <Divider key={`divider-${index}`} sx={{ my: 1.5 }} />  
+          ) : (  
+            <Box  
+              key={item.label}  
+              onClick={item.onClick}  
+              role="menuitem"  
+              tabIndex={0}  
+              aria-label={item.label}  
+              sx={{  
+                display: 'flex',  
+                alignItems: 'center',  
+                justifyContent: 'space-between',  
+                p: 2,  
+                borderRadius: designTokens.borderRadius.menu,  
+                cursor: 'pointer',  
+                color: item.color,  
+                '&:hover': { bgcolor: alpha(item.color || designTokens.colors.primary, 0.04) },  
+                '&:focus': { outline: `2px solid ${designTokens.colors.primary}` }  
+              }}  
+            >  
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>  
+                <ListItemIcon sx={{ minWidth: 40, color: item.color }}>  
+                  {item.icon}  
+                </ListItemIcon>  
+                <ListItemText   
+                  primary={item.label}  
+                  primaryTypographyProps={{ fontWeight: 500 }}  
+                />  
+              </Box>  
+              {item.progress && (  
+                <Typography variant="caption" color="text.secondary">  
+                  {item.progress}  
+                </Typography>  
+              )}  
+            </Box>  
+          )  
+        ))}  
+      </Box>  
+    </Drawer>  
+  );  
+}  
 
-  // Manejar clic en play/pause
-  const handlePlayPause = async (e) => {
-    e.stopPropagation();
+// Desktop: Menu  
+return (  
+  <Menu  
+    anchorEl={anchorEl}  
+    open={Boolean(anchorEl)}  
+    onClose={handleMenuClose}  
+    onClick={(e) => e.stopPropagation()}  
+    PaperProps={{  
+      sx: {  
+        borderRadius: designTokens.borderRadius.menu,  
+        minWidth: 220,  
+        boxShadow: designTokens.shadows.drawer,  
+        mt: 1  
+      }  
+    }}  
+  >  
+    {menuItems.map((item, index) => (  
+      item.divider ? (  
+        <Divider key={`divider-${index}`} sx={{ my: 1 }} />  
+      ) : (  
+        <MenuItem   
+          key={item.label}   
+          onClick={item.onClick}  
+          sx={{ py: 1.5, px: 2 }}  
+          aria-label={item.label}  
+        >  
+          <ListItemIcon sx={{ color: item.color, minWidth: 40 }}>  
+            {item.icon}  
+          </ListItemIcon>  
+          <ListItemText   
+            primary={item.label}  
+            primaryTypographyProps={{ fontWeight: 500 }}  
+          />  
+          {item.progress && (  
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>  
+              {item.progress}  
+            </Typography>  
+          )}  
+        </MenuItem>  
+      )  
+    ))}  
+  </Menu>  
+);
 
-    console.log('🎵 SongCard click:', {
-      songId: song.id,
-      songTitle: song.title,
-      isCurrent: songStatus.isCurrent,
-      isPlaying: songStatus.isPlaying,
-      isLoading: songStatus.isLoading
-    });
+};
 
-    if (songStatus.isCurrent) {
-      player.toggle();
-    } else {
-      await player.playSongFromCard(song);
-    }
-  };
+// ============================================ //
+// DIALOGOS PREMIUM
+// ============================================ //
+const renderDialogs = () => (
+<>
+{/* Confirmar eliminación */}
+<Dialog
+open={confirmDialogOpen}
+onClose={() => setConfirmDialogOpen(false)}
+PaperProps={{
+sx: {
+borderRadius: designTokens.borderRadius.dialog,
+maxWidth: 400,
+p: 1
+}
+}}
+aria-labelledby="delete-dialog-title"
+aria-describedby="delete-dialog-description"
+>
+<DialogTitle id="delete-dialog-title" sx={{ pb: 1 }}>
+<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+<Delete sx={{ color: designTokens.colors.error }} />
+<Typography variant="h6" sx={{ fontWeight: 700 }}>Eliminar canción</Typography>
+</Box>
+</DialogTitle>
+<DialogContent>
+<DialogContentText id="delete-dialog-description">
+¿Eliminar "{song.title}" de tu dispositivo? Podrás volver a descargarla cuando quieras.
+</DialogContentText>
+</DialogContent>
+<DialogActions sx={{ p: 2, pt: 0 }}>
+<Button
+onClick={() => setConfirmDialogOpen(false)}
+sx={{ borderRadius: designTokens.borderRadius.button }}
+aria-label="Cancelar eliminación"
+>
+Cancelar
+</Button>
+<Button
+onClick={handleRemoveDownload}
+variant="contained"
+color="error"
+sx={{
+borderRadius: designTokens.borderRadius.button,
+background: designTokens.colors.error,
+'&:hover': { background: alpha(designTokens.colors.error, 0.9) }
+}}
+aria-label="Confirmar eliminación"
+>
+Eliminar
+</Button>
+</DialogActions>
+</Dialog>
 
-  const handleLike = (e) => {
-    e.stopPropagation();
-    const newLikedState = !liked;
-    setLiked(newLikedState);
-    onLike?.(song.id, newLikedState);
-  };
+{/* Información de descarga */}  
+  <Dialog  
+    open={downloadInfoDialog}  
+    onClose={() => setDownloadInfoDialog(false)}  
+    PaperProps={{  
+      sx: {  
+        borderRadius: designTokens.borderRadius.dialog,  
+        maxWidth: 400  
+      }  
+    }}  
+    aria-labelledby="info-dialog-title"  
+  >  
+    <DialogTitle id="info-dialog-title" sx={{ pb: 1 }}>Información de descarga</DialogTitle>  
+    <DialogContent>  
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>  
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>  
+          <CheckCircle sx={{ color: designTokens.colors.success, fontSize: 20 }} />  
+          <Typography variant="body2">{downloadInfo?.fileName || song.title}</Typography>  
+        </Box>  
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>  
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>  
+            <StorageIcon sx={{ fontSize: 16, color: 'text.secondary' }} />  
+            <Typography variant="body2" color="text.secondary">{fileSize} MB</Typography>  
+          </Box>  
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>  
+            <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />  
+            <Typography variant="body2" color="text.secondary">{downloadDate}</Typography>  
+          </Box>  
+        </Box>  
+      </Box>  
+    </DialogContent>  
+    <DialogActions>  
+      <Button onClick={() => setDownloadInfoDialog(false)} aria-label="Cerrar información">  
+        Cerrar  
+      </Button>  
+    </DialogActions>  
+  </Dialog>  
+</>
 
-  const handleCardClick = (e) => {
-    if (!e.target.closest('button') && !e.target.closest('.MuiMenu-paper')) {
-      handlePlayPause(e);
-    }
-  };
+);
 
-  const formatDuration = (seconds) => {
-    return player.formatTime(seconds);
-  };
+return (
+<>
+<Card
+onClick={(e) => !e.target.closest('button') && !e.target.closest('.MuiMenu-paper') && handleMainButtonClick(e)}
+onMouseEnter={() => setIsHovered(true)}
+onMouseLeave={() => setIsHovered(false)}
+sx={{
+borderRadius: designTokens.borderRadius.card,
+overflow: "hidden",
+cursor: "pointer",
+bgcolor: theme.palette.mode === 'dark' ? designTokens.colors.gray[800] : "#FFFFFF",
+border: 1px solid ${alpha(designTokens.colors.gray[300], 0.2)},
+boxShadow: isHovered ? designTokens.shadows.hover : designTokens.shadows.card,
+transition: all ${designTokens.animation.default},
+position: "relative"
+}}
+>
+{/* Barra de progreso superior */}
+{(songStatus.isLoading || isDownloading) && (
+<Fade in={true}>
+<ProgressBar
+value={songStatus.isLoading ? songStatus.loadingProgress : downloadProgress}
+color={currentColor}
+/>
+</Fade>
+)}
 
-  // Determinar texto de estado
-  const getStatusText = () => {
-    if (songStatus.isLoading) {
-      return `${songStatus.loadingProgress}% - ${songStatus.loadingMessage}`;
-    }
+{/* Indicador de estado con animación */}  
+    {(primaryState !== 'idle') && (  
+      <StatusDot   
+        color={currentColor}   
+        isActive={primaryState === 'playing' || primaryState === 'downloading'}  
+      />  
+    )}  
 
-    if (songStatus.isCurrent && songStatus.isPlaying) {
-      return `${player.formatTime(songStatus.playbackCurrentTime)} / ${player.formatTime(songStatus.playbackDuration)}`;
-    }
+    <Box sx={{ position: "relative" }}>  
+      <CardMedia  
+        component="img"  
+        height={isMobile ? 180 : 220}  
+        image={imageUrl}  
+        alt={`Portada de ${song.title} por ${song.artist}`}  
+        onError={() => setImageError(true)}  
+        sx={{  
+          objectFit: "cover",  
+          opacity: (songStatus.isLoading || isDownloading) ? 0.7 : 1,  
+          transition: `opacity ${designTokens.animation.default}`,  
+          backgroundColor: imageError ? alpha(designTokens.colors.primary, 0.1) : "transparent"  
+        }}  
+      />  
 
-    if (songStatus.isCurrent && !songStatus.isPlaying) {
-      return 'Pausada';
-    }
+      {/* Overlay de progreso con gradiente */}  
+      {(songStatus.isLoading || isDownloading) && (  
+        <Box  
+          sx={{  
+            position: "absolute",  
+            top: 0,  
+            left: 0,  
+            right: 0,  
+            bottom: 0,  
+            background: `linear-gradient(135deg,   
+              ${alpha(currentColor, 0.1)} 0%,   
+              ${alpha('#000000', 0.2)} 100%)`,  
+            pointerEvents: "none"  
+          }}  
+        />  
+      )}  
 
-    if (isDownloading) {
-      return `⬇️ ${downloadProgress}%`;
-    }
+      {/* Botón principal */}  
+      <Tooltip title={getTooltipText()} arrow placement="top">  
+        <MainButton  
+          onClick={handleMainButtonClick}  
+          color={currentColor}  
+          isActive={isActive}  
+          aria-label={getTooltipText()}  
+          aria-pressed={primaryState === 'playing'}  
+        >  
+          {(songStatus.isLoading || isDownloading) ? (  
+            <Box sx={{ position: 'relative', width: 28, height: 28 }}>  
+              <CircularProgress  
+                size={28}  
+                value={songStatus.isLoading ? songStatus.loadingProgress : downloadProgress}  
+                variant="determinate"  
+                sx={{  
+                  color: currentColor,  
+                  position: 'absolute',  
+                  '& .MuiCircularProgress-circle': {  
+                    transition: 'stroke-dashoffset 0.3s ease'  
+                  }  
+                }}  
+              />  
+            </Box>  
+          ) : (  
+            getButtonIcon()  
+          )}  
+        </MainButton>  
+      </Tooltip>  
+    </Box>  
 
-    if (downloadError) {
-      return '❌ Error';
-    }
+    {/* Contenido */}  
+    <CardContent sx={{ p: 2.5 }}>  
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>  
+        {/* Índice */}  
+        {showIndex && (  
+          <Box  
+            sx={{  
+              width: 28,  
+              height: 28,  
+              borderRadius: "50%",  
+              bgcolor: alpha(currentColor, 0.1),  
+              display: "flex",  
+              alignItems: "center",  
+              justifyContent: "center",  
+              flexShrink: 0  
+            }}  
+          >  
+            <Typography  
+              variant="caption"  
+              sx={{ color: currentColor, fontWeight: 600 }}  
+              aria-label={`Canción número ${showIndex}`}  
+            >  
+              {showIndex}  
+            </Typography>  
+          </Box>  
+        )}  
 
-    if (isDownloaded) {
-      return '✅ Descargada';
-    }
+        {/* Información principal */}  
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>  
+          <Typography  
+            variant="subtitle1"  
+            sx={{  
+              fontWeight: 700,  
+              lineHeight: 1.2,  
+              mb: 0.5,  
+              color: downloadError ? designTokens.colors.error : "text.primary",  
+              overflow: "hidden",  
+              textOverflow: "ellipsis",  
+              whiteSpace: "nowrap"  
+            }}  
+          >  
+            {song.title}  
+          </Typography>  
 
-    return '';
-  };
+          <Typography  
+            variant="body2"  
+            sx={{  
+              color: "text.secondary",  
+              mb: 1,  
+              overflow: "hidden",  
+              textOverflow: "ellipsis",  
+              whiteSpace: "nowrap"  
+            }}  
+          >  
+            {song.artist}  
+          </Typography>  
 
-  // URL de la imagen con fallback
-  const imageUrl = imageError || !song.image_url ? "/djidji.png" : song.image_url;
+          {/* Metadatos flexibles */}  
+          <Box sx={{   
+            display: "flex",   
+            alignItems: "center",   
+            gap: 1,  
+            flexWrap: "wrap"  
+          }}>  
+            {song.genre && (  
+              <MetadataChip  
+                label={song.genre}  
+                size="small"  
+              />  
+            )}  
+              
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>  
+              <AccessTime sx={{ fontSize: 14, color: designTokens.colors.gray[400] }} />  
+              <Typography variant="caption" sx={{ color: designTokens.colors.gray[500] }}>  
+                {player.formatTime(song.duration)}  
+              </Typography>  
+            </Box>  
 
-  // 🔥 NUEVO: Renderizar menú de opciones
-  const renderOptionsMenu = () => (
-    <Menu
-      anchorEl={anchorEl}
-      open={Boolean(anchorEl)}
-      onClose={handleMenuClose}
-      onClick={(e) => e.stopPropagation()}
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          minWidth: 200,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
-        }
-      }}
-    >
-      {!isDownloading && !downloadError && !isDownloaded && (
-        <MenuItem onClick={handleDownload}>
-          <ListItemIcon>
-            <Download fontSize="small" color="primary" />
-          </ListItemIcon>
-          <ListItemText>Descargar canción</ListItemText>
-        </MenuItem>
-      )}
+            {bitrate && (  
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>  
+                <SpeedIcon sx={{ fontSize: 14, color: designTokens.colors.gray[400] }} />  
+                <Typography variant="caption" sx={{ color: designTokens.colors.gray[500] }}>  
+                  {bitrate}  
+                </Typography>  
+              </Box>  
+            )}  
 
-      {isDownloading && (
-        <MenuItem onClick={handleCancelDownload}>
-          <ListItemIcon>
-            <Cancel fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText>Cancelar descarga</ListItemText>
-          <Typography variant="caption" color="text.secondary">
-            {downloadProgress}%
-          </Typography>
-        </MenuItem>
-      )}
+            {quality && (  
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>  
+                <QualityIcon sx={{ fontSize: 14, color: designTokens.colors.gray[400] }} />  
+                <Typography variant="caption" sx={{ color: designTokens.colors.gray[500] }}>  
+                  {quality}  
+                </Typography>  
+              </Box>  
+            )}  
 
-      {downloadError && (
-        <MenuItem onClick={handleRetryDownload}>
-          <ListItemIcon>
-            <ErrorIcon fontSize="small" color="warning" />
-          </ListItemIcon>
-          <ListItemText>Reintentar descarga</ListItemText>
-        </MenuItem>
-      )}
+            {/* Indicador de descarga sutil */}  
+            {isDownloaded && (  
+              <Tooltip title="Descargada" arrow>  
+                <CheckCircle   
+                  sx={{   
+                    fontSize: 16,   
+                    color: designTokens.colors.success,  
+                    ml: 'auto'  
+                  }}   
+                />  
+              </Tooltip>  
+            )}  
+          </Box>  
+        </Box>  
 
-      {isDownloaded && (
-        [
-          <MenuItem key="info" onClick={handleViewDownloadInfo}>
-            <ListItemIcon>
-              <History fontSize="small" color="info" />
-            </ListItemIcon>
-            <ListItemText>Información</ListItemText>
-          </MenuItem>,
-          <MenuItem key="remove" onClick={handleRemoveDownload}>
-            <ListItemIcon>
-              <Delete fontSize="small" color="error" />
-            </ListItemIcon>
-            <ListItemText>Eliminar del historial</ListItemText>
-          </MenuItem>
-        ]
-      )}
+        {/* Botón de opciones */}  
+        <Tooltip title="Más opciones" arrow>  
+          <IconButton  
+            size="small"  
+            onClick={handleMenuOpen}  
+            aria-label="Más opciones"  
+            aria-haspopup="true"  
+            aria-expanded={Boolean(anchorEl)}  
+            sx={{  
+              color: "text.secondary",  
+              "&:hover": {  
+                bgcolor: alpha(designTokens.colors.primary, 0.08)  
+              }  
+            }}  
+          >  
+            <MoreVert />  
+          </IconButton>  
+        </Tooltip>  
+      </Box>  
+    </CardContent>  
+  </Card>  
 
-      {(isDownloading || downloadError || isDownloaded) && (
-        <Divider />
-      )}
+  {/* Menú adaptativo */}  
+  {renderMenu()}  
 
-      {isDownloaded && (
-        <MenuItem onClick={handleDownload}>
-          <ListItemIcon>
-            <Download fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Descargar de nuevo</ListItemText>
-        </MenuItem>
-      )}
-    </Menu>
-  );
+  {/* Diálogos */}  
+  {renderDialogs()}  
 
-  return (
-    <>
-      <Card
-        onClick={handleCardClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        sx={{
-          borderRadius: 4,
-          overflow: "visible",
-          cursor: "pointer",
-          bgcolor: songStatus.isCurrent ? alpha(buttonContent.color, 0.05) : "#FFFFFF",
-          border: `2px solid ${
-            downloadError ? '#f44336' :
-            isDownloaded ? '#4caf50' :
-            songStatus.isCurrent ? alpha(buttonContent.color, 0.3) : '#E6F2EE'
-          }`,
-          boxShadow: songStatus.isCurrent 
-            ? `0 8px 24px ${alpha(buttonContent.color, 0.15)}`
-            : downloadError
-            ? '0 8px 24px rgba(244,67,54,0.15)'
-            : isDownloaded
-            ? '0 8px 24px rgba(76,175,80,0.15)'
-            : "0 8px 24px rgba(0,0,0,0.04)",
-          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          position: "relative",
-          "&:hover": {
-            transform: "translateY(-6px)",
-            boxShadow: `0 20px 45px ${
-              downloadError ? alpha('#f44336', 0.35) :
-              isDownloaded ? alpha('#4caf50', 0.35) :
-              alpha(buttonContent.color, 0.35)
-            }`,
-            borderColor: downloadError ? '#f44336' : alpha(buttonContent.color, 0.5)
-          }
-        }}
-      >
-        {/* TOOLTIP PRINCIPAL */}
-        <Tooltip
-          title={getTooltipText()}
-          placement="top"
-          arrow
-          enterDelay={800}
-          enterNextDelay={500}
-          componentsProps={{
-            tooltip: {
-              sx: {
-                bgcolor: theme.palette.grey[900],
-                color: 'white',
-                fontSize: '0.75rem',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-                '& .MuiTooltip-arrow': {
-                  color: theme.palette.grey[900]
-                }
-              }
-            }
-          }}
-        >
-          <Box sx={{ width: '100%', height: '100%' }}>
-            {/* BARRA SUPERIOR: Progreso */}
-            {(buttonContent.showProgress || isDownloading) && (
-              <Box sx={{ 
-                position: "absolute", 
-                top: 0, 
-                left: 0, 
-                right: 0,
-                height: 4,
-                zIndex: 10,
-                borderRadius: '4px 4px 0 0'
-              }}>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={isDownloading ? downloadProgress : buttonContent.progress}
-                  sx={{
-                    height: '100%',
-                    bgcolor: alpha(buttonContent.color, 0.2),
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor: isDownloading ? '#4CAF50' : buttonContent.color,
-                      transition: songStatus.isLoading || isDownloading
-                        ? 'transform 0.4s linear' 
-                        : 'transform 0.5s linear'
-                    }
-                  }}
-                />
-              </Box>
-            )}
+  {/* Snackbar minimal */}  
+  <Snackbar  
+    open={snackbar.open}  
+    autoHideDuration={3000}  
+    onClose={() => setSnackbar({ ...snackbar, open: false })}  
+    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}  
+  >  
+    <Alert  
+      onClose={() => setSnackbar({ ...snackbar, open: false })}  
+      severity={snackbar.severity}  
+      iconMapping={{  
+        success: <CheckCircle fontSize="small" />,  
+        error: <WarningIcon fontSize="small" />,  
+        info: <Info fontSize="small" />  
+      }}  
+      sx={{  
+        borderRadius: designTokens.borderRadius.button,  
+        boxShadow: designTokens.shadows.drawer,  
+        '& .MuiAlert-message': { fontWeight: 500 }  
+      }}  
+      aria-live="polite"  
+    >  
+      {snackbar.message}  
+    </Alert>  
+  </Snackbar>  
+</>
 
-            {/* INDICADOR DE ESTADO SUPERIOR */}
-            {(songStatus.isCurrent || songStatus.isLoading || isDownloading || downloadError || isDownloaded) && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: -8,
-                  left: 16,
-                  bgcolor: downloadError ? '#f44336' : 
-                           isDownloaded ? '#4caf50' :
-                           isDownloading ? '#FF9800' :
-                           buttonContent.color,
-                  color: "white",
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: "12px 12px 0 0",
-                  fontSize: "0.7rem",
-                  fontWeight: 700,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  zIndex: 1
-                }}
-              >
-                {(songStatus.isLoading || isDownloading) && (
-                  <CircularProgress 
-                    size={8} 
-                    sx={{ 
-                      color: "white", 
-                      animation: "spin 1s linear infinite" 
-                    }}
-                  />
-                )}
-                {downloadError ? 'ERROR' :
-                 isDownloaded ? 'DESCARGADA' :
-                 isDownloading ? 'DESCARGANDO' :
-                 songStatus.isLoading ? 
-                   (songStatus.loadingStage === 'resuming' ? 'REANUDANDO' : 
-                    songStatus.loadingStage === 'fetching_url' ? 'OBTENIENDO URL' : 'CARGANDO') :
-                 (songStatus.isPlaying ? 'REPRODUCIENDO' : 'PAUSADA')}
-              </Box>
-            )}
-
-            {/* Cover con overlays */}
-            <Box sx={{ position: "relative" }}>
-              <CardMedia
-                component="img"
-                height="220"
-                image={imageUrl}
-                alt={song.title}
-                onError={() => setImageError(true)}
-                sx={{
-                  objectFit: "cover",
-                  filter: songStatus.isLoading || isDownloading ? "blur(2px)" : "none",
-                  opacity: songStatus.isLoading || isDownloading ? 0.8 : 1,
-                  transition: "all 0.3s ease",
-                  backgroundColor: imageError ? alpha(theme.palette.primary.light, 0.1) : "transparent"
-                }}
-              />
-
-              {/* OVERLAY DE DESCARGA/CARGA */}
-              {(songStatus.isLoading || isDownloading) && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    bgcolor: alpha("#000000", 0.4),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexDirection: "column",
-                    gap: 1
-                  }}
-                >
-                  <CircularProgress
-                    size={40}
-                    sx={{ 
-                      color: isDownloading ? "#4CAF50" : "#FF9800",
-                      animation: "spin 1s linear infinite"
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "white",
-                      fontWeight: 500,
-                      fontSize: "0.75rem",
-                      textAlign: "center",
-                      maxWidth: "80%"
-                    }}
-                  >
-                    {songStatus.isLoading ? songStatus.loadingMessage : 'Descargando...'}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: alpha("#ffffff", 0.8),
-                      fontSize: "0.7rem"
-                    }}
-                  >
-                    {songStatus.isLoading ? songStatus.loadingProgress : downloadProgress}%
-                  </Typography>
-                </Box>
-              )}
-
-              {/* OVERLAY DE REPRODUCCIÓN */}
-              {songStatus.isCurrent && songStatus.isPlaying && !songStatus.isLoading && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    bgcolor: alpha("#f50057", 0.1),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: "50%",
-                      bgcolor: alpha("#f50057", 0.8),
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      animation: "pulse 2s infinite"
-                    }}
-                  >
-                    <VolumeUp sx={{ color: "white", fontSize: 30 }} />
-                  </Box>
-                </Box>
-              )}
-
-              {/* BOTÓN PLAY/PAUSE/DOWNLOAD */}
-              <Tooltip
-                title={buttonContent.tooltip}
-                placement="top"
-                arrow
-                componentsProps={{
-                  tooltip: {
-                    sx: {
-                      bgcolor: buttonContent.color,
-                      color: 'white',
-                      fontSize: '0.7rem',
-                      fontWeight: 500,
-                      padding: '4px 8px'
-                    }
-                  }
-                }}
-              >
-                <IconButton
-                  onClick={isDownloading ? handleCancelDownload : handlePlayPause}
-                  disabled={buttonContent.disabled && !isDownloading}
-                  sx={{
-                    position: "absolute",
-                    bottom: 16,
-                    right: 16,
-                    bgcolor: alpha(buttonContent.color, 0.95),
-                    color: "#fff",
-                    width: 56,
-                    height: 56,
-                    "&:hover": {
-                      bgcolor: buttonContent.color,
-                      transform: "scale(1.1)",
-                      boxShadow: `0 12px 28px ${alpha(buttonContent.color, 0.5)}`,
-                    },
-                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                    boxShadow: `0 8px 20px ${alpha(buttonContent.color, 0.4)}`,
-                    animation: buttonContent.animation === 'spin' 
-                      ? "spin 1s linear infinite" 
-                      : "none"
-                  }}
-                >
-                  {songStatus.isLoading || isDownloading ? (
-                    <CircularProgress 
-                      size={24} 
-                      color="inherit" 
-                      sx={{ animation: "spin 1s linear infinite" }}
-                    />
-                  ) : (
-                    buttonContent.icon
-                  )}
-                </IconButton>
-              </Tooltip>
-
-              {/* BARRA INFERIOR: Progreso de reproducción */}
-              {songStatus.isCurrent && songStatus.playbackDuration > 0 && !songStatus.isLoading && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 3,
-                    bgcolor: alpha("#000000", 0.2)
-                  }}
-                >
-                  <Box
-                    sx={{
-                      height: "100%",
-                      width: `${songStatus.playbackPercentage}%`,
-                      bgcolor: songStatus.isPlaying ? "#00FF9D" : buttonContent.color,
-                      transition: "width 0.5s linear"
-                    }}
-                  />
-                </Box>
-              )}
-            </Box>
-
-            {/* Content */}
-            <CardContent sx={{ p: 2.5, position: "relative" }}>
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
-                {/* Número/Índice */}
-                {showIndex && (
-                  <Box
-                    sx={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      bgcolor: songStatus.isCurrent 
-                        ? alpha(buttonContent.color, 0.1) 
-                        : alpha("#000000", 0.05),
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: songStatus.isCurrent ? buttonContent.color : "text.secondary",
-                        fontWeight: songStatus.isCurrent ? 700 : 500,
-                        fontSize: "0.8rem"
-                      }}
-                    >
-                      {showIndex}
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* Información de la canción */}
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{
-                      fontWeight: songStatus.isCurrent ? 800 : 700,
-                      lineHeight: 1.2,
-                      mb: 0.5,
-                      color: downloadError ? '#f44336' :
-                             isDownloaded ? '#4caf50' :
-                             songStatus.isCurrent ? buttonContent.color : "text.primary",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 1,
-                      WebkitBoxOrient: "vertical"
-                    }}
-                  >
-                    {song.title}
-                  </Typography>
-
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: songStatus.isCurrent ? "#006064" : "text.secondary",
-                      fontWeight: songStatus.isCurrent ? 500 : 400,
-                      mb: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 1,
-                      WebkitBoxOrient: "vertical"
-                    }}
-                  >
-                    {song.artist}
-                  </Typography>
-
-                  {/* Metadatos */}
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                    {song.genre && (
-                      <Chip
-                        label={song.genre}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          height: 22,
-                          fontSize: "0.7rem",
-                          borderColor: songStatus.isCurrent 
-                            ? alpha(buttonContent.color, 0.3) 
-                            : undefined,
-                          color: songStatus.isCurrent ? buttonContent.color : undefined
-                        }}
-                      />
-                    )}
-
-                    <Box sx={{ display: "flex", alignItems: "center", color: "text.secondary" }}>
-                      <AccessTime sx={{ fontSize: 14, mr: 0.5, opacity: 0.7 }} />
-                      <Typography variant="caption" sx={{ fontSize: "0.75rem" }}>
-                        {formatDuration(song.duration)}
-                      </Typography>
-                    </Box>
-
-                    {/* ESTADO */}
-                    {getStatusText() && (
-                      <Box sx={{ ml: "auto" }}>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            fontSize: "0.7rem",
-                            color: downloadError ? '#f44336' :
-                                   isDownloaded ? '#4caf50' :
-                                   isDownloading ? '#FF9800' :
-                                   buttonContent.color,
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.5
-                          }}
-                        >
-                          {isDownloading && <Download sx={{ fontSize: 12 }} />}
-                          {downloadError && <ErrorIcon sx={{ fontSize: 12 }} />}
-                          {isDownloaded && <CheckCircle sx={{ fontSize: 12 }} />}
-                          {getStatusText()}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
-
-                {/* Botón de opciones */}
-                <Tooltip title="Más opciones" placement="top" arrow>
-                  <IconButton
-                    size="small"
-                    onClick={handleMenuOpen}
-                    sx={{
-                      color: "text.secondary",
-                      "&:hover": {
-                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                        transform: "scale(1.1)"
-                      },
-                      transition: "all 0.2s"
-                    }}
-                  >
-                    <MoreVert />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </CardContent>
-          </Box>
-        </Tooltip>
-      </Card>
-
-      {/* Menú de opciones */}
-      {renderOptionsMenu()}
-
-      {/* Snackbar para notificaciones */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity}
-          sx={{ 
-            width: '100%',
-            borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-          }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-
-      {/* ANIMACIONES CSS */}
-      <style>{`
-        @keyframes pulse {
-          0% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(1.05); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        @keyframes slideIn {
-          from { transform: translateY(10px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .song-card {
-          animation: slideIn 0.3s ease-out;
-        }
-      `}</style>
-    </>
-  );
+);
 };
 
 export default React.memo(SongCard);
