@@ -1,5 +1,5 @@
 // ============================================
-// components/songs/SongCard.jsx
+// src/components/songs/SongCard.jsx
 // ============================================
 
 import React, { useState, useCallback } from "react";
@@ -19,8 +19,8 @@ import {
   VolumeUp
 } from "@mui/icons-material";
 import { useTheme, alpha } from "@mui/material/styles";
-import { useAudioPlayer } from "../hooks/services/usePlayer";
-import useDownload from "../hooks/useDownload"; // ✅ IMPORT CORREGIDO
+import { useAudioPlayer } from "../components/hook/services/usePlayer";  // ✅ RUTA ORIGINAL
+import useDownload from "../components/hook/services/useDownload";        // ✅ RUTA ORIGINAL
 import { useMediaQuery } from "@mui/material";
 
 // ============================================ //
@@ -65,17 +65,13 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   const download = useDownload();
 
   // ============================================ //
-  // ✅ ESTADO DE DESCARGA - AHORA FUNCIONA CORRECTAMENTE
+  // ✅ ESTADO DE DESCARGA
   // ============================================ //
   const songId = song?.id?.toString();
   
-  // ✅ isDownloaded es SÍNCRONO y VERDADERO (solo si tiene archivo)
+  // isDownloaded es SÍNCRONO (el hook ya está corregido)
   const isDownloaded = download.isDownloaded?.(songId) || false;
-  
-  // ✅ getDownloadInfo es SÍNCRONO
   const downloadInfo = download.getDownloadInfo?.(songId);
-  
-  // ✅ Estados de descarga activa
   const isDownloading = download.downloading?.[songId];
   const downloadProgress = download.progress?.[songId] || 0;
   const downloadError = download.errors?.[songId];
@@ -184,7 +180,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   // ============================================ //
   const renderMenu = () => {
     const menuItems = [
-      // ✅ OPCIÓN DE DESCARGA - SIEMPRE VISIBLE SI NO ESTÁ DESCARGADA
+      // Opción de descarga - SIEMPRE visible si no está descargada
       !isDownloaded && !isDownloading && {
         label: 'Descargar',
         icon: <Download fontSize="small" />,
@@ -504,7 +500,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
                     </Typography>
                   </Box>
 
-                  {/* ✅ INFO DE DESCARGA - SOLO SI REALMENTE ESTÁ DESCARGADA */}
+                  {/* INFO DE DESCARGA - SOLO SI REALMENTE ESTÁ DESCARGADA */}
                   {isDownloaded && downloadInfo?.fileSize && (
                     <Tooltip title={`${(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB`}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -519,7 +515,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
 
                 {/* ACCIONES SIEMPRE VISIBLES */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {/* ✅ BOTÓN DE DESCARGA - SIEMPRE VISIBLE */}
+                  {/* BOTÓN DE DESCARGA - SIEMPRE VISIBLE */}
                   {isDownloaded ? (
                     <Tooltip title="Descargada - Ver información">
                       <IconButton 
