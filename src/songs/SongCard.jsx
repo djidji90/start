@@ -1,30 +1,30 @@
 // ============================================
-// src/components/songs/SongCard.jsx
+// src/components/songs/SongCard.jsx - VERSIÓN CORREGIDA
 // ============================================
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { 
   Card, CardContent, CardMedia, Typography, 
   IconButton, Box, Chip, Tooltip, Menu, MenuItem, 
   ListItemIcon, ListItemText, Divider, Snackbar, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText,
-  DialogActions, Drawer, CircularProgress, Button,
+  DialogActions, CircularProgress, Button,
   LinearProgress, Fade, Zoom
 } from "@mui/material";
 import { 
   PlayArrow, Pause, Favorite, FavoriteBorder, 
-  Download, CheckCircle, Cancel, Delete, MoreVert,
-  Info, Refresh, CalendarToday, Storage as StorageIcon,
+  Download, CheckCircle, Delete, MoreVert,
+  Info, Storage as StorageIcon,
   Close as CloseIcon, Warning as WarningIcon, AccessTime,
-  VolumeUp
+  VolumeUp, OfflineBolt
 } from "@mui/icons-material";
 import { useTheme, alpha } from "@mui/material/styles";
-import { useAudioPlayer } from "../components/hook/services/usePlayer";  // ✅ RUTA ORIGINAL
-import useDownload from "../components/hook/services/useDownload";        // ✅ RUTA ORIGINAL
+import { useAudioPlayer } from "../components/hook/services/usePlayer";
+import useDownload from "../components/hook/services/useDownload";
 import { useMediaQuery } from "@mui/material";
 
 // ============================================ //
-// SISTEMA DE DISEÑO
+// SISTEMA DE DISEÑO (sin cambios)
 // ============================================ //
 const designTokens = {
   colors: {
@@ -32,6 +32,7 @@ const designTokens = {
     success: '#10B981',
     error: '#EF4444',
     warning: '#F59E0B',
+    offline: '#8B5CF6', // Púrpura para indicar offline
     gray: { 400: '#9CA3AF', 500: '#6B7280', 600: '#4B5563' }
   },
   shadows: {
@@ -60,45 +61,80 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [downloadInfoDialog, setDownloadInfoDialog] = useState(false);
 
+  // 🔥 NUEVO: Estado completo de descarga
+  const [downloadStatus, setDownloadStatus] = useState({
+    isDownloaded: false,
+    isDownloading: false,
+    url: null,
+    info: null,
+    error: null,
+    progress: 0
+  });
+
   // Hooks
   const player = useAudioPlayer();
   const download = useDownload();
 
-  // ============================================ //
-  // ✅ ESTADO DE DESCARGA
-  // ============================================ //
   const songId = song?.id?.toString();
-  
-  // isDownloaded es SÍNCRONO (el hook ya está corregido)
-  const isDownloaded = download.isDownloaded?.(songId) || false;
-  const downloadInfo = download.getDownloadInfo?.(songId);
-  const isDownloading = download.downloading?.[songId];
-  const downloadProgress = download.progress?.[songId] || 0;
-  const downloadError = download.errors?.[songId];
 
-  // Log para depuración
-  console.log(`🎵 ${song?.title}:`, {
-    isDownloaded,
-    hasFileSize: !!downloadInfo?.fileSize,
-    downloadInfo,
-    isDownloading,
-    downloadProgress
-  });
+  // ============================================ //
+  // 🔥 NUEVO: Actualizar estado de descarga
+  // ============================================ //
+  useEffect(() => {
+    let mounted = true;
+    let timeoutId;
+
+    const updateStatus = async () => {
+      if (!download || !songId) return;
+
+      try {
+        const status = await download.getDownloadStatus?.(songId);
+        if (mounted && status) {
+          setDownloadStatus(status);
+        }
+      } catch (error) {
+        console.log('Error checking download status:', error);
+      }
+    };
+
+    // Actualizar inmediatamente
+    updateStatus();
+
+    // Escuchar eventos de descarga
+    const handleUpdate = () => {
+      // Pequeño retraso para asegurar que cache se actualizó
+      timeoutId = setTimeout(updateStatus, 100);
+    };
+
+    window.addEventListener('downloads-updated', handleUpdate);
+    window.addEventListener('download-completed', handleUpdate);
+    window.addEventListener('download-cancelled', handleUpdate);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      window.removeEventListener('downloads-updated', handleUpdate);
+      window.removeEventListener('download-completed', handleUpdate);
+      window.removeEventListener('download-cancelled', handleUpdate);
+    };
+  }, [download, songId]);
 
   // Estados de reproducción
   const songStatus = player.getSongStatus?.(song.id) || {};
 
   // ============================================ //
-  // ESTADO PRINCIPAL
+  // 🔥 NUEVO: Determinar estado principal con prioridades
   // ============================================ //
   const getPrimaryState = useCallback(() => {
+    // Prioridad: Error > Cargando > Descargando > Reproduciendo > Descargada > Pausada > Inactiva
+    if (downloadStatus.error || songStatus?.error) return 'error';
     if (songStatus?.isLoading) return 'loading';
-    if (isDownloading) return 'downloading';
-    if (downloadError) return 'error';
-    if (isDownloaded) return 'downloaded';
-    if (songStatus?.isCurrent) return songStatus?.isPlaying ? 'playing' : 'paused';
+    if (downloadStatus.isDownloading) return 'downloading';
+    if (songStatus?.isCurrent && songStatus?.isPlaying) return 'playing';
+    if (downloadStatus.isDownloaded) return 'downloaded';
+    if (songStatus?.isCurrent && !songStatus?.isPlaying) return 'paused';
     return 'idle';
-  }, [songStatus, isDownloading, downloadError, isDownloaded]);
+  }, [downloadStatus, songStatus]);
 
   const primaryState = getPrimaryState();
   const isActive = primaryState !== 'idle' || isHovered;
@@ -109,22 +145,74 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
     paused: '#00838F',
     loading: designTokens.colors.warning,
     downloading: designTokens.colors.success,
-    downloaded: designTokens.colors.success,
+    downloaded: designTokens.colors.offline, // Púrpura para indicar offline
     error: designTokens.colors.error
   };
   const currentColor = stateColors[primaryState] || designTokens.colors.primary;
 
   // ============================================ //
-  // HANDLERS
+  // 🔥 NUEVO: Handler de reproducción con soporte offline
+  // ============================================ //
+  const handlePlayPause = async (e) => {
+    e.stopPropagation();
+
+    if (!player) {
+      setSnackbar({ open: true, message: '❌ Reproductor no disponible', severity: 'error' });
+      return;
+    }
+
+    try {
+      // CASO 1: Canción descargada y accesible
+      if (downloadStatus.isDownloaded && downloadStatus.url) {
+        setSnackbar({ 
+          open: true, 
+          message: `📱 Reproduciendo desde dispositivo: ${song?.title}`, 
+          severity: 'info' 
+        });
+
+        // Crear objeto con URL local
+        const localSong = {
+          ...song,
+          audioUrl: downloadStatus.url,  // ← URL blob del archivo local
+          isLocal: true,
+          source: 'offline'
+        };
+
+        await player.playSongFromCard?.(localSong);
+        setSnackbar({ open: false });
+        return;
+      }
+
+      // CASO 2: Reproducción normal (streaming)
+      if (songStatus?.isCurrent) {
+        player.toggle?.();
+      } else {
+        setSnackbar({ open: true, message: `Cargando ${song?.title}...`, severity: 'info' });
+        await player.playSongFromCard?.(song);
+        setSnackbar({ open: false });
+      }
+    } catch (error) {
+      console.error('Error en reproducción:', error);
+      setSnackbar({ 
+        open: true, 
+        message: `❌ Error: ${error.message}`, 
+        severity: 'error' 
+      });
+    }
+  };
+
+  // ============================================ //
+  // HANDLERS (actualizados)
   // ============================================ //
   const handleDownload = useCallback(async (e) => {
     e?.stopPropagation();
     handleMenuClose();
-    
+
     setSnackbar({ open: true, message: `📥 Descargando ${song?.title}...`, severity: 'info' });
-    
+
     try {
       await download.downloadSong?.(songId, song?.title, song?.artist);
+      // El estado se actualizará automáticamente vía useEffect
       setSnackbar({ open: true, message: '✅ Canción descargada', severity: 'success' });
     } catch (error) {
       setSnackbar({ open: true, message: `❌ ${error.message}`, severity: 'error' });
@@ -141,14 +229,18 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   const handleRemoveDownload = useCallback(() => {
     setConfirmDialogOpen(false);
     download.removeDownload?.(songId);
+    // Liberar URL blob si existe
+    if (downloadStatus.url) {
+      URL.revokeObjectURL(downloadStatus.url);
+    }
     setSnackbar({ open: true, message: '🗑️ Eliminada del dispositivo', severity: 'success' });
-  }, [download, songId]);
+  }, [download, songId, downloadStatus.url]);
 
   const handleMenuOpen = (event) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
-  
+
   const handleMenuClose = () => setAnchorEl(null);
 
   const handleLike = (e) => {
@@ -158,60 +250,48 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
     onLike?.(song?.id, newLikedState);
   };
 
-  const handlePlayPause = async (e) => {
-    e.stopPropagation();
-    
-    if (songStatus?.isCurrent) {
-      player.toggle?.();
-    } else {
-      setSnackbar({ open: true, message: `Cargando ${song?.title}...`, severity: 'info' });
-      await player.playSongFromCard?.(song);
-      setSnackbar({ open: false });
-    }
-  };
-
   const handleCardClick = (e) => {
     if (e.target.closest('button') || e.target.closest('.MuiMenu-paper')) return;
     handlePlayPause(e);
   };
 
   // ============================================ //
-  // RENDER MENÚ
+  // RENDER MENÚ (actualizado)
   // ============================================ //
   const renderMenu = () => {
     const menuItems = [
-      // Opción de descarga - SIEMPRE visible si no está descargada
-      !isDownloaded && !isDownloading && {
+      // Opción de descarga
+      !downloadStatus.isDownloaded && !downloadStatus.isDownloading && {
         label: 'Descargar',
         icon: <Download fontSize="small" />,
         onClick: handleDownload
       },
-      
+
       // Si está descargando
-      isDownloading && {
-        label: 'Descargando...',
+      downloadStatus.isDownloading && {
+        label: `Descargando ${downloadStatus.progress}%`,
         icon: <CircularProgress size={16} />,
         disabled: true,
-        progress: `${downloadProgress}%`
+        progress: `${downloadStatus.progress}%`
       },
-      
+
       // Si ya está descargada
-      isDownloaded && {
+      downloadStatus.isDownloaded && {
         label: 'Información',
         icon: <Info fontSize="small" />,
         onClick: () => setDownloadInfoDialog(true)
       },
-      isDownloaded && {
+      downloadStatus.isDownloaded && {
         label: 'Eliminar del dispositivo',
         icon: <Delete fontSize="small" />,
         onClick: () => setConfirmDialogOpen(true),
         color: designTokens.colors.error
       },
-      
-      // Separador si hay opciones de descarga
-      (isDownloaded || isDownloading) && { divider: true },
-      
-      // Favoritos siempre visible
+
+      // Separador
+      (downloadStatus.isDownloaded || downloadStatus.isDownloading) && { divider: true },
+
+      // Favoritos
       {
         label: liked ? 'Quitar de favoritos' : 'Añadir a favoritos',
         icon: liked ? <Favorite fontSize="small" color="error" /> : <FavoriteBorder fontSize="small" />,
@@ -262,7 +342,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   };
 
   // ============================================ //
-  // RENDER
+  // RENDER (con actualizaciones)
   // ============================================ //
   return (
     <>
@@ -286,7 +366,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
         }}
       >
         {/* Barra de progreso */}
-        {(songStatus?.isLoading || isDownloading) && (
+        {(songStatus?.isLoading || downloadStatus.isDownloading) && (
           <Fade in={true}>
             <Box sx={{ 
               position: 'absolute', 
@@ -299,7 +379,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
             }}>
               <LinearProgress
                 variant="determinate"
-                value={songStatus?.isLoading ? songStatus?.loadingProgress || 0 : downloadProgress}
+                value={songStatus?.isLoading ? songStatus?.loadingProgress || 0 : downloadStatus.progress}
                 sx={{
                   height: '100%',
                   bgcolor: 'transparent',
@@ -336,14 +416,14 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
             }}>
               {primaryState === 'loading' && <CircularProgress size={10} sx={{ color: 'white' }} />}
               {primaryState === 'downloading' && <Download sx={{ fontSize: 12 }} />}
-              {primaryState === 'downloaded' && <CheckCircle sx={{ fontSize: 12 }} />}
+              {primaryState === 'downloaded' && <OfflineBolt sx={{ fontSize: 12 }} />}
               {primaryState === 'playing' && <VolumeUp sx={{ fontSize: 12 }} />}
               {primaryState === 'paused' && <PlayArrow sx={{ fontSize: 12 }} />}
               {primaryState === 'error' && <WarningIcon sx={{ fontSize: 12 }} />}
               <span>
                 {primaryState === 'loading' && 'CARGANDO'}
-                {primaryState === 'downloading' && `DESCARGANDO ${downloadProgress}%`}
-                {primaryState === 'downloaded' && 'DESCARGADA'}
+                {primaryState === 'downloading' && `DESCARGANDO ${downloadStatus.progress}%`}
+                {primaryState === 'downloaded' && 'OFFLINE'}
                 {primaryState === 'playing' && 'REPRODUCIENDO'}
                 {primaryState === 'paused' && 'PAUSADA'}
                 {primaryState === 'error' && 'ERROR'}
@@ -362,7 +442,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
             onError={() => setImageError(true)}
             sx={{ 
               objectFit: "cover", 
-              opacity: (songStatus?.isLoading || isDownloading) ? 0.5 : 1,
+              opacity: (songStatus?.isLoading || downloadStatus.isDownloading) ? 0.5 : 1,
               transition: 'all 0.3s ease'
             }} 
           />
@@ -370,7 +450,8 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
           {/* Botón principal */}
           <Tooltip title={
             songStatus?.isLoading ? `Cargando ${songStatus?.loadingProgress}%` :
-            isDownloading ? `Descargando ${downloadProgress}%` :
+            downloadStatus.isDownloading ? `Descargando ${downloadStatus.progress}%` :
+            downloadStatus.isDownloaded ? 'Reproducir offline' :
             songStatus?.isPlaying ? 'Pausar' : 'Reproducir'
           } arrow>
             <Zoom in={isActive || primaryState !== 'idle'}>
@@ -400,18 +481,19 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
               >
                 {songStatus?.isLoading ? (
                   <CircularProgress size={24} sx={{ color: currentColor }} />
-                ) : isDownloading ? (
+                ) : downloadStatus.isDownloading ? (
                   <Box sx={{ position: 'relative', width: 24, height: 24 }}>
-                    <CircularProgress size={24} value={downloadProgress} variant="determinate" />
+                    <CircularProgress size={24} value={downloadStatus.progress} variant="determinate" />
                     <Box sx={{ 
                       position: 'absolute', 
                       top: '50%', 
                       left: '50%', 
                       transform: 'translate(-50%, -50%)',
                       fontSize: '0.6rem',
-                      fontWeight: 700
+                      fontWeight: 700,
+                      color: currentColor
                     }}>
-                      {downloadProgress}%
+                      {downloadStatus.progress}%
                     </Box>
                   </Box>
                 ) : (
@@ -420,6 +502,25 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
               </IconButton>
             </Zoom>
           </Tooltip>
+
+          {/* Indicador offline */}
+          {downloadStatus.isDownloaded && (
+            <Tooltip title="Disponible offline">
+              <OfflineBolt 
+                sx={{ 
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  color: designTokens.colors.offline,
+                  bgcolor: alpha('#FFFFFF', 0.9),
+                  borderRadius: '50%',
+                  p: 0.5,
+                  fontSize: 20,
+                  boxShadow: designTokens.shadows.button
+                }} 
+              />
+            </Tooltip>
+          )}
         </Box>
 
         {/* Contenido */}
@@ -449,15 +550,20 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
                   fontWeight: 700, 
                   lineHeight: 1.2, 
                   mb: 0.5,
-                  color: downloadError ? designTokens.colors.error : 'text.primary',
+                  color: downloadStatus.error ? designTokens.colors.error : 'text.primary',
                   overflow: "hidden", 
                   textOverflow: "ellipsis", 
                   whiteSpace: "nowrap" 
                 }}
               >
                 {song?.title}
+                {downloadStatus.isDownloaded && (
+                  <Box component="span" sx={{ ml: 1, color: designTokens.colors.offline, fontSize: '0.7rem' }}>
+                    ●
+                  </Box>
+                )}
               </Typography>
-              
+
               <Typography 
                 variant="body2" 
                 sx={{ 
@@ -492,7 +598,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
                       }} 
                     />
                   )}
-                  
+
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <AccessTime sx={{ fontSize: 14, color: 'text.disabled' }} />
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -500,37 +606,37 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
                     </Typography>
                   </Box>
 
-                  {/* INFO DE DESCARGA - SOLO SI REALMENTE ESTÁ DESCARGADA */}
-                  {isDownloaded && downloadInfo?.fileSize && (
-                    <Tooltip title={`${(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB`}>
+                  {/* INFO DE DESCARGA */}
+                  {downloadStatus.isDownloaded && downloadStatus.info?.fileSize && (
+                    <Tooltip title={`${(downloadStatus.info.fileSize / 1024 / 1024).toFixed(1)} MB · Offline`}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <StorageIcon sx={{ fontSize: 12, color: designTokens.colors.success }} />
-                        <Typography variant="caption" sx={{ color: designTokens.colors.success, fontWeight: 600 }}>
-                          {(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB
+                        <StorageIcon sx={{ fontSize: 12, color: designTokens.colors.offline }} />
+                        <Typography variant="caption" sx={{ color: designTokens.colors.offline, fontWeight: 600 }}>
+                          {(downloadStatus.info.fileSize / 1024 / 1024).toFixed(1)} MB
                         </Typography>
                       </Box>
                     </Tooltip>
                   )}
                 </Box>
 
-                {/* ACCIONES SIEMPRE VISIBLES */}
+                {/* ACCIONES */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {/* BOTÓN DE DESCARGA - SIEMPRE VISIBLE */}
-                  {isDownloaded ? (
+                  {/* Botón de descarga */}
+                  {downloadStatus.isDownloaded ? (
                     <Tooltip title="Descargada - Ver información">
                       <IconButton 
                         size="small" 
                         onClick={(e) => { e.stopPropagation(); setDownloadInfoDialog(true); }}
                         sx={{ 
-                          color: designTokens.colors.success,
-                          bgcolor: alpha(designTokens.colors.success, 0.1)
+                          color: designTokens.colors.offline,
+                          bgcolor: alpha(designTokens.colors.offline, 0.1)
                         }}
                       >
                         <CheckCircle fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                  ) : isDownloading ? (
-                    <Tooltip title={`Descargando ${downloadProgress}%`}>
+                  ) : downloadStatus.isDownloading ? (
+                    <Tooltip title={`Descargando ${downloadStatus.progress}%`}>
                       <Box sx={{ 
                         display: 'flex', 
                         alignItems: 'center', 
@@ -540,9 +646,9 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
                         px: 1,
                         py: 0.5
                       }}>
-                        <CircularProgress size={16} value={downloadProgress} variant="determinate" />
+                        <CircularProgress size={16} value={downloadStatus.progress} variant="determinate" />
                         <Typography variant="caption" sx={{ fontWeight: 700, color: designTokens.colors.success }}>
-                          {downloadProgress}%
+                          {downloadStatus.progress}%
                         </Typography>
                       </Box>
                     </Tooltip>
@@ -564,7 +670,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
                       </IconButton>
                     </Tooltip>
                   )}
-                  
+
                   {/* Menú de 3 puntos */}
                   <IconButton 
                     size="small" 
@@ -588,7 +694,8 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
         <DialogTitle>Eliminar canción</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            ¿Eliminar "{song?.title}" de tu dispositivo?
+            ¿Eliminar "{song?.title}" de tu dispositivo? 
+            {downloadStatus.isDownloaded && ' Podrás volver a descargarla después.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -598,12 +705,25 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
       </Dialog>
 
       <Dialog open={downloadInfoDialog} onClose={() => setDownloadInfoDialog(false)}>
-        <DialogTitle>Información</DialogTitle>
+        <DialogTitle>Información de descarga</DialogTitle>
         <DialogContent>
           <Box>
-            <Typography>{downloadInfo?.fileName || song?.title}</Typography>
-            <Typography variant="caption">
-              {(downloadInfo?.fileSize / 1024 / 1024).toFixed(1)} MB
+            <Typography variant="subtitle1" gutterBottom>{downloadStatus.info?.fileName || song?.title}</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Artista: {song?.artist}
+            </Typography>
+            {downloadStatus.info?.fileSize && (
+              <Typography variant="body2" color="text.secondary">
+                Tamaño: {(downloadStatus.info.fileSize / 1024 / 1024).toFixed(1)} MB
+              </Typography>
+            )}
+            {downloadStatus.info?.downloadedAt && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Descargada: {new Date(downloadStatus.info.downloadedAt).toLocaleDateString()}
+              </Typography>
+            )}
+            <Typography variant="caption" color={designTokens.colors.offline} sx={{ mt: 2, display: 'block' }}>
+              ✅ Disponible offline
             </Typography>
           </Box>
         </DialogContent>
@@ -614,8 +734,17 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
         open={snackbar.open} 
         autoHideDuration={3000} 
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
+        <Alert 
+          severity={snackbar.severity}
+          sx={{ 
+            borderRadius: 2,
+            boxShadow: designTokens.shadows.drawer
+          }}
+        >
+          {snackbar.message}
+        </Alert>
       </Snackbar>
     </>
   );
