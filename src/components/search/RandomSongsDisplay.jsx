@@ -1,3 +1,9 @@
+// ============================================
+// components/search/RandomSongsDisplay.jsx
+// VERSIÓN FINAL - TEXTOS BLANCOS SOBRE FONDO OSCURO
+// 100% compatible con MainPage oscura
+// ============================================
+
 import React from "react";
 import {
   Container,
@@ -10,7 +16,8 @@ import {
   useMediaQuery,
   useTheme,
   Button,
-  Fade
+  Fade,
+  alpha
 } from "@mui/material";
 import {
   Refresh,
@@ -19,16 +26,44 @@ import {
   Login as LoginIcon,
   AutoAwesome
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom"; // AÑADIDO
+import { useNavigate } from "react-router-dom";
 import useRandomSongs from "../../components/hook/services/useRandomSongs";
 import SongCard from "../../songs/SongCard";
+
+// ============================================
+// 🎨 IDENTIDAD VISUAL - MISMA QUE MAINPAGE
+// ============================================
+const colors = {
+  primary: '#FF6B35',
+  primaryLight: '#FF8B5C',
+  primaryDark: '#E55A2B',
+  // ✅ TEXTOS BLANCOS - MÁXIMO CONTRASTE
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(255,255,255,0.85)',  // Aumentado de 0.7 a 0.85
+  textTertiary: 'rgba(255,255,255,0.65)',   // Aumentado de 0.5 a 0.65
+  background: {
+    dark: '#0A0A0A',
+    medium: '#121212',
+    light: '#1A1A1A',
+    paper: 'rgba(30,30,30,0.9)'  // Aumentado opacidad para mejor contraste
+  }
+};
+
+// ============================================
+// 🎨 SOMBRAS UNIFORMES
+// ============================================
+const shadows = {
+  small: (opacity = 0.2) => `0 4px 12px ${alpha('#000', opacity)}`,
+  medium: (opacity = 0.25) => `0 8px 20px ${alpha('#000', opacity)}`,
+  large: (opacity = 0.3) => `0 12px 28px ${alpha('#000', opacity)}`,
+  primary: (opacity = 0.3) => `0 8px 20px ${alpha(colors.primary, opacity)}`,
+};
 
 const RandomSongsDisplay = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const navigate = useNavigate(); // AÑADIDO
+  const navigate = useNavigate();
 
-  // Usamos el hook completo
   const {
     songs,
     loading,
@@ -41,7 +76,9 @@ const RandomSongsDisplay = () => {
     showContent
   } = useRandomSongs();
 
-  // Estados del componente
+  // ============================================
+  // 🚫 NO AUTENTICADO - Texto blanco
+  // ============================================
   if (!isAuthenticated) {
     return (
       <Container maxWidth="sm" sx={{ mt: 3 }}>
@@ -52,42 +89,47 @@ const RandomSongsDisplay = () => {
               p: 4, 
               borderRadius: 4,
               textAlign: "center",
-              background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
-              border: `1px solid ${theme.palette.divider}`,
-              backdropFilter: "blur(10px)"
+              background: colors.background.paper,
+              backdropFilter: "blur(12px)",
+              border: `1px solid ${alpha(colors.primary, 0.2)}`,
+              boxShadow: shadows.medium(0.3)
             }}
           >
             <ErrorIcon sx={{ 
               fontSize: 60, 
-              color: theme.palette.error.main, 
+              color: colors.primary, 
               mb: 2,
-              filter: "drop-shadow(0 4px 8px rgba(244, 67, 54, 0.3))"
+              filter: `drop-shadow(0 4px 8px ${alpha(colors.primary, 0.3)})`
             }} />
-            
-            <Typography variant="h5" gutterBottom fontWeight={600}>
+
+            {/* ✅ Texto blanco puro */}
+            <Typography variant="h5" gutterBottom fontWeight={600} sx={{ color: colors.textPrimary }}>
               Sesión requerida
             </Typography>
-            
-            <Typography variant="body1" color="text.secondary" paragraph sx={{ mb: 3 }}>
+
+            {/* ✅ Texto blanco con 85% opacidad */}
+            <Typography variant="body1" sx={{ color: colors.textSecondary, mb: 3 }}>
               {error || "Inicia sesión para descubrir nueva música"}
             </Typography>
 
-            {/* Botón que redirige directamente al login */}
             <Button
               variant="contained"
-              onClick={() => navigate("/")} // Redirige a la ruta principal (login)
+              onClick={() => navigate("/")}
               startIcon={<LoginIcon />}
               sx={{
                 px: 4,
                 py: 1.2,
                 borderRadius: 3,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
+                color: colors.textPrimary,
                 fontWeight: 600,
                 textTransform: "none",
                 fontSize: "1rem",
+                boxShadow: shadows.primary(0.3),
                 "&:hover": {
                   transform: "translateY(-2px)",
-                  boxShadow: theme.shadows[4]
+                  background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)`,
+                  boxShadow: shadows.primary(0.4)
                 },
                 transition: "all 0.3s ease"
               }}
@@ -100,6 +142,9 @@ const RandomSongsDisplay = () => {
     );
   }
 
+  // ============================================
+  // ⏳ CARGANDO - Texto blanco
+  // ============================================
   if (showLoading) {
     return (
       <Box sx={{
@@ -114,15 +159,16 @@ const RandomSongsDisplay = () => {
           size={isMobile ? 40 : 60} 
           thickness={4}
           sx={{ 
-            color: theme.palette.primary.main,
-            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
+            color: colors.primary,
+            filter: `drop-shadow(0 2px 8px ${alpha(colors.primary, 0.3)})`
           }}
         />
+        {/* ✅ Texto blanco con 85% opacidad */}
         <Typography 
           variant="body1" 
           sx={{ 
             mt: 2.5,
-            color: theme.palette.text.secondary,
+            color: colors.textSecondary,
             fontWeight: 500
           }}
         >
@@ -132,6 +178,9 @@ const RandomSongsDisplay = () => {
     );
   }
 
+  // ============================================
+  // ❌ ERROR - Texto blanco
+  // ============================================
   if (showError) {
     return (
       <Container maxWidth="md" sx={{ mt: 3 }}>
@@ -146,14 +195,21 @@ const RandomSongsDisplay = () => {
                 borderRadius: 3,
                 borderWidth: 2,
                 alignItems: "flex-start",
-                py: 1.5
+                py: 1.5,
+                bgcolor: alpha('#FF4444', 0.1),
+                borderColor: alpha('#FF4444', 0.3),
+                '& .MuiAlert-icon': {
+                  color: '#FF4444'
+                }
               }}
             >
               <Box>
-                <Typography variant="body1" fontWeight={600} gutterBottom>
+                {/* ✅ Texto blanco puro */}
+                <Typography variant="body1" fontWeight={600} gutterBottom sx={{ color: colors.textPrimary }}>
                   ¡Ups! Algo salió mal
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                {/* ✅ Texto blanco con 85% opacidad */}
+                <Typography variant="body2" sx={{ color: colors.textSecondary }}>
                   {error || "No pudimos cargar las canciones. Inténtalo de nuevo."}
                 </Typography>
               </Box>
@@ -173,20 +229,22 @@ const RandomSongsDisplay = () => {
                   py: 1.5,
                   px: 4,
                   borderRadius: 3,
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDark} 100%)`,
+                  color: colors.textPrimary,
                   fontWeight: 600,
                   fontSize: "1rem",
                   textTransform: "none",
+                  boxShadow: shadows.primary(0.3),
                   "&:hover": {
                     transform: "translateY(-2px)",
-                    boxShadow: `0 8px 25px ${theme.palette.primary.main}40`
+                    boxShadow: shadows.primary(0.4)
                   },
                   transition: "all 0.3s ease"
                 }}
               >
                 Reintentar
               </Button>
-              
+
               <Button
                 variant="outlined"
                 onClick={refresh}
@@ -197,12 +255,16 @@ const RandomSongsDisplay = () => {
                   px: 4,
                   borderRadius: 3,
                   borderWidth: 2,
+                  borderColor: alpha(colors.primary, 0.5),
+                  color: colors.textPrimary,
                   fontWeight: 600,
                   fontSize: "1rem",
                   textTransform: "none",
                   "&:hover": {
                     borderWidth: 2,
-                    transform: "translateY(-2px)"
+                    borderColor: colors.primary,
+                    transform: "translateY(-2px)",
+                    bgcolor: alpha(colors.primary, 0.15)
                   },
                   transition: "all 0.3s ease"
                 }}
@@ -216,6 +278,9 @@ const RandomSongsDisplay = () => {
     );
   }
 
+  // ============================================
+  // 📭 SIN CONTENIDO - Texto blanco
+  // ============================================
   if (isEmpty) {
     return (
       <Container maxWidth="sm">
@@ -226,23 +291,25 @@ const RandomSongsDisplay = () => {
               p: 4, 
               textAlign: "center",
               borderRadius: 4,
-              background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
-              border: `1px solid ${theme.palette.divider}`,
-              backdropFilter: "blur(10px)"
+              background: colors.background.paper,
+              backdropFilter: "blur(12px)",
+              border: `1px solid ${alpha(colors.primary, 0.2)}`,
+              boxShadow: shadows.medium(0.3)
             }}
           >
             <MusicNote sx={{ 
               fontSize: 60, 
-              color: theme.palette.text.secondary, 
-              mb: 2,
-              opacity: 0.8
+              color: colors.textTertiary, 
+              mb: 2
             }} />
-            
-            <Typography variant="h5" gutterBottom fontWeight={600}>
+
+            {/* ✅ Texto blanco puro */}
+            <Typography variant="h5" gutterBottom fontWeight={600} sx={{ color: colors.textPrimary }}>
               No hay canciones disponibles
             </Typography>
-            
-            <Typography variant="body1" color="text.secondary" paragraph sx={{ mb: 3 }}>
+
+            {/* ✅ Texto blanco con 85% opacidad */}
+            <Typography variant="body1" sx={{ color: colors.textSecondary, mb: 3 }}>
               Parece que no hay música cargada en este momento.
             </Typography>
 
@@ -254,13 +321,16 @@ const RandomSongsDisplay = () => {
                 px: 4,
                 py: 1.2,
                 borderRadius: 3,
-                background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
+                background: `linear-gradient(135deg, ${colors.primaryLight} 0%, ${colors.primary} 100%)`,
+                color: colors.textPrimary,
                 fontWeight: 600,
                 textTransform: "none",
                 fontSize: "1rem",
+                boxShadow: shadows.primary(0.3),
                 "&:hover": {
                   transform: "translateY(-2px)",
-                  boxShadow: theme.shadows[4]
+                  background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDark} 100%)`,
+                  boxShadow: shadows.primary(0.4)
                 },
                 transition: "all 0.3s ease"
               }}
@@ -273,9 +343,12 @@ const RandomSongsDisplay = () => {
     );
   }
 
+  // ============================================
+  // 🎵 CONTENIDO NORMAL - TODOS LOS TEXTOS EN BLANCO
+  // ============================================
   return (
     <Container maxWidth="xl" sx={{ py: 2, px: isMobile ? 1 : 2 }}>
-      {/* Header con opción de refrescar */}
+      {/* Header */}
       <Box sx={{
         display: "flex",
         justifyContent: "space-between",
@@ -285,18 +358,22 @@ const RandomSongsDisplay = () => {
         gap: 2
       }}>
         <Box>
+          {/* ✅ Título con gradiente naranja sobre fondo negro */}
           <Typography 
             variant={isMobile ? "h6" : "h5"} 
             fontWeight={700}
             sx={{
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 100%)`,
+              background: `linear-gradient(135deg, ${colors.primary} 30%, ${colors.primaryLight} 100%)`,
               WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent"
+              WebkitTextFillColor: "transparent",
+              // Fallback para navegadores que no soportan gradient text
+              color: colors.primary,
             }}
           >
             Selección para ti
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          {/* ✅ Texto blanco con 65% opacidad */}
+          <Typography variant="caption" sx={{ color: colors.textTertiary }}>
             Descubre nueva música automáticamente
           </Typography>
         </Box>
@@ -311,11 +388,15 @@ const RandomSongsDisplay = () => {
             fontWeight: 600,
             textTransform: "none",
             borderWidth: 2,
+            borderColor: alpha(colors.primary, 0.5),
+            color: colors.textPrimary,  // ✅ Texto blanco
             px: 3,
             "&:hover": {
               borderWidth: 2,
+              borderColor: colors.primary,
               transform: "translateY(-2px)",
-              boxShadow: theme.shadows[2]
+              boxShadow: shadows.primary(0.2),
+              bgcolor: alpha(colors.primary, 0.1)
             },
             transition: "all 0.3s ease"
           }}
@@ -346,7 +427,7 @@ const RandomSongsDisplay = () => {
                 "&:hover": !isMobile ? {
                   transform: "translateY(-6px)",
                   "& .song-card": {
-                    boxShadow: 6
+                    boxShadow: shadows.large(0.3)
                   }
                 } : {}
               }}
@@ -357,7 +438,17 @@ const RandomSongsDisplay = () => {
                 sx={{
                   height: "100%",
                   transition: "box-shadow 0.3s ease",
-                  borderRadius: 3
+                  borderRadius: 3,
+                  bgcolor: colors.background.paper,
+                  backdropFilter: "blur(8px)",
+                  border: `1px solid ${alpha(colors.primary, 0.15)}`,
+                  // Asegurar que los textos dentro de SongCard también sean blancos
+                  '& .MuiTypography-root': {
+                    color: colors.textPrimary
+                  },
+                  '& .MuiTypography-secondary': {
+                    color: colors.textSecondary
+                  }
                 }}
               />
             </Box>
@@ -365,14 +456,14 @@ const RandomSongsDisplay = () => {
         ))}
       </Grid>
 
-      {/* Footer informativo */}
+      {/* Footer */}
       <Box sx={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         mt: 3,
         pt: 2,
-        borderTop: `2px solid ${theme.palette.divider}`,
+        borderTop: `2px solid ${alpha(colors.primary, 0.2)}`,
         flexWrap: "wrap",
         gap: 1
       }}>
@@ -381,21 +472,23 @@ const RandomSongsDisplay = () => {
             width: 8, 
             height: 8, 
             borderRadius: "50%",
-            backgroundColor: theme.palette.success.main,
+            backgroundColor: colors.primary,
             animation: "pulse 2s infinite",
             "@keyframes pulse": {
               "0%, 100%": { opacity: 1 },
               "50%": { opacity: 0.5 }
             }
           }} />
-          <Typography variant="caption" color="text.secondary">
+          {/* ✅ Texto blanco con 85% opacidad */}
+          <Typography variant="caption" sx={{ color: colors.textSecondary }}>
             {songs.length} canciones disponibles
           </Typography>
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Refresh sx={{ fontSize: 12, color: theme.palette.text.disabled }} />
-          <Typography variant="caption" color="text.secondary">
+          <Refresh sx={{ fontSize: 12, color: colors.textTertiary }} />
+          {/* ✅ Texto blanco con 65% opacidad */}
+          <Typography variant="caption" sx={{ color: colors.textTertiary }}>
             Actualizado: {new Date().toLocaleTimeString([], { 
               hour: '2-digit', 
               minute: '2-digit' 
