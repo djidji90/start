@@ -1,5 +1,8 @@
 // ============================================
-// src/components/PlayerContext.jsx - VERSIÓN CORREGIDA (PAUSA FUNCIONAL)
+// src/components/PlayerContext.jsx - VERSIÓN CORREGIDA
+// ✅ Soporte para reproducción OFFLINE con IndexedDB
+// ✅ Compatible con sistemas antiguos (cache, filesystem)
+// ✅ Manejo de errores mejorado
 // ============================================
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { audioEngine } from "../audio/engine/AudioEngine";
@@ -14,13 +17,13 @@ export const PlayerProvider = ({ children }) => {
   const [volume, setVolume] = useState(0.7);
   const [error, setError] = useState(null);
   const [lastValidUrl, setLastValidUrl] = useState(null);
-  
+
   // Estado de carga por canción específica
   const [songLoadingStates, setSongLoadingStates] = useState({});
-  
+
   // REF para acceso directo al elemento de audio
   const audioElementRef = useRef(null);
-  
+
   const isMountedRef = useRef(true);
   const cleanupPerformedRef = useRef(false);
   const audioEngineAvailableRef = useRef(!!audioEngine);
@@ -41,7 +44,7 @@ export const PlayerProvider = ({ children }) => {
       }
     }));
   }, []);
-  
+
   const getSongLoadingState = useCallback((songId) => {
     const state = songLoadingStates[songId];
     if (!state) {
@@ -53,7 +56,7 @@ export const PlayerProvider = ({ children }) => {
         lastUpdated: 0
       };
     }
-    
+
     if (Date.now() - state.lastUpdated > 10000 && !state.isLoading) {
       return {
         isLoading: false,
@@ -63,14 +66,14 @@ export const PlayerProvider = ({ children }) => {
         lastUpdated: 0
       };
     }
-    
+
     return state;
   }, [songLoadingStates]);
-  
+
   const isSongLoading = useCallback((songId) => {
     return getSongLoadingState(songId).isLoading;
   }, [getSongLoadingState]);
-  
+
   const getSongLoadingProgress = useCallback((songId) => {
     return getSongLoadingState(songId).progress;
   }, [getSongLoadingState]);
@@ -95,7 +98,7 @@ export const PlayerProvider = ({ children }) => {
                       trimmedUrl.startsWith('blob:') ||
                       trimmedUrl.startsWith('data:') ||
                       trimmedUrl.startsWith('/');
-    
+
     if (!isValidUrl) {
       console.error("[PlayerContext] URL con formato inválido:", trimmedUrl.substring(0, 50));
       return false;
@@ -114,21 +117,25 @@ export const PlayerProvider = ({ children }) => {
 
   const getPlaybackBadge = useCallback(() => {
     if (!currentSong) return null;
-    
+
     if (currentSong.source === 'offline') {
+      let badgeText = '📱 OFFLINE';
+      if (currentSong.storageType === 'filesystem') badgeText = '💾 PC';
+      if (currentSong.storageType === 'indexeddb') badgeText = '📦 APP';
+      
       return {
-        text: currentSong.storageType === 'cache' ? '📱 OFFLINE' : '💾 PC',
+        text: badgeText,
         color: '#4caf50'
       };
     }
-    
+
     if (!navigator.onLine) {
       return {
         text: '⚠️ SIN INTERNET',
         color: '#f44336'
       };
     }
-    
+
     return {
       text: '🌐 ONLINE',
       color: '#2196f3'
@@ -136,11 +143,11 @@ export const PlayerProvider = ({ children }) => {
   }, [currentSong]);
 
   // ============================================
-  // OBTENER URL SEGURA
+  // OBTENER URL SEGURA (VERSIÓN CORREGIDA)
   // ============================================
   const getSecureAudioUrl = useCallback(async (songId) => {
     console.log(`[PlayerContext] Obteniendo URL para canción: ${songId}`);
-    
+
     if (!songId) {
       throw new Error("ID de canción no proporcionado");
     }
@@ -153,53 +160,63 @@ export const PlayerProvider = ({ children }) => {
         message: 'Verificando disponibilidad offline...'
       });
 
+      // 🔥 VERIFICACIÓN OFFLINE MEJORADA
       const downloadHook = window.downloadAPI;
       if (downloadHook) {
         const isOfflineAvailable = await downloadHook.isDownloaded(songId);
-        
+
         if (isOfflineAvailable) {
           const downloadInfo = downloadHook.getDownloadInfo(songId);
           
-          if (downloadInfo?.storageType === 'cache') {
+          // ✅ ACEPTAR CUALQUIER TIPO DE ALMACENAMIENTO VÁLIDO
+          if (downloadInfo) {
+            
             updateSongLoadingState(songId, {
               progress: 30,
               stage: 'loading_offline',
-              message: 'Cargando desde almacenamiento offline...'
+              message: `Cargando desde almacenamiento offline...`
             });
+
+            console.log(`[PlayerContext] 🎵 Reproduciendo OFFLINE (${downloadInfo.storageType || 'desconocido'}): ${songId}`);
             
             const offlineUrl = await downloadHook.getOfflineAudioUrl(songId);
-            
+
             if (offlineUrl) {
-              console.log(`[PlayerContext] ✅ Reproduciendo OFFLINE: ${songId}`);
+              console.log(`[PlayerContext] ✅ URL offline obtenida: ${offlineUrl.substring(0, 50)}...`);
               updateSongLoadingState(songId, {
                 progress: 80,
                 stage: 'offline_ready',
                 message: 'Audio offline cargado'
               });
+              
+              // Guardar referencia del tipo de almacenamiento para el badge
+              if (currentSong?.id === songId) {
+                setCurrentSong(prev => ({
+                  ...prev,
+                  source: 'offline',
+                  storageType: downloadInfo.storageType
+                }));
+              }
+              
               return offlineUrl;
+            } else {
+              console.warn(`[PlayerContext] ⚠️ No se pudo obtener URL offline, usando streaming como fallback`);
             }
-          } else {
-            console.log(`[PlayerContext] ℹ️ Canción en PC: ${songId} - usar streaming`);
-            updateSongLoadingState(songId, {
-              progress: 20,
-              stage: 'offline_unavailable',
-              message: 'Canción en PC, usando streaming...'
-            });
           }
         }
       }
 
+      // Si no hay offline o falló, usar streaming
       updateSongLoadingState(songId, {
-        progress: 99,
+        progress: 50,
         stage: 'fetching_url',
-        message: 'cargando..'
+        message: 'Obteniendo URL de streaming...'
       });
-      
-      console.log(`[PlayerContext] cargando...: ${songId}`);
+
+      console.log(`[PlayerContext] Usando streaming para: ${songId}`);
       const audioUrl = await streamManager.getAudio(songId);
-      
+
       if (!audioUrl) {
-        console.warn('[PlayerContext] StreamManager devolvió URL vacía');
         throw new Error("No se pudo obtener URL de audio");
       }
 
@@ -210,17 +227,17 @@ export const PlayerProvider = ({ children }) => {
       });
 
       if (!validateAudioUrl(audioUrl)) {
-        throw new Error("URL de audio inválida obtenida del StreamManager");
+        throw new Error("URL de audio inválida");
       }
 
-      console.log(`[PlayerContext] URL obtenida exitosamente: ${audioUrl.substring(0, 50)}...`);
-      
+      console.log(`[PlayerContext] URL de streaming obtenida: ${audioUrl.substring(0, 50)}...`);
+
       updateSongLoadingState(songId, {
         progress: 80,
         stage: 'online_ready',
         message: 'URL validada correctamente'
       });
-      
+
       return audioUrl;
 
     } catch (err) {
@@ -228,16 +245,16 @@ export const PlayerProvider = ({ children }) => {
         songId,
         error: err.message
       });
-      
+
       updateSongLoadingState(songId, {
         isLoading: false,
         progress: 0,
         stage: 'error',
         message: `Error: ${err.message}`
       });
-      
+
       let userMessage = err.message;
-      
+
       if (err.message.includes('406')) {
         userMessage = 'Error del servidor (406). El formato de audio no es compatible.';
       } else if (err.message.includes('401') || err.message.includes('403')) {
@@ -249,44 +266,40 @@ export const PlayerProvider = ({ children }) => {
       } else if (err.message.includes('No se pudo obtener')) {
         userMessage = 'Esta canción no está disponible para reproducción en este momento.';
       }
-      
+
       throw new Error(userMessage);
     }
-  }, [updateSongLoadingState, validateAudioUrl]);
+  }, [updateSongLoadingState, validateAudioUrl, currentSong]);
 
   // ============================================
-  // PAUSE (FUNCIÓN SEPARADA PARA MAYOR CLARIDAD)
+  // PAUSE
   // ============================================
   const pause = useCallback(() => {
     console.log('[PlayerContext] pause() llamado');
-    
+
     if (!audioEngineAvailableRef.current) {
       console.warn('[PlayerContext] audioEngine no disponible');
       return;
     }
 
     try {
-      // Intentar pausar con audioEngine
       if (typeof audioEngine.pause === 'function') {
         audioEngine.pause();
       }
-      
-      // Intentar pausar directamente con el elemento de audio
+
       if (audioElementRef.current && typeof audioElementRef.current.pause === 'function') {
         audioElementRef.current.pause();
       }
-      
-      // Buscar elementos audio en el DOM como último recurso
+
       const audioElements = document.querySelectorAll('audio');
       audioElements.forEach(audio => {
         if (typeof audio.pause === 'function') {
           audio.pause();
         }
       });
-      
-      // Actualizar estado
+
       setIsPlaying(false);
-      
+
       if (currentSong) {
         updateSongLoadingState(currentSong.id, {
           isLoading: false,
@@ -295,20 +308,20 @@ export const PlayerProvider = ({ children }) => {
           message: 'Pausado'
         });
       }
-      
+
       console.log('[PlayerContext] Pausa exitosa');
-      
+
     } catch (err) {
       console.error('[PlayerContext] Error en pause:', err);
     }
   }, [currentSong, progress, updateSongLoadingState]);
 
   // ============================================
-  // PLAY (FUNCIÓN SEPARADA)
+  // PLAY
   // ============================================
   const play = useCallback(() => {
     console.log('[PlayerContext] play() llamado');
-    
+
     if (!audioEngineAvailableRef.current || !currentSong) {
       console.warn('[PlayerContext] No se puede reproducir');
       return;
@@ -321,8 +334,7 @@ export const PlayerProvider = ({ children }) => {
         stage: 'resuming',
         message: 'Reanudando...'
       });
-      
-      // Intentar reproducir con audioEngine
+
       if (typeof audioEngine.play === 'function') {
         audioEngine.play().then(() => {
           if (isMountedRef.current) {
@@ -336,8 +348,7 @@ export const PlayerProvider = ({ children }) => {
           }
         }).catch(playError => {
           console.warn('[PlayerContext] Error en audioEngine.play():', playError);
-          
-          // Intentar con el elemento de audio directamente
+
           if (audioElementRef.current && typeof audioElementRef.current.play === 'function') {
             audioElementRef.current.play().then(() => {
               setIsPlaying(true);
@@ -353,38 +364,34 @@ export const PlayerProvider = ({ children }) => {
           }
         });
       }
-      
+
     } catch (err) {
       console.error('[PlayerContext] Error en play:', err);
     }
   }, [currentSong, progress, updateSongLoadingState]);
 
   // ============================================
-  // TOGGLE PLAY/PAUSE (VERSIÓN CORREGIDA)
+  // TOGGLE PLAY/PAUSE
   // ============================================
   const togglePlay = useCallback(() => {
     console.log('[PlayerContext] togglePlay llamado, isPlaying:', isPlaying);
-    
-    // Evitar múltiples llamadas simultáneas
+
     if (isTogglingRef.current) {
       console.log('[PlayerContext] togglePlay ya en ejecución, ignorando');
       return;
     }
-    
+
     isTogglingRef.current = true;
-    
+
     try {
       if (isPlaying) {
-        // Si está sonando, pausar
         pause();
       } else {
-        // Si está pausado, reanudar
         play();
       }
     } catch (err) {
       console.error('[PlayerContext] Error en togglePlay:', err);
     } finally {
-      // Liberar el bloqueo después de un breve tiempo
       setTimeout(() => {
         isTogglingRef.current = false;
       }, 100);
@@ -407,14 +414,13 @@ export const PlayerProvider = ({ children }) => {
       return;
     }
 
-    // Si ya está reproduciendo la misma canción, solo toggle
     if (currentSong?.id === song.id) {
       togglePlay();
       return;
     }
 
     setError(null);
-    
+
     updateSongLoadingState(song.id, {
       isLoading: true,
       progress: 0,
@@ -426,7 +432,7 @@ export const PlayerProvider = ({ children }) => {
       const downloadHook = window.downloadAPI;
       let isOfflineAvailable = false;
       let downloadInfo = null;
-      
+
       if (downloadHook) {
         isOfflineAvailable = await downloadHook.isDownloaded(song.id);
         if (isOfflineAvailable) {
@@ -439,9 +445,9 @@ export const PlayerProvider = ({ children }) => {
         stage: isOfflineAvailable ? 'offline' : 'online',
         message: isOfflineAvailable ? 'Usando audio offline...' : 'Obteniendo URL de audio...'
       });
-      
+
       const audioUrl = await getSecureAudioUrl(song.id);
-      
+
       if (!validateAudioUrl(audioUrl)) {
         throw new Error("URL de audio inválida obtenida");
       }
@@ -451,19 +457,18 @@ export const PlayerProvider = ({ children }) => {
         source: isOfflineAvailable ? 'offline' : 'online',
         storageType: downloadInfo?.storageType || null
       };
-      
+
       setCurrentSong(songWithSource);
-      
+
       updateSongLoadingState(song.id, {
         progress: 70,
         stage: 'loading_audio',
         message: 'Cargando audio en el reproductor...'
       });
-      
+
       console.log(`[PlayerContext] Cargando audio (${isOfflineAvailable ? 'OFFLINE' : 'ONLINE'}): ${audioUrl.substring(0, 50)}...`);
       await audioEngine.load(audioUrl, false);
-      
-      // Guardar referencia al elemento audio
+
       try {
         if (audioEngine.audioElement) {
           audioElementRef.current = audioEngine.audioElement;
@@ -471,7 +476,7 @@ export const PlayerProvider = ({ children }) => {
       } catch (e) {
         console.warn('[PlayerContext] No se pudo obtener audioElement:', e);
       }
-      
+
       updateSongLoadingState(song.id, {
         isLoading: false,
         progress: 100,
@@ -479,7 +484,6 @@ export const PlayerProvider = ({ children }) => {
         message: 'Listo para reproducir'
       });
 
-      // Auto-play después de cargar
       setTimeout(() => {
         if (isMountedRef.current) {
           play();
@@ -488,7 +492,7 @@ export const PlayerProvider = ({ children }) => {
 
     } catch (err) {
       console.error("[PlayerContext] Error reproduciendo canción:", err);
-      
+
       if (isMountedRef.current) {
         setError(err.message || 'Error al reproducir');
         updateSongLoadingState(song.id, {
@@ -497,7 +501,7 @@ export const PlayerProvider = ({ children }) => {
           stage: 'error',
           message: 'Error cargando audio'
         });
-        
+
         setCurrentSong(null);
       }
     }
@@ -520,7 +524,7 @@ export const PlayerProvider = ({ children }) => {
   // ============================================
   const changeVolume = useCallback((value) => {
     const validVolume = Math.max(0, Math.min(1, value));
-    
+
     if (audioEngineAvailableRef.current && typeof audioEngine.setVolume === 'function') {
       try {
         const newVolume = audioEngine.setVolume(validVolume);
@@ -554,10 +558,10 @@ export const PlayerProvider = ({ children }) => {
     if (!cleanupPerformedRef.current) {
       console.log("[PlayerContext] Realizando cleanup...");
       cleanupPerformedRef.current = true;
-      
+
       try {
         pause();
-        
+
         if (audioEngineAvailableRef.current) {
           if (typeof audioEngine.destroy === 'function') {
             audioEngine.destroy();
@@ -585,7 +589,6 @@ export const PlayerProvider = ({ children }) => {
     }
 
     try {
-      // Configurar callbacks
       if (typeof audioEngine.onPlay === 'function') {
         audioEngine.onPlay = () => {
           console.log('[PlayerContext] AudioEngine onPlay callback');
@@ -660,7 +663,6 @@ export const PlayerProvider = ({ children }) => {
         };
       }
 
-      // Callback personalizado para carga progresiva
       if (typeof audioEngine.onLoading === 'function') {
         audioEngine.onLoading = (progressPercent, stage, message) => {
           if (isMountedRef.current && currentSong) {
@@ -674,7 +676,6 @@ export const PlayerProvider = ({ children }) => {
         };
       }
 
-      // Cargar volumen inicial
       if (typeof audioEngine.getVolume === 'function') {
         try {
           const initialVolume = audioEngine.getVolume();
@@ -689,7 +690,6 @@ export const PlayerProvider = ({ children }) => {
         }
       }
 
-      // Obtener referencia al elemento audio
       try {
         if (audioEngine.audioElement) {
           audioElementRef.current = audioEngine.audioElement;
@@ -710,7 +710,7 @@ export const PlayerProvider = ({ children }) => {
       isMountedRef.current = false;
       performCleanup();
     };
-  }, []);
+  }, [currentSong, progress, updateSongLoadingState, performCleanup]);
 
   // ✅ Exponer player globalmente
   useEffect(() => {
@@ -723,9 +723,9 @@ export const PlayerProvider = ({ children }) => {
       isPlaying: isPlaying,
       isCurrentSongOffline: isCurrentSongOffline()
     };
-    
+
     console.log('✅ playerAPI disponible globalmente');
-    
+
     return () => {
       delete window.playerAPI;
     };
@@ -741,7 +741,7 @@ export const PlayerProvider = ({ children }) => {
           setError(null);
         }
       }, 5000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -757,18 +757,18 @@ export const PlayerProvider = ({ children }) => {
     volume,
     error,
     lastValidUrl,
-    
+
     // Estado de carga por canción
     songLoadingStates,
     getSongLoadingState,
     updateSongLoadingState,
     isSongLoading,
     getSongLoadingProgress,
-    
+
     // Funciones offline
     isCurrentSongOffline,
     getPlaybackBadge,
-    
+
     // Acciones
     playSong,
     pause,
@@ -776,7 +776,7 @@ export const PlayerProvider = ({ children }) => {
     seek,
     changeVolume,
     clearError,
-    
+
     // Información del sistema
     audioEngineAvailable: audioEngineAvailableRef.current,
     streamManagerAvailable: !!streamManager && typeof streamManager.getAudio === 'function'
@@ -794,10 +794,10 @@ export const PlayerProvider = ({ children }) => {
 // ============================================
 export const usePlayer = () => {
   const context = useContext(PlayerContext);
-  
+
   if (!context) {
     console.warn('usePlayer debe ser usado dentro de PlayerProvider. Usando mock.');
-    
+
     return {
       currentSong: null,
       isPlaying: false,
@@ -818,7 +818,7 @@ export const usePlayer = () => {
       getSongLoadingProgress: () => 0,
       isCurrentSongOffline: () => false,
       getPlaybackBadge: () => null,
-      
+
       playSong: (song) => {
         console.warn('Player no disponible. Canción:', song?.title);
       },
@@ -831,7 +831,7 @@ export const usePlayer = () => {
       streamManagerAvailable: false
     };
   }
-  
+
   return context;
 };
 
