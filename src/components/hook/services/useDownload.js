@@ -4,6 +4,7 @@
 // ✅ Ofuscación de claves
 // ✅ Cifrado básico opcional
 // ✅ Manejo inteligente de errores 429 con expiración automática
+// ✅ CORREGIDO: Error de referencia circular clearError/downloadSong
 // ============================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -772,7 +773,22 @@ const useDownload = () => {
   }, [getAuthToken, requestSignedUrl, saveToIndexedDB, executeWithRetry, processQueue, calculateSHA256, log]);
 
   // ============================================
-  // 🔥 DOWNLOAD SONG (VERSIÓN MEJORADA)
+  // ✅ CLEAR ERROR (definido ANTES de downloadSong)
+  // ============================================
+  const clearError = useCallback((songId) => {
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[songId];
+      return newErrors;
+    });
+    // También limpiar timestamp si existe
+    if (errorTimestamps.current[songId]) {
+      delete errorTimestamps.current[songId];
+    }
+  }, []);
+
+  // ============================================
+  // 🔥 DOWNLOAD SONG (VERSIÓN MEJORADA Y CORREGIDA)
   // ============================================
   const downloadSong = useCallback((songId, songTitle = 'Canción', artistName = 'Artista') => {
     // ✅ 1. Verificar si ya está descargada
@@ -794,9 +810,8 @@ const useDownload = () => {
         return Promise.reject(new Error(message));
       }
       
-      // Si pasó 1 hora, limpiar el error automáticamente
+      // Si pasó 1 hora, limpiar el error usando clearError
       if (errorTime) {
-        delete errorTimestamps.current[songId];
         clearError(songId);
       }
     }
@@ -850,21 +865,6 @@ const useDownload = () => {
     window.dispatchEvent(new Event('downloads-updated'));
     processQueue();
   }, [processQueue]);
-
-  // ============================================
-  // CLEAR ERROR
-  // ============================================
-  const clearError = useCallback((songId) => {
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[songId];
-      return newErrors;
-    });
-    // También limpiar timestamp si existe
-    if (errorTimestamps.current[songId]) {
-      delete errorTimestamps.current[songId];
-    }
-  }, []);
 
   // ============================================
   // API PÚBLICA
