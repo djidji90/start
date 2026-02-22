@@ -1,5 +1,8 @@
 // ============================================
-// src/components/PlayerContext.jsx - VERSIÓN CORREGIDA (PAUSA FUNCIONAL)
+// src/components/PlayerContext.jsx - VERSIÓN CORREGIDA
+// ✅ Soporte para reproducción OFFLINE con IndexedDB
+// ✅ Compatible con sistemas antiguos (cache, filesystem)
+// ✅ Manejo de errores mejorado
 // ============================================
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { audioEngine } from "../audio/engine/AudioEngine";
@@ -116,8 +119,12 @@ export const PlayerProvider = ({ children }) => {
     if (!currentSong) return null;
 
     if (currentSong.source === 'offline') {
+      let badgeText = '📱 OFFLINE';
+      if (currentSong.storageType === 'filesystem') badgeText = '💾 PC';
+      if (currentSong.storageType === 'indexeddb') badgeText = '📦 APP';
+      
       return {
-        text: currentSong.storageType === 'cache' ? '📱 OFFLINE' : '💾 PC',
+        text: badgeText,
         color: '#4caf50'
       };
     }
@@ -136,7 +143,7 @@ export const PlayerProvider = ({ children }) => {
   }, [currentSong]);
 
   // ============================================
-  // OBTENER URL SEGURA
+  // OBTENER URL SEGURA (VERSIÓN CORREGIDA)
   // ============================================
   const getSecureAudioUrl = useCallback(async (songId) => {
     console.log(`[PlayerContext] Obteniendo URL para canción: ${songId}`);
@@ -153,49 +160,60 @@ export const PlayerProvider = ({ children }) => {
         message: 'Verificando disponibilidad offline...'
       });
 
+      // 🔥 VERIFICACIÓN OFFLINE MEJORADA - ACEPTA CUALQUIER STORAGE TYPE
       const downloadHook = window.downloadAPI;
       if (downloadHook) {
         const isOfflineAvailable = await downloadHook.isDownloaded(songId);
 
         if (isOfflineAvailable) {
           const downloadInfo = downloadHook.getDownloadInfo(songId);
-
-          if (downloadInfo?.storageType === 'cache') {
+          
+          // ✅ AHORA ACEPTA CUALQUIER TIPO DE ALMACENAMIENTO VÁLIDO
+          if (downloadInfo) {
+            
             updateSongLoadingState(songId, {
               progress: 30,
               stage: 'loading_offline',
-              message: 'Cargando desde almacenamiento offline...'
+              message: `Cargando desde almacenamiento offline...`
             });
 
+            console.log(`[PlayerContext] 🎵 Reproduciendo OFFLINE (${downloadInfo.storageType || 'desconocido'}): ${songId}`);
+            
             const offlineUrl = await downloadHook.getOfflineAudioUrl(songId);
 
             if (offlineUrl) {
-              console.log(`[PlayerContext] ✅ Reproduciendo OFFLINE: ${songId}`);
+              console.log(`[PlayerContext] ✅ URL offline obtenida: ${offlineUrl.substring(0, 50)}...`);
               updateSongLoadingState(songId, {
                 progress: 80,
                 stage: 'offline_ready',
                 message: 'Audio offline cargado'
               });
+              
+              // Actualizar currentSong con información offline si es la canción actual
+              if (currentSong?.id === songId) {
+                setCurrentSong(prev => ({
+                  ...prev,
+                  source: 'offline',
+                  storageType: downloadInfo.storageType
+                }));
+              }
+              
               return offlineUrl;
+            } else {
+              console.warn(`[PlayerContext] ⚠️ No se pudo obtener URL offline, usando streaming como fallback`);
             }
-          } else {
-            console.log(`[PlayerContext] ℹ️ Canción en PC: ${songId} - usar streaming`);
-            updateSongLoadingState(songId, {
-              progress: 20,
-              stage: 'offline_unavailable',
-              message: 'Canción en PC, usando streaming...'
-            });
           }
         }
       }
 
+      // Si no hay offline o falló, usar streaming
       updateSongLoadingState(songId, {
-        progress: 99,
+        progress: 50,
         stage: 'fetching_url',
-        message: 'cargando..'
+        message: 'Obteniendo URL de streaming...'
       });
 
-      console.log(`[PlayerContext] cargando...: ${songId}`);
+      console.log(`[PlayerContext] Usando streaming para: ${songId}`);
       const audioUrl = await streamManager.getAudio(songId);
 
       if (!audioUrl) {
@@ -213,7 +231,7 @@ export const PlayerProvider = ({ children }) => {
         throw new Error("URL de audio inválida obtenida del StreamManager");
       }
 
-      console.log(`[PlayerContext] URL obtenida exitosamente: ${audioUrl.substring(0, 50)}...`);
+      console.log(`[PlayerContext] URL de streaming obtenida: ${audioUrl.substring(0, 50)}...`);
 
       updateSongLoadingState(songId, {
         progress: 80,
@@ -252,10 +270,10 @@ export const PlayerProvider = ({ children }) => {
 
       throw new Error(userMessage);
     }
-  }, [updateSongLoadingState, validateAudioUrl]);
+  }, [updateSongLoadingState, validateAudioUrl, currentSong]);
 
   // ============================================
-  // PAUSE (FUNCIÓN SEPARADA PARA MAYOR CLARIDAD)
+  // PAUSE
   // ============================================
   const pause = useCallback(() => {
     console.log('[PlayerContext] pause() llamado');
@@ -266,17 +284,14 @@ export const PlayerProvider = ({ children }) => {
     }
 
     try {
-      // Intentar pausar con audioEngine
       if (typeof audioEngine.pause === 'function') {
         audioEngine.pause();
       }
 
-      // Intentar pausar directamente con el elemento de audio
       if (audioElementRef.current && typeof audioElementRef.current.pause === 'function') {
         audioElementRef.current.pause();
       }
 
-      // Buscar elementos audio en el DOM como último recurso
       const audioElements = document.querySelectorAll('audio');
       audioElements.forEach(audio => {
         if (typeof audio.pause === 'function') {
@@ -284,7 +299,6 @@ export const PlayerProvider = ({ children }) => {
         }
       });
 
-      // Actualizar estado
       setIsPlaying(false);
 
       if (currentSong) {
@@ -304,7 +318,7 @@ export const PlayerProvider = ({ children }) => {
   }, [currentSong, progress, updateSongLoadingState]);
 
   // ============================================
-  // PLAY (FUNCIÓN SEPARADA)
+  // PLAY
   // ============================================
   const play = useCallback(() => {
     console.log('[PlayerContext] play() llamado');
@@ -322,7 +336,6 @@ export const PlayerProvider = ({ children }) => {
         message: 'Reanudando...'
       });
 
-      // Intentar reproducir con audioEngine
       if (typeof audioEngine.play === 'function') {
         audioEngine.play().then(() => {
           if (isMountedRef.current) {
@@ -337,7 +350,6 @@ export const PlayerProvider = ({ children }) => {
         }).catch(playError => {
           console.warn('[PlayerContext] Error en audioEngine.play():', playError);
 
-          // Intentar con el elemento de audio directamente
           if (audioElementRef.current && typeof audioElementRef.current.play === 'function') {
             audioElementRef.current.play().then(() => {
               setIsPlaying(true);
@@ -360,12 +372,11 @@ export const PlayerProvider = ({ children }) => {
   }, [currentSong, progress, updateSongLoadingState]);
 
   // ============================================
-  // TOGGLE PLAY/PAUSE (VERSIÓN CORREGIDA)
+  // TOGGLE PLAY/PAUSE
   // ============================================
   const togglePlay = useCallback(() => {
     console.log('[PlayerContext] togglePlay llamado, isPlaying:', isPlaying);
 
-    // Evitar múltiples llamadas simultáneas
     if (isTogglingRef.current) {
       console.log('[PlayerContext] togglePlay ya en ejecución, ignorando');
       return;
@@ -375,16 +386,13 @@ export const PlayerProvider = ({ children }) => {
 
     try {
       if (isPlaying) {
-        // Si está sonando, pausar
         pause();
       } else {
-        // Si está pausado, reanudar
         play();
       }
     } catch (err) {
       console.error('[PlayerContext] Error en togglePlay:', err);
     } finally {
-      // Liberar el bloqueo después de un breve tiempo
       setTimeout(() => {
         isTogglingRef.current = false;
       }, 100);
@@ -407,7 +415,6 @@ export const PlayerProvider = ({ children }) => {
       return;
     }
 
-    // Si ya está reproduciendo la misma canción, solo toggle
     if (currentSong?.id === song.id) {
       togglePlay();
       return;
@@ -463,7 +470,6 @@ export const PlayerProvider = ({ children }) => {
       console.log(`[PlayerContext] Cargando audio (${isOfflineAvailable ? 'OFFLINE' : 'ONLINE'}): ${audioUrl.substring(0, 50)}...`);
       await audioEngine.load(audioUrl, false);
 
-      // Guardar referencia al elemento audio
       try {
         if (audioEngine.audioElement) {
           audioElementRef.current = audioEngine.audioElement;
@@ -479,7 +485,6 @@ export const PlayerProvider = ({ children }) => {
         message: 'Listo para reproducir'
       });
 
-      // Auto-play después de cargar
       setTimeout(() => {
         if (isMountedRef.current) {
           play();
@@ -585,7 +590,6 @@ export const PlayerProvider = ({ children }) => {
     }
 
     try {
-      // Configurar callbacks
       if (typeof audioEngine.onPlay === 'function') {
         audioEngine.onPlay = () => {
           console.log('[PlayerContext] AudioEngine onPlay callback');
@@ -660,7 +664,6 @@ export const PlayerProvider = ({ children }) => {
         };
       }
 
-      // Callback personalizado para carga progresiva
       if (typeof audioEngine.onLoading === 'function') {
         audioEngine.onLoading = (progressPercent, stage, message) => {
           if (isMountedRef.current && currentSong) {
@@ -674,7 +677,6 @@ export const PlayerProvider = ({ children }) => {
         };
       }
 
-      // Cargar volumen inicial
       if (typeof audioEngine.getVolume === 'function') {
         try {
           const initialVolume = audioEngine.getVolume();
@@ -689,7 +691,6 @@ export const PlayerProvider = ({ children }) => {
         }
       }
 
-      // Obtener referencia al elemento audio
       try {
         if (audioEngine.audioElement) {
           audioElementRef.current = audioEngine.audioElement;
@@ -710,7 +711,7 @@ export const PlayerProvider = ({ children }) => {
       isMountedRef.current = false;
       performCleanup();
     };
-  }, []);
+  }, [currentSong, progress, updateSongLoadingState, performCleanup]);
 
   // ✅ Exponer player globalmente
   useEffect(() => {
