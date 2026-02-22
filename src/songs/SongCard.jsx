@@ -1,30 +1,35 @@
 // ============================================
 // src/components/songs/SongCard.jsx
+// VERSIÓN PROFESIONAL - Diseño compacto estilo Spotify
+// ✅ Tamaños optimizados (180px imagen)
+// ✅ Metadata mínima (solo duración)
+// ✅ Espaciado profesional
+// ✅ Variantes de tamaño (compact/default/detailed)
 // ============================================
 
 import React, { useState, useCallback } from "react";
-import { 
-  Card, CardContent, CardMedia, Typography, 
-  IconButton, Box, Chip, Tooltip, Menu, MenuItem, 
+import {
+  Card, CardContent, CardMedia, Typography,
+  IconButton, Box, Chip, Tooltip, Menu, MenuItem,
   ListItemIcon, ListItemText, Divider, Snackbar, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText,
-  DialogActions, Drawer, CircularProgress, Button,
+  DialogActions, CircularProgress, Button,
   LinearProgress, Fade, Zoom
 } from "@mui/material";
-import { 
-  PlayArrow, Pause, Favorite, FavoriteBorder, 
-  Download, CheckCircle, Cancel, Delete, MoreVert,
-  Info, Refresh, CalendarToday, Storage as StorageIcon,
-  Close as CloseIcon, Warning as WarningIcon, AccessTime,
+import {
+  PlayArrow, Pause, Favorite, FavoriteBorder,
+  Download, CheckCircle, Delete, MoreVert,
+  Info, Storage as StorageIcon,
+  Warning as WarningIcon, AccessTime,
   VolumeUp
 } from "@mui/icons-material";
 import { useTheme, alpha } from "@mui/material/styles";
-import { useAudioPlayer } from "../components/hook/services/usePlayer";  // ✅ RUTA ORIGINAL
-import useDownload from "../components/hook/services/useDownload";        // ✅ RUTA ORIGINAL
+import { useAudioPlayer } from "../components/hook/services/usePlayer";
+import useDownload from "../components/hook/services/useDownload";
 import { useMediaQuery } from "@mui/material";
 
 // ============================================ //
-// SISTEMA DE DISEÑO
+// SISTEMA DE DISEÑO PROFESIONAL
 // ============================================ //
 const designTokens = {
   colors: {
@@ -35,21 +40,25 @@ const designTokens = {
     gray: { 400: '#9CA3AF', 500: '#6B7280', 600: '#4B5563' }
   },
   shadows: {
-    card: '0 4px 20px -2px rgba(0,0,0,0.06)',
-    hover: '0 12px 28px -8px rgba(0,0,0,0.12)',
-    button: '0 8px 20px -4px rgba(0,0,0,0.15)',
-    drawer: '0 -8px 32px rgba(0,0,0,0.08)'
+    card: '0 2px 8px -2px rgba(0,0,0,0.1)',
+    hover: '0 8px 20px -6px rgba(0,0,0,0.15)',
+    button: '0 4px 12px -2px rgba(0,0,0,0.2)',
   },
   borderRadius: {
-    card: 20,
+    card: 8,      // ← Más cuadrado como Spotify
     button: 999,
-    menu: 12,
-    dialog: 24,
-    chip: 8
+    menu: 8,
+    chip: 4,
   }
 };
 
-const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
+const SongCard = ({ 
+  song, 
+  showIndex = false, 
+  onLike, 
+  onMoreActions,
+  variant = 'compact' // 'compact' | 'default' | 'detailed'
+}) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [liked, setLiked] = useState(false);
@@ -65,27 +74,64 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   const download = useDownload();
 
   // ============================================ //
-  // ✅ ESTADO DE DESCARGA
+  // CONFIGURACIÓN DE VARIANTES
+  // ============================================ //
+  const variants = {
+    compact: {
+      imageHeight: isMobile ? 140 : 160,
+      contentPadding: 1.2,
+      showGenre: false,
+      showFileSize: false,
+      showDuration: true,
+      titleSize: '0.9rem',
+      artistSize: '0.75rem',
+      metadataSize: '0.65rem',
+      iconSize: 'small',
+      buttonSize: 44,
+      spacing: 0.3,
+      chipSize: 'small'
+    },
+    default: {
+      imageHeight: isMobile ? 160 : 180,
+      contentPadding: 1.5,
+      showGenre: false,
+      showFileSize: false,
+      showDuration: true,
+      titleSize: '0.95rem',
+      artistSize: '0.8rem',
+      metadataSize: '0.7rem',
+      iconSize: 'small',
+      buttonSize: 48,
+      spacing: 0.4,
+      chipSize: 'small'
+    },
+    detailed: {
+      imageHeight: isMobile ? 200 : 220,
+      contentPadding: 2,
+      showGenre: true,
+      showFileSize: true,
+      showDuration: true,
+      titleSize: '1rem',
+      artistSize: '0.85rem',
+      metadataSize: '0.75rem',
+      iconSize: 'small',
+      buttonSize: 52,
+      spacing: 0.5,
+      chipSize: 'small'
+    }
+  };
+
+  const config = variants[variant] || variants.default;
+
+  // ============================================ //
+  // ESTADO DE DESCARGA
   // ============================================ //
   const songId = song?.id?.toString();
-
-  // isDownloaded es SÍNCRONO (el hook ya está corregido)
   const isDownloaded = download.isDownloaded?.(songId) || false;
   const downloadInfo = download.getDownloadInfo?.(songId);
   const isDownloading = download.downloading?.[songId];
   const downloadProgress = download.progress?.[songId] || 0;
   const downloadError = download.errors?.[songId];
-
-  // Log para depuración
-  console.log(`🎵 ${song?.title}:`, {
-    isDownloaded,
-    hasFileSize: !!downloadInfo?.fileSize,
-    downloadInfo,
-    isDownloading,
-    downloadProgress
-  });
-
-  // Estados de reproducción
   const songStatus = player.getSongStatus?.(song.id) || {};
 
   // ============================================ //
@@ -120,9 +166,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   const handleDownload = useCallback(async (e) => {
     e?.stopPropagation();
     handleMenuClose();
-
     setSnackbar({ open: true, message: `📥 Descargando ${song?.title}...`, severity: 'info' });
-
     try {
       await download.downloadSong?.(songId, song?.title, song?.artist);
       setSnackbar({ open: true, message: '✅ Canción descargada', severity: 'success' });
@@ -160,7 +204,6 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
 
   const handlePlayPause = async (e) => {
     e.stopPropagation();
-
     if (songStatus?.isCurrent) {
       player.toggle?.();
     } else {
@@ -180,22 +223,17 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   // ============================================ //
   const renderMenu = () => {
     const menuItems = [
-      // Opción de descarga - SIEMPRE visible si no está descargada
       !isDownloaded && !isDownloading && {
         label: 'Descargar',
         icon: <Download fontSize="small" />,
         onClick: handleDownload
       },
-
-      // Si está descargando
       isDownloading && {
         label: 'Descargando...',
         icon: <CircularProgress size={16} />,
         disabled: true,
         progress: `${downloadProgress}%`
       },
-
-      // Si ya está descargada
       isDownloaded && {
         label: 'Información',
         icon: <Info fontSize="small" />,
@@ -207,11 +245,7 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
         onClick: () => setConfirmDialogOpen(true),
         color: designTokens.colors.error
       },
-
-      // Separador si hay opciones de descarga
       (isDownloaded || isDownloading) && { divider: true },
-
-      // Favoritos siempre visible
       {
         label: liked ? 'Quitar de favoritos' : 'Añadir a favoritos',
         icon: liked ? <Favorite fontSize="small" color="error" /> : <FavoriteBorder fontSize="small" />,
@@ -220,37 +254,33 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
     ].filter(Boolean);
 
     return (
-      <Menu 
-        anchorEl={anchorEl} 
-        open={Boolean(anchorEl)} 
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
         onClose={handleMenuClose}
-        PaperProps={{ 
-          sx: { 
-            borderRadius: designTokens.borderRadius.menu, 
-            minWidth: 240, 
-            boxShadow: designTokens.shadows.drawer,
-            mt: 1
-          } 
+        PaperProps={{
+          sx: {
+            borderRadius: designTokens.borderRadius.menu,
+            minWidth: 200,
+            boxShadow: designTokens.shadows.hover,
+            mt: 0.5
+          }
         }}
       >
-        {menuItems.map((item, index) => 
+        {menuItems.map((item, index) =>
           item.divider ? (
-            <Divider key={index} sx={{ my: 1 }} />
+            <Divider key={index} sx={{ my: 0.5 }} />
           ) : (
-            <MenuItem 
-              key={item.label} 
+            <MenuItem
+              key={item.label}
               onClick={item.onClick}
               disabled={item.disabled}
-              sx={{ 
-                py: 1.5, 
-                px: 2,
-                color: item.color
-              }}
+              sx={{ py: 1, px: 1.5 }}
             >
-              <ListItemIcon sx={{ color: item.color, minWidth: 40 }}>{item.icon}</ListItemIcon>
+              <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>
               <ListItemText primary={item.label} />
               {item.progress && (
-                <Typography variant="caption" sx={{ ml: 2, fontWeight: 600 }}>
+                <Typography variant="caption" sx={{ ml: 1, fontWeight: 600 }}>
                   {item.progress}
                 </Typography>
               )}
@@ -262,40 +292,40 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
   };
 
   // ============================================ //
-  // RENDER
+  // RENDER PRINCIPAL
   // ============================================ //
   return (
     <>
-      <Card 
+      <Card
         onClick={handleCardClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        sx={{ 
-          borderRadius: designTokens.borderRadius.card, 
-          overflow: "hidden", 
-          cursor: "pointer", 
-          bgcolor: "#FFFFFF", 
-          border: `1px solid ${alpha('#000', 0.1)}`,
-          boxShadow: isHovered ? designTokens.shadows.hover : designTokens.shadows.card, 
-          transition: 'all 0.3s ease', 
+        sx={{
+          borderRadius: designTokens.borderRadius.card,
+          overflow: "hidden",
+          cursor: "pointer",
+          bgcolor: "#FFFFFF",
+          border: `1px solid ${alpha('#000', 0.06)}`,
+          boxShadow: isHovered ? designTokens.shadows.hover : designTokens.shadows.card,
+          transition: 'all 0.2s ease',
           position: "relative",
           '&:hover': {
-            transform: 'translateY(-4px)',
-            borderColor: alpha(currentColor, 0.3)
+            transform: 'translateY(-2px)',
+            borderColor: alpha(currentColor, 0.3),
+            boxShadow: designTokens.shadows.hover,
           }
         }}
       >
-        {/* Barra de progreso */}
+        {/* Barra de progreso - SOLO visible durante carga/descarga */}
         {(songStatus?.isLoading || isDownloading) && (
           <Fade in={true}>
-            <Box sx={{ 
-              position: 'absolute', 
-              top: 0, 
-              left: 0, 
-              right: 0, 
-              height: 4, 
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3,
               zIndex: 20,
-              bgcolor: alpha(currentColor, 0.1)
             }}>
               <LinearProgress
                 variant="determinate"
@@ -305,7 +335,6 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
                   bgcolor: 'transparent',
                   '& .MuiLinearProgress-bar': {
                     bgcolor: currentColor,
-                    borderRadius: '0 2px 2px 0'
                   }
                 }}
               />
@@ -313,37 +342,34 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
           </Fade>
         )}
 
-        {/* Badge de estado */}
-        {(primaryState !== 'idle') && (
+        {/* Badge de estado - SOLO cuando es necesario */}
+        {(primaryState !== 'idle' && primaryState !== 'downloaded') && (
           <Zoom in={true}>
-            <Box sx={{ 
-              position: 'absolute', 
-              top: 12, 
-              left: 12, 
+            <Box sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
               zIndex: 15,
               display: 'flex',
               alignItems: 'center',
-              gap: 0.5,
+              gap: 0.3,
               bgcolor: alpha(currentColor, 0.95),
               color: 'white',
-              px: 1.5,
-              py: 0.5,
+              px: 1,
+              py: 0.3,
               borderRadius: designTokens.borderRadius.chip,
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              boxShadow: `0 4px 12px ${alpha(currentColor, 0.3)}`,
-              backdropFilter: 'blur(4px)'
+              fontSize: '0.6rem',
+              fontWeight: 600,
+              boxShadow: `0 2px 8px ${alpha(currentColor, 0.3)}`,
             }}>
-              {primaryState === 'loading' && <CircularProgress size={10} sx={{ color: 'white' }} />}
-              {primaryState === 'downloading' && <Download sx={{ fontSize: 12 }} />}
-              {primaryState === 'downloaded' && <CheckCircle sx={{ fontSize: 12 }} />}
-              {primaryState === 'playing' && <VolumeUp sx={{ fontSize: 12 }} />}
-              {primaryState === 'paused' && <PlayArrow sx={{ fontSize: 12 }} />}
-              {primaryState === 'error' && <WarningIcon sx={{ fontSize: 12 }} />}
+              {primaryState === 'loading' && <CircularProgress size={8} sx={{ color: 'white' }} />}
+              {primaryState === 'downloading' && <Download sx={{ fontSize: 10 }} />}
+              {primaryState === 'playing' && <VolumeUp sx={{ fontSize: 10 }} />}
+              {primaryState === 'paused' && <PlayArrow sx={{ fontSize: 10 }} />}
+              {primaryState === 'error' && <WarningIcon sx={{ fontSize: 10 }} />}
               <span>
                 {primaryState === 'loading' && 'CARGANDO'}
-                {primaryState === 'downloading' && `DESCARGANDO ${downloadProgress}%`}
-                {primaryState === 'downloaded' && 'DESCARGADA'}
+                {primaryState === 'downloading' && `${downloadProgress}%`}
                 {primaryState === 'playing' && 'REPRODUCIENDO'}
                 {primaryState === 'paused' && 'PAUSADA'}
                 {primaryState === 'error' && 'ERROR'}
@@ -354,158 +380,164 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
 
         {/* Imagen */}
         <Box sx={{ position: "relative" }}>
-          <CardMedia 
-            component="img" 
-            height={isMobile ? 200 : 240} 
+          <CardMedia
+            component="img"
+            height={config.imageHeight}
             image={imageError || !song?.image_url ? "/djidji.png" : song.image_url}
             alt={song?.title}
             onError={() => setImageError(true)}
-            sx={{ 
-              objectFit: "cover", 
-              opacity: (songStatus?.isLoading || isDownloading) ? 0.5 : 1,
-              transition: 'all 0.3s ease'
-            }} 
+            sx={{
+              objectFit: "cover",
+              opacity: (songStatus?.isLoading || isDownloading) ? 0.6 : 1,
+              transition: 'opacity 0.2s ease',
+            }}
           />
 
-          {/* Botón principal */}
-          <Tooltip title={
-            songStatus?.isLoading ? `Cargando ${songStatus?.loadingProgress}%` :
-            isDownloading ? `Descargando ${downloadProgress}%` :
-            songStatus?.isPlaying ? 'Pausar' : 'Reproducir'
-          } arrow>
+          {/* Botón principal - aparece en hover o cuando está activo */}
+          <Tooltip
+            title={
+              songStatus?.isLoading ? `Cargando ${songStatus?.loadingProgress}%` :
+              isDownloading ? `Descargando ${downloadProgress}%` :
+              songStatus?.isPlaying ? 'Pausar' : 'Reproducir'
+            }
+            arrow
+          >
             <Zoom in={isActive || primaryState !== 'idle'}>
-              <IconButton 
+              <IconButton
                 onClick={handlePlayPause}
                 disabled={songStatus?.isLoading}
-                sx={{ 
-                  position: 'absolute', 
-                  bottom: 16, 
-                  right: 16, 
-                  width: 56, 
-                  height: 56,
-                  bgcolor: alpha('#FFFFFF', 0.98), 
-                  color: currentColor, 
+                sx={{
+                  position: 'absolute',
+                  bottom: 12,
+                  right: 12,
+                  width: config.buttonSize,
+                  height: config.buttonSize,
+                  bgcolor: alpha('#FFFFFF', 0.98),
+                  color: currentColor,
                   boxShadow: designTokens.shadows.button,
-                  backdropFilter: 'blur(8px)', 
-                  border: `2px solid ${alpha(currentColor, 0.2)}`,
-                  transition: 'all 0.3s ease',
+                  backdropFilter: 'blur(4px)',
+                  border: `1px solid ${alpha(currentColor, 0.2)}`,
+                  transition: 'all 0.2s ease',
                   transform: isActive ? 'scale(1)' : 'scale(0.8)',
-                  opacity: isActive ? 1 : 0.8,
-                  '&:hover:not(:disabled)': { 
-                    bgcolor: '#FFFFFF', 
-                    transform: 'scale(1.1)',
-                    borderColor: currentColor
+                  opacity: isActive ? 1 : 0.7,
+                  '&:hover:not(:disabled)': {
+                    bgcolor: '#FFFFFF',
+                    transform: 'scale(1.05)',
+                    borderColor: currentColor,
                   }
                 }}
               >
                 {songStatus?.isLoading ? (
-                  <CircularProgress size={24} sx={{ color: currentColor }} />
+                  <CircularProgress size={20} sx={{ color: currentColor }} />
                 ) : isDownloading ? (
-                  <Box sx={{ position: 'relative', width: 24, height: 24 }}>
-                    <CircularProgress size={24} value={downloadProgress} variant="determinate" />
-                    <Box sx={{ 
-                      position: 'absolute', 
-                      top: '50%', 
-                      left: '50%', 
+                  <Box sx={{ position: 'relative', width: 20, height: 20 }}>
+                    <CircularProgress size={20} value={downloadProgress} variant="determinate" />
+                    <Box sx={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      fontSize: '0.6rem',
+                      fontSize: '0.5rem',
                       fontWeight: 700
                     }}>
                       {downloadProgress}%
                     </Box>
                   </Box>
                 ) : (
-                  songStatus?.isPlaying ? <Pause /> : <PlayArrow />
+                  songStatus?.isPlaying ? <Pause fontSize="small" /> : <PlayArrow fontSize="small" />
                 )}
               </IconButton>
             </Zoom>
           </Tooltip>
         </Box>
 
-        {/* Contenido */}
-        <CardContent sx={{ p: 2.5 }}>
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
+        {/* Contenido - COMPACTO Y PROFESIONAL */}
+        <CardContent sx={{ p: config.contentPadding, '&:last-child': { pb: config.contentPadding } }}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
             {showIndex && (
-              <Box sx={{ 
-                width: 28, 
-                height: 28, 
-                borderRadius: "50%", 
+              <Box sx={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
                 bgcolor: alpha(currentColor, 0.1),
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center", 
-                flexShrink: 0
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                mt: 0.2
               }}>
-                <Typography variant="caption" sx={{ color: currentColor, fontWeight: 700 }}>
+                <Typography variant="caption" sx={{ color: currentColor, fontWeight: 600, fontSize: '0.65rem' }}>
                   {showIndex}
                 </Typography>
               </Box>
             )}
 
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontWeight: 700, 
-                  lineHeight: 1.2, 
-                  mb: 0.5,
+              {/* Título */}
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  fontSize: config.titleSize,
+                  lineHeight: 1.3,
+                  mb: config.spacing / 2,
                   color: downloadError ? designTokens.colors.error : 'text.primary',
-                  overflow: "hidden", 
-                  textOverflow: "ellipsis", 
-                  whiteSpace: "nowrap" 
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap"
                 }}
               >
                 {song?.title}
               </Typography>
 
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: "text.secondary", 
-                  mb: 1.5,
-                  overflow: "hidden", 
-                  textOverflow: "ellipsis", 
-                  whiteSpace: "nowrap" 
+              {/* Artista */}
+              <Typography
+                sx={{
+                  fontSize: config.artistSize,
+                  color: "text.secondary",
+                  mb: config.spacing,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap"
                 }}
               >
                 {song?.artist}
               </Typography>
 
-              {/* METADATOS + ACCIONES */}
-              <Box sx={{ 
-                display: "flex", 
-                alignItems: "center", 
+              {/* METADATOS MÍNIMOS - Solo duración visible */}
+              <Box sx={{
+                display: "flex",
+                alignItems: "center",
                 justifyContent: "space-between",
-                flexWrap: 'wrap',
-                gap: 1
               }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {song?.genre && (
-                    <Chip 
-                      label={song.genre} 
-                      size="small" 
-                      sx={{ 
-                        height: 24, 
-                        fontSize: '0.7rem',
-                        bgcolor: alpha(designTokens.colors.gray[500], 0.08),
-                        borderRadius: designTokens.borderRadius.chip
-                      }} 
-                    />
-                  )}
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <AccessTime sx={{ fontSize: 14, color: 'text.disabled' }} />
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  {/* Duración - SIEMPRE visible */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                    <AccessTime sx={{ fontSize: 10, color: 'text.disabled' }} />
+                    <Typography variant="caption" sx={{ fontSize: config.metadataSize, color: 'text.secondary' }}>
                       {player.formatTime?.(song?.duration || 0) || '0:00'}
                     </Typography>
                   </Box>
 
-                  {/* INFO DE DESCARGA - SOLO SI REALMENTE ESTÁ DESCARGADA */}
-                  {isDownloaded && downloadInfo?.fileSize && (
+                  {/* Género - SOLO en modo detailed */}
+                  {config.showGenre && song?.genre && (
+                    <Chip
+                      label={song.genre}
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: '0.6rem',
+                        bgcolor: alpha(designTokens.colors.gray[500], 0.08),
+                        borderRadius: designTokens.borderRadius.chip,
+                      }}
+                    />
+                  )}
+
+                  {/* Tamaño - SOLO en modo detailed y si está descargada */}
+                  {config.showFileSize && isDownloaded && downloadInfo?.fileSize && (
                     <Tooltip title={`${(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB`}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <StorageIcon sx={{ fontSize: 12, color: designTokens.colors.success }} />
-                        <Typography variant="caption" sx={{ color: designTokens.colors.success, fontWeight: 600 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                        <StorageIcon sx={{ fontSize: 10, color: designTokens.colors.success }} />
+                        <Typography variant="caption" sx={{ fontSize: config.metadataSize, color: designTokens.colors.success }}>
                           {(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB
                         </Typography>
                       </Box>
@@ -513,65 +545,67 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
                   )}
                 </Box>
 
-                {/* ACCIONES SIEMPRE VISIBLES */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {/* BOTÓN DE DESCARGA - SIEMPRE VISIBLE */}
+                {/* ACCIONES - Siempre visibles pero compactas */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                  {/* Botón de descarga compacto */}
                   {isDownloaded ? (
-                    <Tooltip title="Descargada - Ver información">
-                      <IconButton 
-                        size="small" 
+                    <Tooltip title="Descargada">
+                      <IconButton
+                        size="small"
                         onClick={(e) => { e.stopPropagation(); setDownloadInfoDialog(true); }}
-                        sx={{ 
+                        sx={{
                           color: designTokens.colors.success,
-                          bgcolor: alpha(designTokens.colors.success, 0.1)
+                          bgcolor: alpha(designTokens.colors.success, 0.1),
+                          width: 28,
+                          height: 28
                         }}
                       >
-                        <CheckCircle fontSize="small" />
+                        <CheckCircle sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
                   ) : isDownloading ? (
-                    <Tooltip title={`Descargando ${downloadProgress}%`}>
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 0.5,
-                        bgcolor: alpha(designTokens.colors.success, 0.1),
-                        borderRadius: designTokens.borderRadius.chip,
-                        px: 1,
-                        py: 0.5
-                      }}>
-                        <CircularProgress size={16} value={downloadProgress} variant="determinate" />
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: designTokens.colors.success }}>
-                          {downloadProgress}%
-                        </Typography>
-                      </Box>
-                    </Tooltip>
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.3,
+                      bgcolor: alpha(designTokens.colors.success, 0.1),
+                      borderRadius: designTokens.borderRadius.chip,
+                      px: 0.8,
+                      py: 0.3
+                    }}>
+                      <CircularProgress size={12} value={downloadProgress} variant="determinate" />
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: designTokens.colors.success, fontSize: '0.6rem' }}>
+                        {downloadProgress}%
+                      </Typography>
+                    </Box>
                   ) : (
-                    <Tooltip title="Descargar canción">
-                      <IconButton 
-                        size="small" 
+                    <Tooltip title="Descargar">
+                      <IconButton
+                        size="small"
                         onClick={handleDownload}
-                        sx={{ 
+                        sx={{
                           color: designTokens.colors.primary,
                           bgcolor: alpha(designTokens.colors.primary, 0.1),
-                          '&:hover': { 
+                          width: 28,
+                          height: 28,
+                          '&:hover': {
                             bgcolor: designTokens.colors.primary,
                             color: 'white'
                           }
                         }}
                       >
-                        <Download fontSize="small" />
+                        <Download sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
                   )}
 
                   {/* Menú de 3 puntos */}
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={handleMenuOpen}
-                    sx={{ color: 'text.secondary' }}
+                    sx={{ width: 28, height: 28, color: 'text.secondary' }}
                   >
-                    <MoreVert fontSize="small" />
+                    <MoreVert sx={{ fontSize: 14 }} />
                   </IconButton>
                 </Box>
               </Box>
@@ -584,8 +618,8 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
       {renderMenu()}
 
       {/* Diálogos */}
-      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)}>
-        <DialogTitle>Eliminar canción</DialogTitle>
+      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} maxWidth="xs">
+        <DialogTitle sx={{ pb: 1 }}>Eliminar canción</DialogTitle>
         <DialogContent>
           <DialogContentText>
             ¿Eliminar "{song?.title}" de tu dispositivo?
@@ -597,12 +631,12 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={downloadInfoDialog} onClose={() => setDownloadInfoDialog(false)}>
-        <DialogTitle>Información</DialogTitle>
+      <Dialog open={downloadInfoDialog} onClose={() => setDownloadInfoDialog(false)} maxWidth="xs">
+        <DialogTitle sx={{ pb: 1 }}>Información</DialogTitle>
         <DialogContent>
           <Box>
-            <Typography>{downloadInfo?.fileName || song?.title}</Typography>
-            <Typography variant="caption">
+            <Typography variant="body2" fontWeight={600}>{downloadInfo?.fileName || song?.title}</Typography>
+            <Typography variant="caption" color="text.secondary">
               {(downloadInfo?.fileSize / 1024 / 1024).toFixed(1)} MB
             </Typography>
           </Box>
@@ -610,12 +644,13 @@ const SongCard = ({ song, showIndex = false, onLike, onMoreActions }) => {
       </Dialog>
 
       {/* Snackbar */}
-      <Snackbar 
-        open={snackbar.open} 
-        autoHideDuration={3000} 
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
+        <Alert severity={snackbar.severity} sx={{ fontSize: '0.85rem' }}>{snackbar.message}</Alert>
       </Snackbar>
     </>
   );
