@@ -1,3 +1,7 @@
+ayúdame el tamaño de estas cards a fin de hacerlas parecer algo más premium , 
+que opciones me propones? 
+esta es my songcard.jsx ,
+
 // ============================================
 // src/components/songs/SongCard.jsx
 // ============================================
