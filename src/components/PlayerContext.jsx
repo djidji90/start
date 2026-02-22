@@ -1,5 +1,3 @@
-es nesesario hacer cambios en este sistema, dicho sea de paso este archivo  incluye sobre todo lógica de mi servicio de streaming ya no quiero que la modifiques a menos que sea estrictamente nesesario, solo centrémonos en lo relacionado con las descargas otra vez a menos sea nesesario. 
-pero primero dame tu impresión sobre el mismo. 
 // ============================================
 // src/components/PlayerContext.jsx - VERSIÓN CORREGIDA (PAUSA FUNCIONAL)
 // ============================================
