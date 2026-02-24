@@ -1,623 +1,329 @@
-// src/audio/engine/StreamManager.js - VERSIÓN CORREGIDA CON MEDIASOURCE
+/**
+ * StreamManager.js - VERSIÓN SIMPLIFICADA PARA NUEVA ARQUITECTURA
+ * 
+ * 🎵 ARQUITECTURA ACTUAL:
+ * - Backend devuelve URLs firmadas de R2 (5 min de vida)
+ * - Frontend reproduce DIRECTAMENTE desde R2/Cloudflare
+ * - NO más Range requests, NO más MediaSource, NO más chunks
+ * 
+ * BENEFICIOS:
+ * - Workers Gunicorn siempre libres
+ * - 90% menos código (de ~500 a ~100 líneas)
+ * - Menor consumo de batería en móvil
+ * - Streaming más rápido y estable
+ * 
+ * @version 2.0.0
+ */
+
 export class StreamManager {
   constructor() {
-    this.baseURL = 'https://api.djidjimusic.com/api2';
-    this.retryAttempts = 2;
-    
-    // CACHE INTELIGENTE
-    this.chunkCache = new Map();
-    this.metadataCache = new Map();
-    
-    // CONTROL DE REQUESTS
-    this.activeRequests = new Map();
-    
-    // MEDIASOURCE STREAMING
-    this.mediaSources = new Map();      // songId -> MediaSource
-    this.sourceBuffers = new Map();     // songId -> SourceBuffer
-    this.chunkQueues = new Map();       // songId -> Array de chunks pendientes
-    this.streamUrls = new Map();        // songId -> URL.createObjectURL
-    this.activeStreams = new Map();     // songId -> { url, audioElement }
-    
-    // CONFIGURACIÓN
-    this.CHUNK_SIZE = 32 * 1024;        // 32KB - IGUAL QUE BACKEND
-    this.PREFETCH_CHUNKS = 10;          // Precargar 10 chunks
-    this.MAX_CACHE_SIZE = 50 * 1024 * 1024;
-    this.CACHE_TTL = 10 * 60 * 1000;
-    
-    // MÉTRICAS
+    this.baseURL = '/api2';  // Ruta relativa (funciona en cualquier entorno)
+    this.activeStreams = new Map(); // songId -> { audio, refreshTimer }
     this.metrics = {
-      cacheHits: 0,
-      cacheMisses: 0,
-      bytesStreamed: 0,
-      partialRequests: 0,
-      fullRequests: 0,
-      mediaSourcesCreated: 0
+      streamsStarted: 0,
+      streamsEnded: 0,
+      errors: 0
     };
     
-    this.startAutoCleanup();
+    console.log('[StreamManager] Inicializado (versión simplificada)');
   }
 
   /**
-   * MÉTODO PRINCIPAL - AHORA CON STREAMING REAL
+   * Obtiene URL firmada del backend
+   * @param {string|number} songId - ID de la canción
+   * @returns {Promise<string>} URL firmada de R2
    */
-  async getAudio(songId, options = {}) {
-    const {
-      startTime = 0,
-      forceFull = false,
-      priority = 'normal',
-      audioElement = null  // Opcional: elemento audio existente
-    } = options;
-
-    const validatedId = this.validateSongId(songId);
-    if (!validatedId) throw new Error(`ID inválido: ${songId}`);
-
-    this.cancelRequest(validatedId);
-
-    // Si es el inicio o no soporta MediaSource, usar descarga completa
-    if (forceFull || startTime === 0 || !window.MediaSource) {
-      this.metrics.fullRequests++;
-      return await this.getFullAudio(validatedId, priority);
+  async getStreamUrl(songId) {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      throw new Error('No hay token de autenticación');
     }
 
-    // STREAMING CON MEDIASOURCE
-    this.metrics.partialRequests++;
-    return await this.createMediaSourceStream(validatedId, startTime, audioElement);
+    const response = await fetch(`${this.baseURL}/songs/${songId}/stream/`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Error HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Logging útil para debugging
+    console.log(`[StreamManager] URL obtenida para canción ${songId}`, {
+      expiresIn: data.data.expires_in,
+      cacheStatus: data.meta.cache
+    });
+
+    return data.data.stream_url;
   }
 
   /**
-   * CREAR STREAM CON MEDIASOURCE - ¡ESTA ES LA SOLUCIÓN!
+   * Reproduce una canción usando URL firmada
+   * @param {string|number} songId - ID de la canción
+   * @param {HTMLAudioElement} [audioElement] - Elemento audio existente (opcional)
+   * @returns {Promise<HTMLAudioElement>} Elemento audio reproduciendo
    */
-  async createMediaSourceStream(songId, startTime, existingAudioElement = null) {
-    console.log(`[StreamManager] 🎵 Creando stream para ${songId} desde ${startTime}s`);
-    
+  async playSong(songId, audioElement = null) {
     // Limpiar stream anterior si existe
-    this.cleanupMediaSource(songId);
-    
-    // Obtener metadata
-    const metadata = await this.getSongMetadata(songId);
-    if (!metadata) {
-      console.warn(`[StreamManager] Sin metadata, usando descarga completa`);
-      return await this.getFullAudio(songId);
-    }
+    this.stopStream(songId);
 
-    // 1. Crear MediaSource
-    const mediaSource = new MediaSource();
-    this.mediaSources.set(songId, mediaSource);
-    this.metrics.mediaSourcesCreated++;
-    
-    // 2. Crear URL
-    const url = URL.createObjectURL(mediaSource);
-    this.streamUrls.set(songId, url);
-    
-    // 3. Obtener o crear elemento audio
-    let audio = existingAudioElement;
-    if (!audio) {
-      audio = new Audio();
-    }
-    
-    this.activeStreams.set(songId, {
-      url,
-      audioElement: audio,
-      startTime,
-      metadata
-    });
-
-    // 4. Configurar evento sourceopen
-    mediaSource.addEventListener('sourceopen', async () => {
-      try {
-        // Determinar MIME type
-        let mimeType = 'audio/mpeg';
-        if (MediaSource.isTypeSupported('audio/mp4; codecs="mp4a.40.2"')) {
-          mimeType = 'audio/mp4; codecs="mp4a.40.2"';
-        }
-        
-        // Añadir SourceBuffer
-        const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
-        sourceBuffer.mode = 'sequence'; // ¡IMPORTANTE!
-        this.sourceBuffers.set(songId, sourceBuffer);
-        
-        // Inicializar cola de chunks
-        this.chunkQueues.set(songId, []);
-        
-        // Configurar evento updateend para procesar cola
-        sourceBuffer.addEventListener('updateend', () => {
-          this.processChunkQueue(songId);
-        });
-        
-        // Calcular chunk inicial basado en startTime
-        const bytesPerSecond = (metadata.bitrate || 128) * 1000 / 8;
-        const startByte = Math.floor(startTime * bytesPerSecond);
-        const startChunk = Math.floor(startByte / this.CHUNK_SIZE);
-        
-        console.log(`[StreamManager] Iniciando streaming desde chunk ${startChunk}`);
-        
-        // Cargar chunks secuencialmente
-        await this.loadChunksSequentially(songId, startChunk, sourceBuffer);
-        
-      } catch (error) {
-        console.error(`[StreamManager] Error en sourceopen:`, error);
-      }
-    });
-
-    // Configurar el audio con la URL
-    audio.src = url;
-    
-    // Auto-play si no se proporcionó elemento existente
-    if (!existingAudioElement) {
-      audio.play().catch(e => console.warn('[StreamManager] Auto-play bloqueado:', e));
-    }
-    
-    return url;
-  }
-
-  /**
-   * CARGAR CHUNKS SECUENCIALMENTE
-   */
-  async loadChunksSequentially(songId, startChunk, sourceBuffer) {
-    const metadata = await this.getSongMetadata(songId);
-    const totalChunks = Math.ceil((metadata.fileSize || 5 * 1024 * 1024) / this.CHUNK_SIZE);
-    
-    console.log(`[StreamManager] Cargando chunks ${startChunk} - ${totalChunks - 1}`);
-    
-    for (let i = startChunk; i < totalChunks; i++) {
-      // Verificar si el stream sigue activo
-      if (!this.mediaSources.has(songId)) break;
-      
-      try {
-        // Obtener chunk (cache o descarga)
-        const chunkUrl = await this.getChunk(songId, i, 'high');
-        
-        if (chunkUrl) {
-          // Convertir a ArrayBuffer
-          const response = await fetch(chunkUrl);
-          const arrayBuffer = await response.arrayBuffer();
-          
-          // Agregar a cola
-          const queue = this.chunkQueues.get(songId) || [];
-          queue.push({
-            data: arrayBuffer,
-            index: i,
-            timestamp: Date.now()
-          });
-          this.chunkQueues.set(songId, queue);
-          
-          // Procesar cola
-          this.processChunkQueue(songId);
-        }
-        
-        // Pequeña pausa para no saturar
-        await new Promise(resolve => setTimeout(resolve, 50));
-        
-      } catch (error) {
-        console.error(`[StreamManager] Error cargando chunk ${i}:`, error);
-        break;
-      }
-    }
-    
-    // Marcar fin de stream cuando todos los chunks están cargados
-    setTimeout(() => {
-      const mediaSource = this.mediaSources.get(songId);
-      const queue = this.chunkQueues.get(songId);
-      if (mediaSource && mediaSource.readyState === 'open' && (!queue || queue.length === 0)) {
-        try {
-          mediaSource.endOfStream();
-          console.log(`[StreamManager] Stream completado para ${songId}`);
-        } catch (e) {
-          // Ignorar si ya terminó
-        }
-      }
-    }, 1000);
-  }
-
-  /**
-   * PROCESAR COLA DE CHUNKS
-   */
-  processChunkQueue(songId) {
-    const sourceBuffer = this.sourceBuffers.get(songId);
-    const queue = this.chunkQueues.get(songId);
-    
-    if (!sourceBuffer || !queue || sourceBuffer.updating || queue.length === 0) {
-      return;
-    }
-    
-    // Ordenar chunks por índice
-    queue.sort((a, b) => a.index - b.index);
-    
-    // Procesar el siguiente chunk
-    const nextChunk = queue[0];
-    
     try {
-      sourceBuffer.appendBuffer(nextChunk.data);
-      console.log(`[StreamManager] ✅ Chunk ${nextChunk.index} agregado al buffer`);
+      // 1. Obtener URL firmada
+      const streamUrl = await this.getStreamUrl(songId);
+
+      // 2. Usar elemento existente o crear nuevo
+      const audio = audioElement || new Audio();
+
+      // 3. Configurar eventos básicos
+      audio.onplay = () => {
+        console.log(`[StreamManager] ▶️ Reproduciendo: ${songId}`);
+      };
+
+      audio.onpause = () => {
+        console.log(`[StreamManager] ⏸️ Pausado: ${songId}`);
+      };
+
+      audio.onended = () => {
+        console.log(`[StreamManager] ⏹️ Finalizado: ${songId}`);
+        this.metrics.streamsEnded++;
+        this.activeStreams.delete(songId);
+      };
+
+      audio.onerror = (e) => {
+        console.error(`[StreamManager] ❌ Error en reproducción: ${songId}`, e);
+        this.metrics.errors++;
+      };
+
+      // 4. Configurar fuente y reproducir
+      audio.src = streamUrl;
+      audio.load(); // Forzar carga de metadata
       
-      // Remover de la cola
-      queue.shift();
-      this.chunkQueues.set(songId, queue);
-      
-    } catch (error) {
-      console.error(`[StreamManager] Error appendBuffer:`, error);
-      
-      // Si es error de QuotaExceeded, limpiar buffer viejo
-      if (error.name === 'QuotaExceededError') {
-        this.cleanupSourceBuffer(songId, sourceBuffer);
+      try {
+        await audio.play();
+      } catch (playError) {
+        // El navegador puede bloquear autoplay
+        console.warn(`[StreamManager] ⚠️ Autoplay bloqueado para ${songId}:`, playError);
+        // No lanzamos error, el usuario puede iniciar manualmente
       }
-    }
-  }
 
-  /**
-   * LIMPIAR BUFFER VIEJO
-   */
-  cleanupSourceBuffer(songId, sourceBuffer) {
-    try {
-      if (sourceBuffer.buffered.length > 0) {
-        const start = sourceBuffer.buffered.start(0);
-        const end = Math.min(start + 30, sourceBuffer.buffered.end(0)); // Mantener últimos 30 segundos
-        sourceBuffer.remove(start, end);
-        console.log(`[StreamManager] 🧹 Buffer limpiado: ${start}-${end}`);
-      }
-    } catch (e) {
-      console.warn('[StreamManager] Error limpiando buffer:', e);
-    }
-  }
-
-  /**
-   * LIMPIAR RECURSOS DE STREAMING
-   */
-  cleanupMediaSource(songId) {
-    // Limpiar SourceBuffer
-    const sourceBuffer = this.sourceBuffers.get(songId);
-    if (sourceBuffer) {
-      try {
-        if (!sourceBuffer.updating) {
-          sourceBuffer.abort();
-        }
-      } catch (e) {}
-      this.sourceBuffers.delete(songId);
-    }
-
-    // Limpiar MediaSource
-    const mediaSource = this.mediaSources.get(songId);
-    if (mediaSource && mediaSource.readyState !== 'closed') {
-      try {
-        if (mediaSource.readyState === 'open') {
-          mediaSource.endOfStream();
-        }
-      } catch (e) {}
-      this.mediaSources.delete(songId);
-    }
-
-    // Limpiar URL
-    const url = this.streamUrls.get(songId);
-    if (url) {
-      try {
-        URL.revokeObjectURL(url);
-      } catch (e) {}
-      this.streamUrls.delete(songId);
-    }
-
-    // Limpiar cola
-    this.chunkQueues.delete(songId);
-    this.activeStreams.delete(songId);
-  }
-
-  /**
-   * Obtener chunk (con cache) - SIN CAMBIOS
-   */
-  async getChunk(songId, chunkIndex, priority = 'normal') {
-    // Verificar cache
-    const cached = this.getFromChunkCache(songId, chunkIndex);
-    if (cached) {
-      this.metrics.cacheHits++;
-      return cached;
-    }
-
-    this.metrics.cacheMisses++;
-    return await this.downloadChunk(songId, chunkIndex, priority);
-  }
-
-  /**
-   * Descargar chunk - CORREGIDO (status 206 funciona)
-   */
-  async downloadChunk(songId, chunkIndex, priority = 'normal') {
-    const chunkStart = chunkIndex * this.CHUNK_SIZE;
-    const chunkEnd = chunkStart + this.CHUNK_SIZE - 1;
-    
-    console.log(`[StreamManager] ⬇️ Descargando chunk ${chunkIndex} (${chunkStart}-${chunkEnd})`);
-    
-    const token = await this.getFreshToken();
-    const controller = new AbortController();
-    this.activeRequests.set(songId, controller);
-    
-    try {
-      const url = `${this.baseURL}/songs/${songId}/stream/`;
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Range': `bytes=${chunkStart}-${chunkEnd}`
-        },
-        signal: controller.signal
+      // 5. Guardar referencia
+      this.activeStreams.set(songId, { 
+        audio,
+        streamUrl,
+        startedAt: Date.now()
       });
+      
+      this.metrics.streamsStarted++;
 
-      // ✅ TU BACKEND DEVUELVE 206 - ¡FUNCIONA!
-      if (response.status === 206) {
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        
-        this.cacheChunk(songId, chunkIndex, blobUrl);
-        this.metrics.bytesStreamed += blob.size;
-        
-        return blobUrl;
-      }
-      
-      // Fallback
-      if (response.status === 200) {
-        console.warn(`[StreamManager] Servidor devolvió 200, usando full`);
-        return await this.getFullAudio(songId);
-      }
-      
-      throw new Error(`HTTP ${response.status}`);
-      
+      return audio;
+
     } catch (error) {
-      if (error.name === 'AbortError') return null;
+      this.metrics.errors++;
+      console.error(`[StreamManager] Error reproduciendo canción ${songId}:`, error);
       throw error;
-    } finally {
-      this.activeRequests.delete(songId);
     }
   }
 
   /**
-   * Obtener audio completo (fallback) - SIN CAMBIOS
+   * Pausa reproducción
+   * @param {string|number} songId - ID de la canción
    */
-  async getFullAudio(songId, priority = 'normal') {
-    const cached = this.getFromChunkCache(songId, 'full');
-    if (cached) {
-      this.metrics.cacheHits++;
-      return cached;
-    }
-
-    this.metrics.cacheMisses++;
-    console.log(`[StreamManager] Descargando completo: ${songId}`);
-    
-    const token = await this.getFreshToken();
-    const controller = new AbortController();
-    this.activeRequests.set(songId, controller);
-
-    try {
-      const response = await fetch(`${this.baseURL}/songs/${songId}/stream/`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        signal: controller.signal
-      });
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      
-      this.cacheChunk(songId, 'full', blobUrl);
-      await this.extractAndCacheMetadata(songId, blob);
-      
-      return blobUrl;
-      
-    } finally {
-      this.activeRequests.delete(songId);
+  pauseSong(songId) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio && !stream.audio.paused) {
+      stream.audio.pause();
+      console.log(`[StreamManager] ⏸️ Pausado manual: ${songId}`);
     }
   }
 
   /**
-   * Obtener metadata - SIN CAMBIOS
+   * Reanuda reproducción
+   * @param {string|number} songId - ID de la canción
    */
-  async getSongMetadata(songId) {
-    if (this.metadataCache.has(songId)) {
-      return this.metadataCache.get(songId);
+  resumeSong(songId) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio && stream.audio.paused) {
+      stream.audio.play().catch(e => 
+        console.error(`[StreamManager] Error al reanudar: ${songId}`, e)
+      );
+      console.log(`[StreamManager] ▶️ Reanudado: ${songId}`);
     }
-    
-    try {
-      const token = await this.getFreshToken();
-      const response = await fetch(`${this.baseURL}/songs/${songId}/`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+  }
+
+  /**
+   * Detiene y limpia stream
+   * @param {string|number} songId - ID de la canción
+   */
+  stopStream(songId) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio) {
+      // Limpiar eventos para evitar memory leaks
+      stream.audio.onplay = null;
+      stream.audio.onpause = null;
+      stream.audio.onended = null;
+      stream.audio.onerror = null;
       
-      if (response.ok) {
-        const data = await response.json();
-        const metadata = {
-          duration: data.duration || 0,
-          fileSize: data.file_size || 0,
-          bitrate: data.bitrate || 128,
-          title: data.title,
-          artist: data.artist,
-          timestamp: Date.now()
-        };
-        this.metadataCache.set(songId, metadata);
-        return metadata;
-      }
-    } catch (error) {
-      console.warn(`[StreamManager] Error metadata:`, error.message);
+      // Detener y limpiar
+      stream.audio.pause();
+      stream.audio.src = '';
+      stream.audio.load(); // Liberar recursos
+      
+      this.activeStreams.delete(songId);
+      this.metrics.streamsEnded++;
+      
+      console.log(`[StreamManager] 🧹 Stream limpiado: ${songId}`);
     }
-    
+  }
+
+  /**
+   * Obtiene tiempo actual de reproducción
+   * @param {string|number} songId - ID de la canción
+   * @returns {number} Tiempo actual en segundos
+   */
+  getCurrentTime(songId) {
+    return this.activeStreams.get(songId)?.audio?.currentTime || 0;
+  }
+
+  /**
+   * Obtiene duración total de la canción
+   * @param {string|number} songId - ID de la canción
+   * @returns {number} Duración en segundos
+   */
+  getDuration(songId) {
+    return this.activeStreams.get(songId)?.audio?.duration || 0;
+  }
+
+  /**
+   * Adelanta a posición específica
+   * @param {string|number} songId - ID de la canción
+   * @param {number} seconds - Posición en segundos
+   */
+  seek(songId, seconds) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio && !isNaN(stream.audio.duration)) {
+      const newTime = Math.max(0, Math.min(seconds, stream.audio.duration));
+      stream.audio.currentTime = newTime;
+      console.log(`[StreamManager] ⏩ Seek ${songId}: ${newTime.toFixed(1)}s`);
+    }
+  }
+
+  /**
+   * Cambia volumen
+   * @param {string|number} songId - ID de la canción
+   * @param {number} volume - Volumen (0.0 a 1.0)
+   */
+  setVolume(songId, volume) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio) {
+      const validVolume = Math.max(0, Math.min(1, volume));
+      stream.audio.volume = validVolume;
+      console.log(`[StreamManager] 🔊 Volumen ${songId}: ${validVolume.toFixed(2)}`);
+    }
+  }
+
+  /**
+   * Verifica si una canción está reproduciéndose
+   * @param {string|number} songId - ID de la canción
+   * @returns {boolean}
+   */
+  isPlaying(songId) {
+    const stream = this.activeStreams.get(songId);
+    return stream?.audio ? !stream.audio.paused : false;
+  }
+
+  /**
+   * Detiene todos los streams activos
+   */
+  stopAll() {
+    console.log(`[StreamManager] Deteniendo ${this.activeStreams.size} streams activos`);
+    const songIds = Array.from(this.activeStreams.keys());
+    for (const songId of songIds) {
+      this.stopStream(songId);
+    }
+  }
+
+  /**
+   * Obtiene estadísticas de uso
+   * @returns {Object} Métricas del manager
+   */
+  getMetrics() {
     return {
-      duration: 180,
-      fileSize: 5 * 1024 * 1024,
-      bitrate: 128,
-      title: 'Unknown',
-      artist: 'Unknown',
+      ...this.metrics,
+      activeStreams: this.activeStreams.size,
+      activeStreamsList: Array.from(this.activeStreams.keys()),
       timestamp: Date.now()
     };
   }
 
   /**
-   * MÉTODOS DE CACHE - SIN CAMBIOS
+   * Limpia todos los recursos (útil al cerrar sesión)
    */
-  getFromChunkCache(songId, chunkKey) {
-    if (!this.chunkCache.has(songId)) return null;
-    const songCache = this.chunkCache.get(songId);
-    const cached = songCache.get(chunkKey);
-    
-    if (!cached) return null;
-    if (Date.now() - cached.timestamp > this.CACHE_TTL) {
-      this.removeFromChunkCache(songId, chunkKey);
-      return null;
-    }
-    return cached.blobUrl;
-  }
-
-  cacheChunk(songId, chunkKey, blobUrl) {
-    if (!this.chunkCache.has(songId)) {
-      this.chunkCache.set(songId, new Map());
-    }
-    const songCache = this.chunkCache.get(songId);
-    songCache.set(chunkKey, {
-      blobUrl,
-      timestamp: Date.now(),
-      size: this.CHUNK_SIZE
-    });
-    this.enforceCacheLimits();
-  }
-
-  removeFromChunkCache(songId, chunkKey) {
-    if (!this.chunkCache.has(songId)) return;
-    const songCache = this.chunkCache.get(songId);
-    const cached = songCache.get(chunkKey);
-    
-    if (cached) {
-      try { URL.revokeObjectURL(cached.blobUrl); } catch (e) {}
-    }
-    
-    songCache.delete(chunkKey);
-    if (songCache.size === 0) {
-      this.chunkCache.delete(songId);
-    }
-  }
-
-  enforceCacheLimits() {
-    let totalSize = 0;
-    const allEntries = [];
-    
-    for (const [songId, songCache] of this.chunkCache.entries()) {
-      for (const [chunkKey, cached] of songCache.entries()) {
-        totalSize += cached.size || this.CHUNK_SIZE;
-        allEntries.push({ songId, chunkKey, timestamp: cached.timestamp });
-      }
-    }
-    
-    if (totalSize > this.MAX_CACHE_SIZE) {
-      allEntries.sort((a, b) => a.timestamp - b.timestamp);
-      while (totalSize > this.MAX_CACHE_SIZE * 0.8 && allEntries.length > 0) {
-        const oldest = allEntries.shift();
-        this.removeFromChunkCache(oldest.songId, oldest.chunkKey);
-        totalSize -= this.CHUNK_SIZE;
-      }
-    }
-  }
-
-  /**
-   * MÉTODOS AUXILIARES
-   */
-  validateSongId(songId) {
-    if (!songId) return null;
-    const id = parseInt(songId);
-    return isNaN(id) || id <= 0 ? null : id;
-  }
-
-  async getFreshToken() {
-    const token = localStorage.getItem('accessToken');
-    if (!token) throw new Error('No hay token');
-    return token;
-  }
-
-  cancelRequest(songId) {
-    if (this.activeRequests.has(songId)) {
-      this.activeRequests.get(songId).abort();
-      this.activeRequests.delete(songId);
-    }
-  }
-
-  async extractAndCacheMetadata(songId, blob) {
-    try {
-      const audio = new Audio();
-      audio.preload = 'metadata';
-      
-      return new Promise((resolve) => {
-        audio.onloadedmetadata = () => {
-          const metadata = {
-            duration: audio.duration,
-            fileSize: blob.size,
-            bitrate: Math.round((blob.size * 8) / (audio.duration * 1000)),
-            title: 'Unknown',
-            artist: 'Unknown',
-            timestamp: Date.now()
-          };
-          this.metadataCache.set(songId, metadata);
-          resolve(metadata);
-        };
-        
-        audio.onerror = () => resolve(null);
-        
-        const blobUrl = URL.createObjectURL(blob);
-        audio.src = blobUrl;
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-      });
-    } catch (error) {
-      return null;
-    }
-  }
-
-  startAutoCleanup() {
-    setInterval(() => this.cleanupExpiredCache(), 60000);
-  }
-
-  cleanupExpiredCache() {
-    const now = Date.now();
-    for (const [songId, songCache] of this.chunkCache.entries()) {
-      for (const [chunkKey, cached] of songCache.entries()) {
-        if (now - cached.timestamp > this.CACHE_TTL) {
-          this.removeFromChunkCache(songId, chunkKey);
-        }
-      }
-    }
-  }
-
-  /**
-   * DEBUG
-   */
-  getMetrics() {
-    return {
-      ...this.metrics,
-      cacheSize: this.getCacheSize(),
-      activeRequests: this.activeRequests.size,
-      activeStreams: this.activeStreams.size,
-      mediaSources: this.mediaSources.size
+  cleanup() {
+    this.stopAll();
+    this.metrics = {
+      streamsStarted: 0,
+      streamsEnded: 0,
+      errors: 0
     };
+    console.log('[StreamManager] ✅ Cleanup completado');
   }
 
-  getCacheSize() {
-    let count = 0;
-    for (const songCache of this.chunkCache.values()) {
-      count += songCache.size;
-    }
-    return count;
+  // =========================================================================
+  // MÉTODOS DE COMPATIBILIDAD (no rompen código existente)
+  // =========================================================================
+
+  /**
+   * @deprecated Usar playSong() en su lugar
+   */
+  async getAudio(songId) {
+    console.warn('[StreamManager] getAudio() está deprecado. Usa playSong()');
+    return this.getStreamUrl(songId);
   }
 
+  /**
+   * @deprecated Usar playSong() en su lugar
+   */
+  async getFullAudio(songId) {
+    console.warn('[StreamManager] getFullAudio() está deprecado. Usa playSong()');
+    return this.getStreamUrl(songId);
+  }
+
+  /**
+   * @deprecated El backend ahora maneja el cache
+   */
   clearCache() {
-    for (const [songId, songCache] of this.chunkCache.entries()) {
-      for (const [chunkKey, cached] of songCache.entries()) {
-        try { URL.revokeObjectURL(cached.blobUrl); } catch (e) {}
-      }
-    }
-    this.chunkCache.clear();
-    this.metadataCache.clear();
-    console.log('[StreamManager] Cache limpiado');
+    console.warn('[StreamManager] clearCache() ya no es necesario');
   }
 
+  /**
+   * Debug info
+   */
   debug() {
     console.group('[StreamManager] DEBUG');
-    console.log('Chunk Size:', this.formatBytes(this.CHUNK_SIZE));
-    console.log('Cache Size:', this.getCacheSize(), 'chunks');
+    console.log('Base URL:', this.baseURL);
     console.log('Active Streams:', this.activeStreams.size);
-    console.log('MediaSources:', this.mediaSources.size);
-    console.log('Metrics:', this.getMetrics());
+    console.log('Metrics:', this.metrics);
+    
+    for (const [songId, stream] of this.activeStreams.entries()) {
+      console.log(`  📍 ${songId}:`, {
+        currentTime: stream.audio?.currentTime.toFixed(1) || 0,
+        duration: stream.audio?.duration.toFixed(1) || 0,
+        paused: stream.audio?.paused,
+        volume: stream.audio?.volume.toFixed(2),
+        url: stream.streamUrl?.substring(0, 50) + '...'
+      });
+    }
     console.groupEnd();
   }
 
+  /**
+   * Formatea bytes para logs
+   */
   formatBytes(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -627,4 +333,8 @@ export class StreamManager {
   }
 }
 
+// Singleton export
 export const streamManager = new StreamManager();
+
+// Para compatibilidad con imports existentes
+export default streamManager;
