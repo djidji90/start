@@ -1,242 +1,575 @@
-// src/hooks/useRandomSongs.js - VERSIÓN CORREGIDA
-import { useState, useEffect, useCallback, useRef } from "react";
+/**
+ * StreamManager.js - PRODUCCIÓN (VERSIÓN COMPLETA OPTIMIZADA)
+ *
+ * 🎵 ARQUITECTURA PROFESIONAL PARA DJIDJIMUSIC
+ * 
+ * Frontend (https://djidjimusic.com) 
+ *   → API explícita (https://api.djidjimusic.com/api2) 
+ *   → Django valida 
+ *   → Devuelve URL firmada de R2 (5 min)
+ *   → Navegador reproduce directo desde Cloudflare
+ *
+ * BENEFICIOS:
+ * - Workers Gunicorn SIEMPRE libres
+ * - Sin Range requests, sin chunks
+ * - Cache en Redis (30 min)
+ * - CDN global (Cloudflare)
+ * - Ideal para usuarios en África Central
+ *
+ * @version 3.1.0 - Producción (Corregido: token multi-key)
+ */
 
-const useRandomSongs = () => {
-  const [songs, setSongs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  
-  const isMounted = useRef(true);
+class StreamManager {
+  constructor() {
+    // 🔐 DOMINIO EXPLÍCITO - PRODUCCIÓN
+    // Frontend: https://djidjimusic.com
+    // Backend:  https://api.djidjimusic.com
+    this.API_BASE = "https://api.djidjimusic.com/api2";
 
-  // 🔥🔥🔥 CORRECCIÓN CRÍTICA - USAR MISMA KEY QUE STREAMMANAGER
-  const getAuthToken = useCallback(() => {
-    // ORDEN CORRECTO: "accessToken" PRIMERO (la key que usa tu app)
-    return localStorage.getItem("accessToken") ||        // <-- ESTA ES LA KEY QUE USA TU APP
-           localStorage.getItem("access_token") ||       // <-- Por compatibilidad
-           localStorage.getItem("token") ||              // <-- Por compatibilidad
-           localStorage.getItem("auth_token") ||
-           localStorage.getItem("jwt_token") ||
-           localStorage.getItem("django_token");
-  }, []);
+    // Control de streams activos
+    this.activeStreams = new Map();      // songId -> { audio, streamUrl, startedAt }
+    this.abortControllers = new Map();   // songId -> AbortController
 
-  const fetchRandomSongs = useCallback(async () => {
-    // 1. Obtener token usando la función CORREGIDA
-    const token = getAuthToken();
-    
-    // DEBUG: Ver qué key encontró
-    console.log(`[useRandomSongs] Token obtenido: ${token ? `SÍ (${token.substring(0, 20)}...)` : 'NO'}`);
-    
-    if (!token) {
-      if (isMounted.current) {
-        setError("🔐 No estás autenticado. Inicia sesión para continuar.");
-        setIsAuthenticated(false);
-        setLoading(false);
-      }
-      return;
-    }
+    // Métricas para monitoreo
+    this.metrics = {
+      streamsStarted: 0,
+      streamsEnded: 0,
+      errors: 0
+    };
 
-    if (isMounted.current) {
-      setLoading(true);
-      setError(null);
-      setIsAuthenticated(true);
-    }
+    // Event listeners para auth
+    this._setupAuthListeners();
 
-    try {
-      const endpoint = "https://api.djidjimusic.com/api2/songs/random/";
-      
-     
+    console.log("[StreamManager] ✅ Inicializado (Producción)");
+    console.log(`[StreamManager] 📡 API Base: ${this.API_BASE}`);
+  }
 
-      const response = await fetch(endpoint, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
+  // =========================================================================
+  // 🔧 CONFIGURACIÓN INTERNA
+  // =========================================================================
+
+  /**
+   * Configura listeners para eventos de autenticación
+   * @private
+   */
+  _setupAuthListeners() {
+    if (typeof window !== 'undefined') {
+      // Escuchar evento de logout para limpiar streams
+      window.addEventListener('auth:logout', () => {
+        console.log('[StreamManager] Evento auth:logout recibido - limpiando streams');
+        this.cleanup();
       });
 
-      console.log("📡 Respuesta HTTP:", response.status, response.statusText);
+      window.addEventListener('auth:expired', () => {
+        console.log('[StreamManager] Evento auth:expired recibido');
+        this.cleanup();
+      });
+    }
+  }
 
-      // Manejar diferentes tipos de respuestas
-      const contentType = response.headers.get("content-type");
-      
-      if (!response.ok) {
-        let errorMessage = `Error HTTP ${response.status}`;
-        
-        if (contentType && contentType.includes("application/json")) {
-          try {
-            const errorData = await response.json();
-            console.error("📝 Error JSON:", errorData);
-            
-            if (errorData.error) {
-              errorMessage = errorData.error;
-            } else if (errorData.detail) {
-              errorMessage = errorData.detail;
-            } else if (errorData.message) {
-              errorMessage = errorData.message;
-            }
-          } catch (jsonError) {
-            console.error("❌ No se pudo parsear error como JSON:", jsonError);
-          }
+  /**
+   * Obtiene token de autenticación desde múltiples posibles keys
+   * (Misma estrategia que useRandomSongs)
+   * @returns {string|null} Token o null si no existe
+   * @private
+   */
+  _getAuthToken() {
+    // ORDEN CORRECTO: "accessToken" PRIMERO (key principal)
+    const token = localStorage.getItem("accessToken") ||        // Key principal
+                  localStorage.getItem("access_token") ||      // Key alternativa común
+                  localStorage.getItem("token") ||             // Key alternativa común
+                  localStorage.getItem("auth_token") ||        // Otras variantes
+                  localStorage.getItem("jwt_token") ||
+                  localStorage.getItem("django_token");
+
+    if (token) {
+      console.log(`[StreamManager] 🔑 Token encontrado (${token.substring(0, 15)}...)`);
+    }
+
+    return token;
+  }
+
+  // =========================================================================
+  // 🔐 OBTENER URL FIRMADA DEL BACKEND
+  // =========================================================================
+
+  /**
+   * Obtiene URL firmada de R2 desde el backend
+   * @param {string|number} songId - ID de la canción
+   * @returns {Promise<string>} URL firmada (válida 5 min)
+   * @throws {Error} Si hay error de autenticación o red
+   */
+  async getStreamUrl(songId) {
+    // 1. Verificar token usando múltiples keys
+    const token = this._getAuthToken();
+    
+    if (!token) {
+      console.error('[StreamManager] No hay token en localStorage (buscado en todas las keys posibles)');
+      // Disparar evento de autenticación expirada
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:expired'));
+      }
+      throw new Error("No autenticado - Token no encontrado");
+    }
+
+    // 2. Validar songId
+    if (!songId) {
+      throw new Error("ID de canción inválido");
+    }
+
+    // 3. Cancelar request anterior si existe
+    if (this.abortControllers.has(songId)) {
+      console.log(`[StreamManager] Cancelando request anterior para canción ${songId}`);
+      this.abortControllers.get(songId).abort();
+    }
+
+    // 4. Crear nuevo controller para esta request
+    const controller = new AbortController();
+    this.abortControllers.set(songId, controller);
+
+    const startTime = Date.now();
+
+    try {
+      // 5. Hacer fetch al backend
+      const response = await fetch(
+        `${this.API_BASE}/songs/${songId}/stream/`,
+        {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Accept": "application/json"
+          },
+          signal: controller.signal
         }
-        
+      );
+
+      // 6. Limpiar controller
+      this.abortControllers.delete(songId);
+
+      // 7. Calcular tiempo de respuesta
+      const responseTime = Date.now() - startTime;
+      console.log(`[StreamManager] 📡 Respuesta: ${response.status} (${responseTime}ms)`);
+
+      // 8. Manejar errores HTTP
+      if (!response.ok) {
+        let errorData = {};
+        let errorMessage = `Error HTTP ${response.status}`;
+
+        try {
+          errorData = await response.json();
+          errorMessage = errorData?.message || errorData?.error || errorMessage;
+        } catch (_) {
+          // Si no se puede parsear JSON, usar mensaje genérico
+        }
+
+        // Logs específicos por código de error
+        switch (response.status) {
+          case 401:
+            console.error("[StreamManager] 🔒 Sesión expirada o token inválido");
+            // Disparar evento para que la app maneje el logout
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('auth:expired'));
+            }
+            break;
+          case 403:
+            console.error("[StreamManager] ⛔ Sin permisos para esta canción");
+            break;
+          case 404:
+            console.error("[StreamManager] ❌ Canción no encontrada");
+            break;
+          case 429:
+            console.error("[StreamManager] ⏳ Límite de streams excedido");
+            break;
+          default:
+            console.error(`[StreamManager] Error ${response.status}:`, errorMessage);
+        }
+
         throw new Error(errorMessage);
       }
 
-      // Parsear respuesta exitosa
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("❌ La API no devolvió JSON válido");
-      }
-
+      // 9. Parsear respuesta JSON
       const data = await response.json();
-      console.log("✅ Datos recibidos:", data);
 
-      if (!isMounted.current) return;
+      // 10. Validar estructura de la respuesta
+      if (!data?.data?.stream_url) {
+        console.error("[StreamManager] Respuesta inválida del servidor:", data);
+        throw new Error("Respuesta inválida del servidor");
+      }
 
-      // PROCESAR SEGÚN TU VISTA: {"random_songs": [...]}
-      if (data.random_songs && Array.isArray(data.random_songs)) {
-        const validSongs = data.random_songs.filter(
-          (song) => song && song.id && song.title
-        );
+      // 11. Logging exitoso con métricas
+      console.log(`[StreamManager] ✅ URL obtenida para canción ${songId}`, {
+        expiresIn: data.data.expires_in,
+        cacheStatus: data.meta?.cache || 'unknown',
+        fileSize: data.data.file_size || 'desconocido',
+        responseTime: `${responseTime}ms`
+      });
+
+      return data.data.stream_url;
+
+    } catch (error) {
+      // Manejar abortos (no son errores reales)
+      if (error.name === 'AbortError') {
+        console.log(`[StreamManager] Request cancelada para canción ${songId}`);
+        return null;
+      }
+
+      // Registrar otros errores
+      this.metrics.errors++;
+      console.error(`[StreamManager] Error obteniendo URL para ${songId}:`, error.message);
+      throw error;
+    }
+  }
+
+  // =========================================================================
+  // ▶️ REPRODUCIR CANCIÓN
+  // =========================================================================
+
+  /**
+   * Reproduce una canción usando URL firmada
+   * @param {string|number} songId - ID de la canción
+   * @param {HTMLAudioElement} [audioElement] - Elemento audio existente (opcional)
+   * @returns {Promise<HTMLAudioElement>} Elemento audio reproduciendo
+   */
+  async playSong(songId, audioElement = null) {
+    // 1. Limpiar cualquier stream activo de esta canción
+    this.stopStream(songId);
+
+    try {
+      // 2. Obtener URL firmada
+      const streamUrl = await this.getStreamUrl(songId);
+      
+      // Si la request fue cancelada, salir
+      if (!streamUrl) return null;
+
+      // 3. Usar elemento existente o crear nuevo
+      const audio = audioElement || new Audio();
+      
+      // 4. Configurar audio element
+      audio.preload = "metadata";
+      audio.crossOrigin = "anonymous"; // Importante para CORS con R2/Cloudflare
+
+      // 5. Configurar eventos con manejo de errores mejorado
+      audio.onplay = () => {
+        console.log(`[StreamManager] ▶️ Reproduciendo: ${songId}`);
+      };
+
+      audio.onpause = () => {
+        console.log(`[StreamManager] ⏸️ Pausado: ${songId}`);
+      };
+
+      audio.onended = () => {
+        console.log(`[StreamManager] ⏹️ Finalizado: ${songId}`);
+        this.metrics.streamsEnded++;
+        this.activeStreams.delete(songId);
+      };
+
+      audio.onerror = (e) => {
+        const errorInfo = {
+          error: audio.error?.message || 'desconocido',
+          code: audio.error?.code,
+          networkState: audio.networkState,
+          readyState: audio.readyState,
+          src: audio.src?.substring(0, 50) + '...'
+        };
+        console.error(`[StreamManager] ❌ Error en audio ${songId}:`, errorInfo);
+        this.metrics.errors++;
         
-        if (validSongs.length === 0) {
-          setError("⚠️ No hay canciones con datos completos disponibles.");
+        // Si es error de CORS o red, intentar reintentar
+        if (audio.error?.code === 4) { // MEDIA_ERR_SRC_NOT_SUPPORTED
+          console.warn('[StreamManager] Error de soporte de formato o CORS');
         }
-        
-        setSongs(validSongs);
-        console.log(`🎵 ${validSongs.length} canciones cargadas`);
-        
-      } else if (data.error) {
-        setError(`⚠️ ${data.error}`);
-        setSongs([]);
-        
-      } else if (Array.isArray(data)) {
-        setSongs(data);
-        
-        
-      } else {
-        console.warn("⚠️ Estructura de respuesta inesperada:", data);
-        setError("❌ Formato de respuesta inesperado de la API");
-        setSongs([]);
+      };
+
+      audio.onloadedmetadata = () => {
+        console.log(`[StreamManager] 📊 Duración: ${this._formatTime(audio.duration)}`);
+      };
+
+      audio.onstalled = () => {
+        console.warn(`[StreamManager] ⚠️ Stalled - Red lenta? ${songId}`);
+      };
+
+      audio.onwaiting = () => {
+        console.warn(`[StreamManager] ⏳ Esperando buffer: ${songId}`);
+      };
+
+      // 6. Asignar fuente y cargar
+      audio.src = streamUrl;
+      audio.load();
+
+      // 7. Intentar reproducir
+      try {
+        await audio.play();
+      } catch (playError) {
+        // El navegador puede bloquear autoplay (políticas de navegadores)
+        console.warn("[StreamManager] ⚠️ Autoplay bloqueado:", playError.message);
+        // No lanzamos error, el usuario puede iniciar manualmente
       }
 
-    } catch (err) {
-      console.error("❌ Error en fetchRandomSongs:", err);
-      
-      if (!isMounted.current) return;
+      // 8. Guardar referencia del stream activo
+      this.activeStreams.set(songId, {
+        audio,
+        streamUrl,
+        startedAt: Date.now()
+      });
 
-      const errorMessage = err.message || "Error desconocido";
-      
-      // 🔥 CORRECCIÓN: Limpiar las keys correctas
-      if (errorMessage.includes("401") || errorMessage.includes("autenticación") || errorMessage.includes("credenciales")) {
-        setError("🔐 Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.");
-        setIsAuthenticated(false);
-        
-        // LIMPIAR LAS KEYS CORRECTAS (las que usa tu app)
-        localStorage.removeItem("accessToken");    // <-- CORREGIDO
-        localStorage.removeItem("refreshToken");   // <-- CORREGIDO
-        localStorage.removeItem("access_token");   // <-- Por compatibilidad
-        
-      } else if (errorMessage.includes("403") || errorMessage.includes("permiso")) {
-        setError("⛔ No tienes permisos para acceder a las canciones.");
-        
-      } else if (errorMessage.includes("404")) {
-        setError("🎵 No hay canciones disponibles en este momento.");
-        
-      } else if (errorMessage.includes("500")) {
-        setError("💥 Error interno del servidor. Por favor, intenta más tarde.");
-        
-      } else if (errorMessage.includes("Network") || errorMessage.includes("Failed to fetch") || errorMessage.includes("CORS")) {
-        setError("🌐 Error de conexión. Verifica tu internet y que la API esté disponible.");
-        
-      } else if (errorMessage.includes("JSON")) {
-        setError("📄 Error en la respuesta del servidor (formato inválido).");
-        
-      } else {
-        setError(`❌ ${errorMessage}`);
-      }
-      
-      setSongs([]);
-      
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
+      // 9. Actualizar métricas
+      this.metrics.streamsStarted++;
+
+      return audio;
+
+    } catch (error) {
+      this.metrics.errors++;
+      console.error(`[StreamManager] Error reproduciendo canción ${songId}:`, error);
+      throw error;
     }
-  }, [getAuthToken]);
+  }
 
-  useEffect(() => {
-    isMounted.current = true;
-    
-    const timer = setTimeout(() => {
-      fetchRandomSongs();
-    }, 100);
-    
-    return () => {
-      isMounted.current = false;
-      clearTimeout(timer);
+  // =========================================================================
+  // ⏸️ CONTROL DE REPRODUCCIÓN
+  // =========================================================================
+
+  /**
+   * Pausa reproducción
+   * @param {string|number} songId - ID de la canción
+   */
+  pauseSong(songId) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio && !stream.audio.paused) {
+      stream.audio.pause();
+      console.log(`[StreamManager] ⏸️ Pausado manual: ${songId}`);
+    }
+  }
+
+  /**
+   * Reanuda reproducción
+   * @param {string|number} songId - ID de la canción
+   */
+  resumeSong(songId) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio && stream.audio.paused) {
+      stream.audio.play().catch(console.error);
+      console.log(`[StreamManager] ▶️ Reanudado: ${songId}`);
+    }
+  }
+
+  /**
+   * Detiene y limpia un stream específico
+   * @param {string|number} songId - ID de la canción
+   */
+  stopStream(songId) {
+    const stream = this.activeStreams.get(songId);
+
+    if (stream?.audio) {
+      // Limpiar eventos
+      stream.audio.onplay = null;
+      stream.audio.onpause = null;
+      stream.audio.onended = null;
+      stream.audio.onerror = null;
+      stream.audio.onstalled = null;
+      stream.audio.onwaiting = null;
+      
+      // Detener y limpiar
+      stream.audio.pause();
+      stream.audio.src = "";
+      stream.audio.load(); // Liberar recursos
+
+      this.activeStreams.delete(songId);
+      this.metrics.streamsEnded++;
+      
+      console.log(`[StreamManager] 🧹 Stream limpiado: ${songId}`);
+    }
+
+    // Cancelar request pendiente si existe
+    if (this.abortControllers.has(songId)) {
+      this.abortControllers.get(songId).abort();
+      this.abortControllers.delete(songId);
+    }
+  }
+
+  /**
+   * Detiene TODOS los streams activos
+   */
+  stopAll() {
+    const ids = Array.from(this.activeStreams.keys());
+    if (ids.length > 0) {
+      console.log(`[StreamManager] Deteniendo ${ids.length} streams activos`);
+      ids.forEach((id) => this.stopStream(id));
+    }
+  }
+
+  // =========================================================================
+  // 🎚 CONTROLES DE AUDIO
+  // =========================================================================
+
+  /**
+   * Adelanta a posición específica
+   * @param {string|number} songId - ID de la canción
+   * @param {number} seconds - Posición en segundos
+   */
+  seek(songId, seconds) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio && !isNaN(stream.audio.duration)) {
+      const newTime = Math.max(0, Math.min(seconds, stream.audio.duration));
+      stream.audio.currentTime = newTime;
+      console.log(`[StreamManager] ⏩ Seek ${songId}: ${this._formatTime(newTime)}`);
+    }
+  }
+
+  /**
+   * Cambia volumen
+   * @param {string|number} songId - ID de la canción
+   * @param {number} volume - Volumen (0.0 a 1.0)
+   */
+  setVolume(songId, volume) {
+    const stream = this.activeStreams.get(songId);
+    if (stream?.audio) {
+      const validVolume = Math.max(0, Math.min(1, volume));
+      stream.audio.volume = validVolume;
+      console.log(`[StreamManager] 🔊 Volumen ${songId}: ${Math.round(validVolume * 100)}%`);
+    }
+  }
+
+  /**
+   * Verifica si una canción está reproduciéndose
+   * @param {string|number} songId - ID de la canción
+   * @returns {boolean}
+   */
+  isPlaying(songId) {
+    const stream = this.activeStreams.get(songId);
+    return stream?.audio ? !stream.audio.paused : false;
+  }
+
+  /**
+   * Obtiene tiempo actual
+   * @param {string|number} songId - ID de la canción
+   * @returns {number}
+   */
+  getCurrentTime(songId) {
+    return this.activeStreams.get(songId)?.audio?.currentTime || 0;
+  }
+
+  /**
+   * Obtiene duración total
+   * @param {string|number} songId - ID de la canción
+   * @returns {number}
+   */
+  getDuration(songId) {
+    return this.activeStreams.get(songId)?.audio?.duration || 0;
+  }
+
+  // =========================================================================
+  // 📊 MÉTRICAS Y UTILIDADES
+  // =========================================================================
+
+  /**
+   * Obtiene estadísticas de uso
+   * @returns {Object} Métricas detalladas
+   */
+  getMetrics() {
+    const activeList = [];
+    for (const [songId, stream] of this.activeStreams.entries()) {
+      activeList.push({
+        songId,
+        currentTime: stream.audio?.currentTime || 0,
+        duration: stream.audio?.duration || 0,
+        playing: !stream.audio?.paused,
+        startedAt: new Date(stream.startedAt).toISOString()
+      });
+    }
+
+    return {
+      ...this.metrics,
+      activeStreams: this.activeStreams.size,
+      activeStreamsList: activeList,
+      timestamp: Date.now(),
+      apiBase: this.API_BASE
     };
-  }, [fetchRandomSongs]);
+  }
 
-  // Función para reintentar
-  const retryWithCurrentToken = useCallback(() => {
-    const token = getAuthToken();
-    if (token) {
-      setIsAuthenticated(true);
-      setError(null);
-      fetchRandomSongs();
-    } else {
-      setError("❌ Aún no hay token disponible. Inicia sesión primero.");
+  /**
+   * Limpia todos los recursos (útil al cerrar sesión)
+   */
+  cleanup() {
+    console.log("[StreamManager] 🧹 Limpiando todos los recursos");
+    this.stopAll();
+    this.metrics = {
+      streamsStarted: 0,
+      streamsEnded: 0,
+      errors: 0
+    };
+  }
+
+  /**
+   * Debug info completo
+   */
+  debug() {
+    console.group('[StreamManager] 🔍 DEBUG INFO');
+    console.log('API Base:', this.API_BASE);
+    console.log('Métricas:', this.metrics);
+    console.log('Streams activos:', this.activeStreams.size);
+    
+    for (const [songId, stream] of this.activeStreams.entries()) {
+      console.log(`  📍 ${songId}:`, {
+        currentTime: this._formatTime(stream.audio?.currentTime || 0),
+        duration: this._formatTime(stream.audio?.duration || 0),
+        paused: stream.audio?.paused,
+        volume: Math.round((stream.audio?.volume || 0) * 100) + '%',
+        url: stream.streamUrl?.substring(0, 60) + '...'
+      });
     }
-  }, [fetchRandomSongs, getAuthToken]);
+    console.groupEnd();
+  }
 
-  // Función para formatear duración
-  const formatDuration = useCallback((seconds) => {
-    if (!seconds) return "0:00";
+  // =========================================================================
+  // 🆘 MÉTODOS DE COMPATIBILIDAD (para migración gradual)
+  // =========================================================================
+
+  /**
+   * @deprecated Usar playSong() en su lugar
+   */
+  async getAudio(songId) {
+    console.warn('[StreamManager] ⚠️ getAudio() está deprecado. Usa playSong()');
+    return this.getStreamUrl(songId);
+  }
+
+  /**
+   * @deprecated Usar playSong() en su lugar
+   */
+  async getFullAudio(songId) {
+    console.warn('[StreamManager] ⚠️ getFullAudio() está deprecado. Usa playSong()');
+    return this.getStreamUrl(songId);
+  }
+
+  /**
+   * @deprecated El backend ahora maneja el cache
+   */
+  clearCache() {
+    console.warn('[StreamManager] ⚠️ clearCache() ya no es necesario');
+  }
+
+  // =========================================================================
+  // 🆘 PRIVADOS
+  // =========================================================================
+
+  /**
+   * Formatea tiempo para logs
+   * @private
+   */
+  _formatTime(seconds) {
+    if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }, []);
+  }
+}
 
-  // Calcular estadísticas
-  const totalDuration = songs.reduce((sum, song) => sum + (song.duration || 0), 0);
-  const artists = [...new Set(songs.map(song => song.artist).filter(Boolean))];
-  const genres = [...new Set(songs.map(song => song.genre).filter(Boolean))];
+// =========================================================================
+// 📦 EXPORTAR SINGLETON
+// =========================================================================
 
-  return { 
-    // Estado
-    songs, 
-    loading, 
-    error, 
-    isAuthenticated,
-    
-    // Métodos
-    refresh: fetchRandomSongs,
-    retryAuth: retryWithCurrentToken,
-    clearError: () => setError(null),
-    formatDuration,
-    
-    // Propiedades calculadas
-    hasSongs: songs.length > 0,
-    totalSongs: songs.length,
-    totalDuration,
-    formattedTotalDuration: formatDuration(totalDuration),
-    artists,
-    genres,
-    artistsCount: artists.length,
-    genresCount: genres.length,
-    
-    // Funciones de filtrado
-    getSongsByArtist: (artist) => songs.filter(s => s.artist === artist),
-    getSongsByGenre: (genre) => songs.filter(s => s.genre === genre),
-    
-    // Estado compuesto para UI
-    isEmpty: songs.length === 0 && !loading && !error,
-    showLoading: loading && songs.length === 0,
-    showError: error && !loading,
-    showContent: !loading && !error && songs.length > 0
-  };
-};
+// Crear única instancia
+const streamManager = new StreamManager();
 
-export default useRandomSongs;
+// Exportar como default y nombrado (para compatibilidad)
+export default streamManager;
+export { streamManager };
