@@ -1,7 +1,9 @@
 /**
- * StreamManager.js - VERSIÓN CORREGIDA
+ * StreamManager.js - VERSIÓN FINAL CON CACHE Y OPTIMIZACIONES
  * 
- * Problemas solucionados:
+ * Mejoras:
+ * ✅ Cache de URLs para evitar llamadas duplicadas
+ * ✅ Soporte para URL externa (desde PlayerContext)
  * ✅ Pausar/Reanudar funciona correctamente
  * ✅ No permite múltiples streams simultáneos
  * ✅ Manejo correcto de stopStream
@@ -12,17 +14,23 @@ class StreamManager {
   constructor() {
     this.API_BASE = "https://api.djidjimusic.com/api2";
     this.activeStreams = new Map();      // songId -> { audio, streamUrl, startedAt }
-    this.currentlyPlaying = null;        // <-- NUEVO: Solo una canción a la vez
+    this.currentlyPlaying = null;        // Solo una canción a la vez
     this.abortControllers = new Map();
+    
+    // 🆕 Cache de URLs para evitar llamadas duplicadas
+    this.urlCache = new Map();           // songId -> { url, expiresAt }
+    this.URL_CACHE_TTL = 240000;         // 4 minutos (las URLs expiran en 5)
     
     this.metrics = {
       streamsStarted: 0,
       streamsEnded: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
       errors: 0
     };
 
     this._setupAuthListeners();
-    console.log("[StreamManager] ✅ Inicializado (Producción)");
+    console.log("[StreamManager] ✅ Inicializado con cache de URLs");
     console.log(`[StreamManager] 📡 API Base: ${this.API_BASE}`);
   }
 
@@ -49,7 +57,27 @@ class StreamManager {
            localStorage.getItem("django_token");
   }
 
-  async getStreamUrl(songId) {
+  /**
+   * 🆕 Obtener URL con cache
+   * Ahora cachea URLs para evitar llamadas duplicadas
+   */
+  async getStreamUrl(songId, skipCache = false) {
+    // Verificar cache primero (si no se pide saltarlo)
+    if (!skipCache && this.urlCache.has(songId)) {
+      const cached = this.urlCache.get(songId);
+      if (cached.expiresAt > Date.now()) {
+        console.log(`[StreamManager] 🎯 CACHE HIT para ${songId}`);
+        this.metrics.cacheHits++;
+        return cached.url;
+      } else {
+        // URL expirada, eliminarla
+        this.urlCache.delete(songId);
+      }
+    }
+    
+    this.metrics.cacheMisses++;
+    console.log(`[StreamManager] 🌐 CACHE MISS para ${songId} - obteniendo nueva URL`);
+
     const token = this._getAuthToken();
 
     if (!token) {
@@ -126,14 +154,23 @@ class StreamManager {
         throw new Error("Respuesta inválida del servidor");
       }
 
+      const streamUrl = data.data.stream_url;
+      
+      // 🆕 Guardar en cache por 4 minutos
+      this.urlCache.set(songId, {
+        url: streamUrl,
+        expiresAt: Date.now() + this.URL_CACHE_TTL
+      });
+
       console.log(`[StreamManager] ✅ URL obtenida para canción ${songId}`, {
         expiresIn: data.data.expires_in,
         cacheStatus: data.meta?.cache || 'unknown',
         fileSize: data.data.file_size || 'desconocido',
-        responseTime: `${responseTime}ms`
+        responseTime: `${responseTime}ms`,
+        nextExpiry: new Date(Date.now() + this.URL_CACHE_TTL).toLocaleTimeString()
       });
 
-      return data.data.stream_url;
+      return streamUrl;
 
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -160,6 +197,7 @@ class StreamManager {
       stream.audio.onstalled = null;
       stream.audio.onwaiting = null;
       stream.audio.onloadedmetadata = null;
+      stream.audio.ontimeupdate = null; // 🆕 Asegurar limpieza
 
       // Detener reproducción
       stream.audio.pause();
@@ -192,7 +230,15 @@ class StreamManager {
     this.currentlyPlaying = null;
   }
 
-  async playSong(songId, audioElement = null) {
+  /**
+   * 🆕 playSong mejorado con soporte para URL externa
+   * @param {string} songId - ID de la canción
+   * @param {HTMLAudioElement} audioElement - Elemento audio opcional
+   * @param {Object} options - Opciones adicionales
+   * @param {string} options.streamUrl - URL proporcionada externamente (opcional)
+   * @param {boolean} options.skipCache - Saltar cache (opcional)
+   */
+  async playSong(songId, audioElement = null, options = {}) {
     // 🔥 IMPORTANTE: Detener cualquier otra canción que esté sonando
     if (this.currentlyPlaying && this.currentlyPlaying !== songId) {
       console.log(`[StreamManager] Deteniendo canción anterior: ${this.currentlyPlaying}`);
@@ -214,7 +260,13 @@ class StreamManager {
     this.stopStream(songId);
 
     try {
-      const streamUrl = await this.getStreamUrl(songId);
+      // 🆕 Usar URL proporcionada o obtener nueva
+      let streamUrl = options.streamUrl;
+      
+      if (!streamUrl) {
+        streamUrl = await this.getStreamUrl(songId, options.skipCache || false);
+      }
+      
       if (!streamUrl) return null;
 
       // Usar elemento existente o crear nuevo
@@ -231,7 +283,6 @@ class StreamManager {
 
       audio.onpause = () => {
         console.log(`[StreamManager] ⏸️ Pausado: ${songId}`);
-        // No limpiar currentlyPlaying cuando se pausa
       };
 
       audio.onended = () => {
@@ -270,6 +321,14 @@ class StreamManager {
         console.warn(`[StreamManager] ⏳ Esperando buffer: ${songId}`);
       };
 
+      // 🆕 Usar timeupdate para progreso (más eficiente)
+      audio.ontimeupdate = () => {
+        // El progreso lo maneja PlayerContext, pero podemos loguear si es necesario
+        if (this.currentlyPlaying === songId) {
+          // No hacer nada, PlayerContext ya escucha
+        }
+      };
+
       // Asignar fuente y cargar
       audio.src = streamUrl;
       audio.load();
@@ -305,7 +364,6 @@ class StreamManager {
     const stream = this.activeStreams.get(songId);
     if (stream?.audio && !stream.audio.paused) {
       stream.audio.pause();
-      // No cambiamos currentlyPlaying, solo pausamos
     }
   }
 
@@ -363,18 +421,28 @@ class StreamManager {
     return this.activeStreams.get(songId)?.audio?.duration || 0;
   }
 
+  // 🆕 Limpiar cache de URLs
+  clearUrlCache() {
+    const size = this.urlCache.size;
+    this.urlCache.clear();
+    console.log(`[StreamManager] 🧹 Cache de URLs limpiado (${size} entradas)`);
+  }
+
   // Limpia todo (útil para logout)
   cleanup() {
     console.log("[StreamManager] 🧹 Limpiando todos los recursos");
     this.stopAll();
+    this.clearUrlCache();
     this.metrics = {
       streamsStarted: 0,
       streamsEnded: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
       errors: 0
     };
   }
 
-  // Obtener estadísticas
+  // Obtener estadísticas (actualizado con cache)
   getMetrics() {
     const activeList = [];
     for (const [songId, stream] of this.activeStreams.entries()) {
@@ -387,8 +455,15 @@ class StreamManager {
       });
     }
 
+    const totalRequests = this.metrics.cacheHits + this.metrics.cacheMisses;
+    const hitRate = totalRequests > 0 
+      ? ((this.metrics.cacheHits / totalRequests) * 100).toFixed(1)
+      : 0;
+
     return {
       ...this.metrics,
+      hitRate: `${hitRate}%`,
+      cacheSize: this.urlCache.size,
       activeStreams: this.activeStreams.size,
       currentlyPlaying: this.currentlyPlaying,
       activeStreamsList: activeList,
@@ -405,12 +480,13 @@ class StreamManager {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
-  // Debug info
+  // Debug info (actualizado)
   debug() {
     console.group('[StreamManager] 🔍 DEBUG INFO');
     console.log('API Base:', this.API_BASE);
     console.log('Currently Playing:', this.currentlyPlaying);
-    console.log('Métricas:', this.metrics);
+    console.log('Métricas:', this.getMetrics());
+    console.log('URL Cache:', this.urlCache.size, 'entradas');
     console.log('Streams activos:', this.activeStreams.size);
     
     for (const [songId, stream] of this.activeStreams.entries()) {

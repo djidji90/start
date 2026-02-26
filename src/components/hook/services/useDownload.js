@@ -445,8 +445,8 @@ const useDownload = () => {
   // ============================================
   const requestSignedUrl = useCallback(async (songId, token) => {
     try {
-      const response = await axios.post(
-        `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/request-download/`,
+      const response = await axios.get(
+        `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/stream/`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
