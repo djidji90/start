@@ -1,14 +1,20 @@
-// src/audio/hooks/usePlayer.js - VERSIÓN OPTIMIZADA CON USE CALLBACK
+// src/audio/hooks/usePlayer.js - VERSIÓN CORREGIDA
 import { usePlayer as usePlayerContext } from '../../../components/PlayerContext.jsx';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useEffect } from 'react';
 
 /**
  * Hook de alto nivel para UI con funcionalidades adicionales
  * Abstracción sobre PlayerContext para componentes específicos de audio
- * @version 2.0.0 - Optimizado con useCallback para máximo rendimiento
+ * @version 2.1.0 - Corregido: métodos correctos del contexto
  */
 export const useAudioPlayer = () => {
   const player = usePlayerContext();
+
+  // Referencia para evitar actualizaciones innecesarias
+  const playerRef = useRef(player);
+  useEffect(() => {
+    playerRef.current = player;
+  }, [player]);
 
   // Configuración de logging condicional (solo en desarrollo)
   const DEBUG = process.env.NODE_ENV === 'development';
@@ -18,13 +24,10 @@ export const useAudioPlayer = () => {
 
   /**
    * Formatea segundos a formato mm:ss o hh:mm:ss
-   * @param {number} seconds - Tiempo en segundos
-   * @returns {string} Tiempo formateado
    */
   const formatTime = useCallback((seconds) => {
     if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
     
-    // Límite seguro: 99:59:59
     const MAX_SECONDS = 359999;
     const safeSeconds = Math.min(seconds, MAX_SECONDS);
     
@@ -40,7 +43,6 @@ export const useAudioPlayer = () => {
 
   /**
    * Calcula el porcentaje de progreso de reproducción
-   * @returns {number} Porcentaje entre 0 y 100
    */
   const getProgressPercentage = useCallback(() => {
     if (!player.progress?.duration || player.progress.duration === 0) return 0;
@@ -49,9 +51,6 @@ export const useAudioPlayer = () => {
 
   /**
    * Reproduce una canción por su ID con datos opcionales
-   * @param {string} songId - ID de la canción
-   * @param {Object} songData - Datos de la canción (opcional)
-   * @returns {Promise} Promesa de reproducción
    */
   const playSongById = useCallback(async (songId, songData) => {
     if (!songId) {
@@ -79,8 +78,6 @@ export const useAudioPlayer = () => {
 
   /**
    * Función específica para reproducir desde SongCard
-   * @param {Object} song - Objeto de canción
-   * @returns {Promise} Promesa de reproducción
    */
   const playSongFromCard = useCallback(async (song) => {
     if (!song?.id) {
@@ -104,29 +101,57 @@ export const useAudioPlayer = () => {
   }, [player.playSong, log]);
 
   /**
+   * ✅ CORREGIDO: Usar player.pause() en lugar de player.pauseSong()
+   */
+  const pause = useCallback(() => {
+    log('Pausando canción actual');
+    if (player.currentSong) {
+      player.pause(); // Cambiado de pauseSong a pause
+    }
+  }, [player.pause, player.currentSong, log]);
+
+  /**
+   * ✅ CORREGIDO: Usar player.resume() en lugar de player.resumeSong()
+   */
+  const resume = useCallback(async () => {
+    log('Reanudando canción actual');
+    if (player.currentSong) {
+      return player.resume(); // Cambiado de resumeSong a resume
+    }
+  }, [player.resume, player.currentSong, log]);
+
+  /**
+   * Alterna play/pause de la canción actual
+   */
+  const togglePlay = useCallback(async () => {
+    log('Toggle play/pause');
+    if (!player.currentSong) {
+      log('No hay canción actual para alternar');
+      return;
+    }
+
+    // ✅ CORREGIDO: Usar player.togglePlay() en lugar de lógica manual
+    await player.togglePlay();
+  }, [player.togglePlay, player.currentSong, log]);
+
+  /**
    * Avanza a la siguiente canción
-   * @returns {Promise} Promesa de reproducción
    */
   const playNext = useCallback(async () => {
-    log('Play next - Pendiente de implementación con playlist context');
-    // TODO: Implementar con el contexto de playlist cuando esté disponible
-    // Por ahora retornamos una promesa resuelta para mantener compatibilidad
+    log('Play next - Pendiente de implementación');
     return Promise.resolve();
   }, [log]);
 
   /**
    * Retrocede a la canción anterior
-   * @returns {Promise} Promesa de reproducción
    */
   const playPrevious = useCallback(async () => {
-    log('Play previous - Pendiente de implementación con playlist context');
-    // TODO: Implementar con el contexto de playlist cuando esté disponible
+    log('Play previous - Pendiente de implementación');
     return Promise.resolve();
   }, [log]);
 
   /**
    * Obtiene el estado de carga de la canción actual
-   * @returns {Object|null} Estado de carga o null si no hay canción actual
    */
   const getCurrentSongLoadingState = useCallback(() => {
     return player.currentSong 
@@ -136,8 +161,6 @@ export const useAudioPlayer = () => {
 
   /**
    * Verifica si una canción está siendo procesada
-   * @param {string} songId - ID de la canción
-   * @returns {boolean} True si está en proceso
    */
   const isSongBeingProcessed = useCallback((songId) => {
     if (!songId) return false;
@@ -150,8 +173,6 @@ export const useAudioPlayer = () => {
 
   /**
    * Helper para SongCard - Determina el estado de UNA canción específica
-   * @param {string} songId - ID de la canción a evaluar
-   * @returns {Object} Estado completo para UI
    */
   const getSongStatus = useCallback((songId) => {
     if (!songId) {
@@ -170,8 +191,10 @@ export const useAudioPlayer = () => {
 
     // Determinar estado para UI
     let status;
-    if (isCurrent) {
-      status = player.isPlaying ? 'playing' : 'paused';
+    if (isCurrent && player.isPlaying) {
+      status = 'playing';
+    } else if (isCurrent && !player.isPlaying) {
+      status = 'paused';
     } else if (isLoading) {
       status = 'loading';
     } else {
@@ -194,12 +217,17 @@ export const useAudioPlayer = () => {
       percentage: getProgressPercentage()
     } : null;
 
-    // Colores para UI (estables por estado)
-    const buttonColor = useMemo(() => {
-      if (isLoading) return '#FF9800'; // Naranja para carga
-      if (isCurrent && player.isPlaying) return '#f50057'; // Rosa para reproduciendo
-      return '#00838F'; // Azul para pausada/por defecto
-    }, [isLoading, isCurrent, player.isPlaying]);
+    // Colores para UI
+    const buttonColor = (() => {
+      if (isLoading) return '#FF9800';
+      if (isCurrent && player.isPlaying) return '#f50057';
+      return '#00838F';
+    })();
+
+    // Texto del botón
+    const buttonText = isLoading 
+      ? `${loadingProgress}%`
+      : (isCurrent && player.isPlaying ? '⏸️' : '▶️');
 
     return {
       // Identificación
@@ -229,9 +257,9 @@ export const useAudioPlayer = () => {
       playbackDuration: playbackProgress?.duration || 0,
       playbackPercentage: playbackProgress?.percentage || 0,
 
-      // UI Helpers (valores directos en lugar de funciones para evitar recreación)
+      // UI Helpers
       buttonColor,
-      buttonIcon: isLoading ? 'loading' : (isCurrent && player.isPlaying ? 'pause' : 'play'),
+      buttonText,
       buttonTooltip: isLoading 
         ? (loadingMessage || 'Cargando...')
         : (isCurrent && player.isPlaying 
@@ -241,7 +269,7 @@ export const useAudioPlayer = () => {
         ? loadingMessage
         : (isCurrent && player.isPlaying 
             ? 'Reproduciendo'
-            : (isCurrent ? 'Pausado' : 'Lista para reproducir')),
+            : (isCurrent ? 'Pausado' : 'Listo')),
       displayProgress: isLoading
         ? `${loadingProgress}%`
         : (isCurrent && player.progress.duration > 0
@@ -258,6 +286,25 @@ export const useAudioPlayer = () => {
     log
   ]);
 
+  /**
+   * Cambia el volumen
+   */
+  const setVolume = useCallback((volume) => {
+    const validVolume = Math.max(0, Math.min(1, volume));
+    log('Cambiando volumen:', validVolume);
+    player.changeVolume(validVolume);
+  }, [player.changeVolume, log]);
+
+  /**
+   * Busca una posición específica en la canción actual
+   */
+  const seek = useCallback((seconds) => {
+    if (player.currentSong) {
+      log('Buscando posición:', seconds);
+      player.seek(seconds);
+    }
+  }, [player.seek, player.currentSong, log]);
+
   // Estado calculado memoizado
   const isLoading = useMemo(() => {
     return player.currentSong 
@@ -266,26 +313,26 @@ export const useAudioPlayer = () => {
   }, [player.currentSong, player.getSongLoadingState]);
 
   const status = useMemo(() => {
-    return player.isPlaying ? 'playing' : isLoading ? 'loading' : 'paused';
-  }, [player.isPlaying, isLoading]);
+    if (!player.currentSong) return 'idle';
+    if (isLoading) return 'loading';
+    return player.isPlaying ? 'playing' : 'paused';
+  }, [player.currentSong, player.isPlaying, isLoading]);
 
   const hasSong = !!player.currentSong;
-  const isPaused = !player.isPlaying && hasSong;
-  const canPlay = hasSong && !isLoading;
-  const canPause = hasSong && player.isPlaying;
+  const isPaused = hasSong && !player.isPlaying && !isLoading;
+  const canPlay = hasSong && !player.isPlaying && !isLoading;
+  const canPause = hasSong && player.isPlaying && !isLoading;
 
   const progressPercentage = getProgressPercentage();
 
-  // Versión estable de toggle (alias)
-  const toggle = useCallback(() => {
-    log('Toggle play/pause');
-    return player.togglePlay();
-  }, [player.togglePlay, log]);
+  // Obtener el título de la canción actual
+  const currentTrackTitle = useMemo(() => {
+    return player.currentSong?.title || null;
+  }, [player.currentSong]);
 
-  const setVolume = useCallback((volume) => {
-    log('Cambiando volumen:', volume);
-    return player.changeVolume(volume);
-  }, [player.changeVolume, log]);
+  const currentTrackArtist = useMemo(() => {
+    return player.currentSong?.artist || null;
+  }, [player.currentSong]);
 
   return {
     // Estado básico (del contexto)
@@ -299,24 +346,30 @@ export const useAudioPlayer = () => {
     canPlay,
     canPause,
     currentTrack: player.currentSong,
+    currentTrackTitle,
+    currentTrackArtist,
     duration: player.progress.duration,
     currentTime: player.progress.current,
     progressPercentage,
 
-    // Funciones estables con useCallback
+    // Funciones de control específicas (CORREGIDAS)
+    pause,
+    resume,
+    toggle: togglePlay,
+    seek,
+    setVolume,
+
+    // Funciones de navegación
+    playNext,
+    playPrevious,
+
+    // Funciones de utilidad
     getSongStatus,
     formatTime,
     playSongFromCard,
-    playNext,
-    playPrevious,
     playSongById,
     getCurrentSongLoadingState,
     isSongBeingProcessed,
-
-    // Aliases estables
-    play: toggle,
-    toggle,
-    setVolume,
   };
 };
 
