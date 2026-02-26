@@ -1,13 +1,14 @@
 // ============================================
 // src/components/songs/SongCard.jsx
-// VERSIÓN PROFESIONAL - Diseño compacto estilo Spotify
-// ✅ Tamaños optimizados (180px imagen)
-// ✅ Metadata mínima (solo duración)
-// ✅ Espaciado profesional
-// ✅ Variantes de tamaño (compact/default/detailed)
+// VERSIÓN PROFESIONAL CON CONTADOR DE DESCARGAS
+// ✅ Optimistic updates para feedback inmediato
+// ✅ Contador de descargas visible
+// ✅ Formato 1.2K / 1.5M
+// ✅ Tooltip con número exacto
+// ✅ Compatible con todas las variantes
 // ============================================
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Card, CardContent, CardMedia, Typography,
   IconButton, Box, Chip, Tooltip, Menu, MenuItem,
@@ -45,7 +46,7 @@ const designTokens = {
     button: '0 4px 12px -2px rgba(0,0,0,0.2)',
   },
   borderRadius: {
-    card: 8,      // ← Más cuadrado como Spotify
+    card: 8,
     button: 999,
     menu: 8,
     chip: 4,
@@ -68,6 +69,16 @@ const SongCard = ({
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [downloadInfoDialog, setDownloadInfoDialog] = useState(false);
+  
+  // ============================================ //
+  // 🆕 OPTIMISTIC UPDATE PARA CONTADOR DE DESCARGAS
+  // ============================================ //
+  const [optimisticDownloads, setOptimisticDownloads] = useState(null);
+  
+  // Reset optimistic cuando cambia la canción o los datos reales
+  useEffect(() => {
+    setOptimisticDownloads(null);
+  }, [song?.id, song?.downloads_count]);
 
   // Hooks
   const player = useAudioPlayer();
@@ -89,7 +100,8 @@ const SongCard = ({
       iconSize: 'small',
       buttonSize: 44,
       spacing: 0.3,
-      chipSize: 'small'
+      chipSize: 'small',
+      showDownloads: true
     },
     default: {
       imageHeight: isMobile ? 160 : 180,
@@ -103,7 +115,8 @@ const SongCard = ({
       iconSize: 'small',
       buttonSize: 48,
       spacing: 0.4,
-      chipSize: 'small'
+      chipSize: 'small',
+      showDownloads: true
     },
     detailed: {
       imageHeight: isMobile ? 200 : 220,
@@ -117,11 +130,22 @@ const SongCard = ({
       iconSize: 'small',
       buttonSize: 52,
       spacing: 0.5,
-      chipSize: 'small'
+      chipSize: 'small',
+      showDownloads: true
     }
   };
 
   const config = variants[variant] || variants.default;
+
+  // ============================================ //
+  // 🆕 FUNCIÓN PARA FORMATEAR NÚMEROS DE DESCARGA
+  // ============================================ //
+  const formatDownloadCount = (count) => {
+    if (!count && count !== 0) return '0';
+    if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
+    if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
+    return count.toString();
+  };
 
   // ============================================ //
   // ESTADO DE DESCARGA
@@ -133,6 +157,11 @@ const SongCard = ({
   const downloadProgress = download.progress?.[songId] || 0;
   const downloadError = download.errors?.[songId];
   const songStatus = player.getSongStatus?.(song.id) || {};
+
+  // 🆕 Determinar qué contador mostrar (optimistic vs real)
+  const realDownloads = song?.downloads_count || 0;
+  const displayDownloads = optimisticDownloads !== null ? optimisticDownloads : realDownloads;
+  const hasDownloads = displayDownloads > 0;
 
   // ============================================ //
   // ESTADO PRINCIPAL
@@ -161,19 +190,28 @@ const SongCard = ({
   const currentColor = stateColors[primaryState] || designTokens.colors.primary;
 
   // ============================================ //
-  // HANDLERS
+  // 🆕 HANDLER DE DESCARGA CON OPTIMISTIC UPDATE
   // ============================================ //
   const handleDownload = useCallback(async (e) => {
     e?.stopPropagation();
     handleMenuClose();
+    
+    // 1. OPTIMISTIC UPDATE: +1 inmediato
+    setOptimisticDownloads(realDownloads + 1);
+    
     setSnackbar({ open: true, message: `📥 Descargando ${song?.title}...`, severity: 'info' });
+    
     try {
+      // 2. Descarga real
       await download.downloadSong?.(songId, song?.title, song?.artist);
       setSnackbar({ open: true, message: '✅ Canción descargada', severity: 'success' });
+      // El optimistic update ya se mostró, no hacemos nada más
     } catch (error) {
+      // 3. ERROR: Revertir optimistic update
+      setOptimisticDownloads(realDownloads);
       setSnackbar({ open: true, message: `❌ ${error.message}`, severity: 'error' });
     }
-  }, [download, songId, song]);
+  }, [download, songId, song, realDownloads]);
 
   const handleCancelDownload = useCallback((e) => {
     e?.stopPropagation();
@@ -451,7 +489,7 @@ const SongCard = ({
           </Tooltip>
         </Box>
 
-        {/* Contenido - COMPACTO Y PROFESIONAL */}
+        {/* Contenido */}
         <CardContent sx={{ p: config.contentPadding, '&:last-child': { pb: config.contentPadding } }}>
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
             {showIndex && (
@@ -503,20 +541,40 @@ const SongCard = ({
                 {song?.artist}
               </Typography>
 
-              {/* METADATOS MÍNIMOS - Solo duración visible */}
+              {/* METADATOS - Incluye duración y contador de descargas */}
               <Box sx={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
               }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  {/* Duración - SIEMPRE visible */}
+                  {/* Duración */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                     <AccessTime sx={{ fontSize: 10, color: 'text.disabled' }} />
                     <Typography variant="caption" sx={{ fontSize: config.metadataSize, color: 'text.secondary' }}>
                       {player.formatTime?.(song?.duration || 0) || '0:00'}
                     </Typography>
                   </Box>
+
+                  {/* 🆕 CONTADOR DE DESCARGAS */}
+                  {config.showDownloads && hasDownloads && (
+                    <Tooltip title={`${displayDownloads} descargas`} arrow>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, ml: 0.5 }}>
+                        <Download sx={{ fontSize: 10, color: 'text.disabled' }} />
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontSize: config.metadataSize, 
+                            color: optimisticDownloads !== null ? designTokens.colors.primary : 'text.secondary',
+                            fontWeight: optimisticDownloads !== null ? 600 : 400,
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {formatDownloadCount(displayDownloads)}
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  )}
 
                   {/* Género - SOLO en modo detailed */}
                   {config.showGenre && song?.genre && (
@@ -545,9 +603,9 @@ const SongCard = ({
                   )}
                 </Box>
 
-                {/* ACCIONES - Siempre visibles pero compactas */}
+                {/* ACCIONES */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                  {/* Botón de descarga compacto */}
+                  {/* Botón de descarga */}
                   {isDownloaded ? (
                     <Tooltip title="Descargada">
                       <IconButton
