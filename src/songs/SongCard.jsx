@@ -1,11 +1,11 @@
 // ============================================
 // src/components/songs/SongCard.jsx
-// VERSIÓN PROFESIONAL CON CONTADOR DE DESCARGAS
+// VERSIÓN FINAL - DISEÑO OPTIMIZADO
+// ✅ Contador de descargas sobre el botón de descarga
+// ✅ Duración SOLO cuando existe (sin placeholder)
 // ✅ Optimistic updates para feedback inmediato
-// ✅ Contador de descargas visible
 // ✅ Formato 1.2K / 1.5M
 // ✅ Tooltip con número exacto
-// ✅ Compatible con todas las variantes
 // ============================================
 
 import React, { useState, useCallback, useEffect } from "react";
@@ -15,7 +15,7 @@ import {
   ListItemIcon, ListItemText, Divider, Snackbar, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText,
   DialogActions, CircularProgress, Button,
-  LinearProgress, Fade, Zoom
+  LinearProgress, Fade, Zoom, Badge
 } from "@mui/material";
 import {
   PlayArrow, Pause, Favorite, FavoriteBorder,
@@ -70,9 +70,7 @@ const SongCard = ({
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [downloadInfoDialog, setDownloadInfoDialog] = useState(false);
   
-  // ============================================ //
-  // 🆕 OPTIMISTIC UPDATE PARA CONTADOR DE DESCARGAS
-  // ============================================ //
+  // Optimistic update para contador de descargas
   const [optimisticDownloads, setOptimisticDownloads] = useState(null);
   
   // Reset optimistic cuando cambia la canción o los datos reales
@@ -138,13 +136,23 @@ const SongCard = ({
   const config = variants[variant] || variants.default;
 
   // ============================================ //
-  // 🆕 FUNCIÓN PARA FORMATEAR NÚMEROS DE DESCARGA
+  // FUNCIÓN PARA FORMATEAR NÚMEROS DE DESCARGA
   // ============================================ //
   const formatDownloadCount = (count) => {
     if (!count && count !== 0) return '0';
     if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
     if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
     return count.toString();
+  };
+
+  // ============================================ //
+  // FUNCIÓN PARA FORMATEAR DURACIÓN (solo si existe)
+  // ============================================ //
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds <= 0) return null;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   // ============================================ //
@@ -158,10 +166,13 @@ const SongCard = ({
   const downloadError = download.errors?.[songId];
   const songStatus = player.getSongStatus?.(song.id) || {};
 
-  // 🆕 Determinar qué contador mostrar (optimistic vs real)
+  // Determinar qué contador mostrar (optimistic vs real)
   const realDownloads = song?.downloads_count || 0;
   const displayDownloads = optimisticDownloads !== null ? optimisticDownloads : realDownloads;
   const hasDownloads = displayDownloads > 0;
+
+  // Duración real (solo si existe)
+  const durationFormatted = formatDuration(song?.duration);
 
   // ============================================ //
   // ESTADO PRINCIPAL
@@ -190,24 +201,22 @@ const SongCard = ({
   const currentColor = stateColors[primaryState] || designTokens.colors.primary;
 
   // ============================================ //
-  // 🆕 HANDLER DE DESCARGA CON OPTIMISTIC UPDATE
+  // HANDLER DE DESCARGA CON OPTIMISTIC UPDATE
   // ============================================ //
   const handleDownload = useCallback(async (e) => {
     e?.stopPropagation();
     handleMenuClose();
     
-    // 1. OPTIMISTIC UPDATE: +1 inmediato
+    // Optimistic update: +1 inmediato
     setOptimisticDownloads(realDownloads + 1);
     
     setSnackbar({ open: true, message: `📥 Descargando ${song?.title}...`, severity: 'info' });
     
     try {
-      // 2. Descarga real
       await download.downloadSong?.(songId, song?.title, song?.artist);
       setSnackbar({ open: true, message: '✅ Canción descargada', severity: 'success' });
-      // El optimistic update ya se mostró, no hacemos nada más
     } catch (error) {
-      // 3. ERROR: Revertir optimistic update
+      // Error: revertir optimistic update
       setOptimisticDownloads(realDownloads);
       setSnackbar({ open: true, message: `❌ ${error.message}`, severity: 'error' });
     }
@@ -354,7 +363,7 @@ const SongCard = ({
           }
         }}
       >
-        {/* Barra de progreso - SOLO visible durante carga/descarga */}
+        {/* Barra de progreso - visible durante carga/descarga */}
         {(songStatus?.isLoading || isDownloading) && (
           <Fade in={true}>
             <Box sx={{
@@ -380,7 +389,7 @@ const SongCard = ({
           </Fade>
         )}
 
-        {/* Badge de estado - SOLO cuando es necesario */}
+        {/* Badge de estado */}
         {(primaryState !== 'idle' && primaryState !== 'downloaded') && (
           <Zoom in={true}>
             <Box sx={{
@@ -431,7 +440,7 @@ const SongCard = ({
             }}
           />
 
-          {/* Botón principal - aparece en hover o cuando está activo */}
+          {/* Botón principal */}
           <Tooltip
             title={
               songStatus?.isLoading ? `Cargando ${songStatus?.loadingProgress}%` :
@@ -541,39 +550,21 @@ const SongCard = ({
                 {song?.artist}
               </Typography>
 
-              {/* METADATOS - Incluye duración y contador de descargas */}
+              {/* METADATOS - Solo duración (si existe) y acciones */}
               <Box sx={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
               }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  {/* Duración */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                    <AccessTime sx={{ fontSize: 10, color: 'text.disabled' }} />
-                    <Typography variant="caption" sx={{ fontSize: config.metadataSize, color: 'text.secondary' }}>
-                      {player.formatTime?.(song?.duration || 0) || '0:00'}
-                    </Typography>
-                  </Box>
-
-                  {/* 🆕 CONTADOR DE DESCARGAS */}
-                  {config.showDownloads && hasDownloads && (
-                    <Tooltip title={`${displayDownloads} descargas`} arrow>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, ml: 0.5 }}>
-                        <Download sx={{ fontSize: 10, color: 'text.disabled' }} />
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            fontSize: config.metadataSize, 
-                            color: optimisticDownloads !== null ? designTokens.colors.primary : 'text.secondary',
-                            fontWeight: optimisticDownloads !== null ? 600 : 400,
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          {formatDownloadCount(displayDownloads)}
-                        </Typography>
-                      </Box>
-                    </Tooltip>
+                  {/* 🆕 Duración - SOLO si existe */}
+                  {durationFormatted && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      <AccessTime sx={{ fontSize: 10, color: 'text.disabled' }} />
+                      <Typography variant="caption" sx={{ fontSize: config.metadataSize, color: 'text.secondary' }}>
+                        {durationFormatted}
+                      </Typography>
+                    </Box>
                   )}
 
                   {/* Género - SOLO en modo detailed */}
@@ -603,9 +594,9 @@ const SongCard = ({
                   )}
                 </Box>
 
-                {/* ACCIONES */}
+                {/* ACCIONES - Con contador integrado en botón de descarga */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                  {/* Botón de descarga */}
+                  {/* Botón de descarga CON contador */}
                   {isDownloaded ? (
                     <Tooltip title="Descargada">
                       <IconButton
@@ -615,7 +606,8 @@ const SongCard = ({
                           color: designTokens.colors.success,
                           bgcolor: alpha(designTokens.colors.success, 0.1),
                           width: 28,
-                          height: 28
+                          height: 28,
+                          position: 'relative'
                         }}
                       >
                         <CheckCircle sx={{ fontSize: 14 }} />
@@ -637,15 +629,16 @@ const SongCard = ({
                       </Typography>
                     </Box>
                   ) : (
-                    <Tooltip title="Descargar">
+                    <Tooltip title={`${displayDownloads} descargas`} arrow>
                       <IconButton
                         size="small"
                         onClick={handleDownload}
                         sx={{
                           color: designTokens.colors.primary,
                           bgcolor: alpha(designTokens.colors.primary, 0.1),
-                          width: 28,
-                          height: 28,
+                          width: 32,
+                          height: 32,
+                          position: 'relative',
                           '&:hover': {
                             bgcolor: designTokens.colors.primary,
                             color: 'white'
@@ -653,6 +646,31 @@ const SongCard = ({
                         }}
                       >
                         <Download sx={{ fontSize: 14 }} />
+                        {/* 🆕 Contador sobre el botón */}
+                        {hasDownloads && (
+                          <Typography
+                            component="span"
+                            sx={{
+                              position: 'absolute',
+                              bottom: -2,
+                              right: -2,
+                              fontSize: '0.5rem',
+                              fontWeight: 700,
+                              bgcolor: optimisticDownloads !== null ? designTokens.colors.primary : designTokens.colors.gray[600],
+                              color: 'white',
+                              borderRadius: '4px',
+                              px: 0.3,
+                              py: 0.1,
+                              lineHeight: 1.2,
+                              minWidth: 12,
+                              textAlign: 'center',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              zIndex: 2
+                            }}
+                          >
+                            {formatDownloadCount(displayDownloads)}
+                          </Typography>
+                        )}
                       </IconButton>
                     </Tooltip>
                   )}
