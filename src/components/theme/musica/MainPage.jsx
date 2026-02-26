@@ -1,3 +1,10 @@
+// ============================================
+// src/pages/MainPage.jsx - VERSIÓN COMPLETA CORREGIDA
+// ✅ Incluye downloads_count en canciones seleccionadas
+// ✅ Sin placeholder de duración (mantiene null)
+// ✅ Contador de descargas visible en SongCarousel
+// ============================================
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
@@ -24,7 +31,7 @@ import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
 
-// 🔥 NUEVO: Importar hook de descarga
+// 🔥 Hook de descarga
 import useDownload from "../../../components/hook/services/useDownload";
 
 // ============================================
@@ -70,7 +77,7 @@ const getSongImageUrl = (song) => {
 };
 
 // ============================================
-// 🎵 HERO SECTION PROFESIONAL (Opción 8)
+// 🎵 HERO SECTION PROFESIONAL
 // ============================================
 const Hero = () => {
   const navigate = useNavigate();
@@ -92,7 +99,7 @@ const Hero = () => {
         mb: 4
       }}
     >
-      {/* Background Image con efecto zoom suave */}
+      {/* Background Image */}
       <Box sx={{ position: "absolute", inset: 0 }}>
         {!imageError ? (
           <Box
@@ -117,7 +124,6 @@ const Hero = () => {
             }}
           />
         ) : (
-          // Fallback si la imagen no existe
           <Box sx={{
             width: "100%",
             height: "100%",
@@ -125,7 +131,7 @@ const Hero = () => {
           }} />
         )}
 
-        {/* Overlay profesional multicapa */}
+        {/* Overlay profesional */}
         <Box sx={{
           position: "absolute",
           inset: 0,
@@ -155,7 +161,7 @@ const Hero = () => {
         }} />
       </Box>
 
-      {/* Content con sombras para legibilidad */}
+      {/* Contenido */}
       <Box sx={{
         position: "relative",
         zIndex: 10,
@@ -192,7 +198,7 @@ const Hero = () => {
           Sube tu música, construye tu audiencia y forma parte del movimiento.
         </Typography>
 
-        {/* CTA Buttons con efecto glassmorphism */}
+        {/* Botones CTA */}
         <Box sx={{
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
@@ -272,7 +278,7 @@ const Hero = () => {
 };
 
 // ============================================
-// 🎵 MAIN PAGE COMPLETA
+// 🎵 MAIN PAGE COMPLETA (VERSIÓN CORREGIDA)
 // ============================================
 const MainPage = () => {
   const theme = useTheme();
@@ -289,7 +295,7 @@ const MainPage = () => {
     searchMetrics
   } = useSearch();
 
-  // 🔥 NUEVO: Hook de descarga
+  // Hook de descarga
   const download = useDownload();
 
   const [showResults, setShowResults] = useState(false);
@@ -312,14 +318,13 @@ const MainPage = () => {
 
   const MAX_SELECTED_SONGS = 50;
 
-  // 🔥 NUEVO: Exponer download API globalmente para pruebas
+  // Exponer download API globalmente para pruebas
   useEffect(() => {
     window.downloadAPI = download;
     console.log('✅ downloadAPI disponible globalmente');
     console.log('📦 Métodos:', Object.keys(download));
     console.log('💡 Para probar: window.downloadAPI.downloadSong("70", "merci beaucoup", "pop_smoke")');
 
-    // Limpiar al desmontar
     return () => {
       delete window.downloadAPI;
     };
@@ -375,6 +380,9 @@ const MainPage = () => {
     return () => document.removeEventListener("pointerdown", handleClickOutside);
   }, [showResults, closeResults]);
 
+  // ============================================
+  // ✅ HANDLER CORREGIDO - Incluye downloads_count
+  // ============================================
   const handleSelectResult = (item, type) => {
     if (type !== "song" || !item?.id) {
       setShowResults(false);
@@ -404,17 +412,27 @@ const MainPage = () => {
     // Si no hay imagen, usar placeholder con iniciales
     const finalImageUrl = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=FF6B35&color=fff&size=200&bold=true&length=2&font-size=0.50`;
 
+    // ✅ VERSIÓN CORREGIDA: Incluye TODOS los campos necesarios
     const newSong = {
       id: songId,
       title: item.title || "Sin título",
       artist: item.artist || "Artista desconocido",
       artist_id: item.artist_id || item.artistId || null,
       genre: item.genre || "Desconocido",
-      duration: item.duration || 180,
+      // ⚠️ IMPORTANTE: Mantener duration como viene del backend (puede ser null)
+      duration: item.duration, // Sin placeholder
       cover: finalImageUrl,
       image_url: finalImageUrl,
       image: finalImageUrl,
-      addedAt: new Date().toISOString()
+      addedAt: new Date().toISOString(),
+      // ✅ NUEVO: Incluir contador de descargas
+      downloads_count: item.downloads_count || 0,
+      // ✅ NUEVO: Incluir otros campos útiles
+      likes_count: item.likes_count || 0,
+      plays_count: item.plays_count || 0,
+      file_key: item.file_key,
+      is_public: item.is_public,
+      uploaded_by: item.uploaded_by
     };
 
     setSelectedSongs(prev => [newSong, ...prev]);
@@ -442,7 +460,7 @@ const MainPage = () => {
 
   return (
     <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh" }}>
-      {/* HERO - Versión profesional */}
+      {/* HERO */}
       <Hero />
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
@@ -539,7 +557,7 @@ const MainPage = () => {
           )}
         </Box>
 
-        {/* CANCIONES SELECCIONADAS */}
+        {/* CANCIONES SELECCIONADAS - AHORA CON CONTADOR DE DESCARGAS */}
         {selectedSongs.length > 0 && (
           <Box ref={selectedSongsRef} sx={{ mb: 6 }}>
             <Box sx={{
