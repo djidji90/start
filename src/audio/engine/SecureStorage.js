@@ -1,569 +1,903 @@
 // ============================================
-// src/audio/engine/SecureStorage.js
-// Almacenamiento seguro con IndexedDB + Web Crypto API
-// AES-256-GCM - NATIVO DEL NAVEGADOR
+// hooks/useDownload.js - VERSIÓN COMPLETA CON DESCARGA DIRECTA
+// ✅ Almacenamiento en IndexedDB encriptado (AES-256)
+// ✅ No se pueden compartir archivos
+// ✅ Expiracion a los 7 días
+// ✅ Descarga DIRECTA desde R2 (sin pasar por servidor)
+// ✅ isDownloaded SÍNCRONO (para UI)
+// ✅ getDownloadInfo rápido
+// ✅ getOfflineAudioUrl - Para reproducir desde secure storage
 // ============================================
 
-class SecureStorage {
-  constructor() {
-    this.dbName = 'DjiDjiSecureDB';
-    this.dbVersion = 1;
-    this.db = null;
-    this.storeName = 'encryptedSongs';
-    this.initPromise = null;
-    this.encryptionKey = null;
-    this.currentUserId = null;
-  }
+import { useState, useCallback, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { secureStorage } from '../audio/engine/SecureStorage';
 
-  /**
-   * Obtener ID del usuario actual
-   */
-  getCurrentUserId() {
-    try {
-      const token = localStorage.getItem('accessToken') || 
-                    localStorage.getItem('access_token');
-      
-      if (!token) return 'anonymous';
-      
-      // Intentar decodificar JWT para obtener user_id
-      const base64Url = token.split('.')[1];
-      if (base64Url) {
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        return payload.user_id || payload.sub || payload.id || 'anonymous';
-      }
-      
-      return 'anonymous';
-    } catch {
-      return 'anonymous';
-    }
-  }
+// ============================================
+// CONFIGURACIÓN
+// ============================================
+const DOWNLOAD_CONFIG = {
+  MAX_CONCURRENT: 3,
+  MAX_RETRIES: 3,
+  BASE_RETRY_DELAY: 1000,
+  MAX_RETRY_DELAY: 10000,
+  RETRYABLE_STATUSES: [408, 429, 500, 502, 503, 504],
+  REQUEST_TIMEOUT: 30000,
+  SIGNED_URL_TIMEOUT: 5000,
+  API_BASE_URL: 'https://api.djidjimusic.com/api2',
+  STORAGE_KEY: 'djidji_downloads',
+  ENABLE_LOGGING: true, // Cambiar a false en producción
+  MIN_FILE_SIZE: 1024,
+  URL_CACHE_TTL: 300000, // 5 minutos en ms
+  DOWNLOAD_EXPIRY_DAYS: 7 // Días que dura la canción offline
+};
 
-  /**
-   * Inicializar base de datos
-   */
-  async init() {
-    if (this.db) return this.db;
-    if (this.initPromise) return this.initPromise;
+const useDownload = () => {
+  // ============================================
+  // ESTADOS UI
+  // ============================================
+  const [downloading, setDownloading] = useState({});
+  const [progress, setProgress] = useState({});
+  const [errors, setErrors] = useState({});
+  const [queueVisual, setQueueVisual] = useState([]);
+  const [downloadsMap, setDownloadsMap] = useState({});
 
-    this.currentUserId = this.getCurrentUserId();
+  // ============================================
+  // REFS
+  // ============================================
+  const abortControllers = useRef(new Map());
+  const activeDownloads = useRef(0);
+  const pendingResolvers = useRef(new Map());
+  const queueRef = useRef([]);
+  const urlCache = useRef(new Map());
+  const instanceId = useRef(Math.random().toString(36).substring(7));
 
-    this.initPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
+  // ============================================
+  // LOGGING
+  // ============================================
+  const log = useCallback((level, message, data = {}) => {
+    if (!DOWNLOAD_CONFIG.ENABLE_LOGGING) return;
+    const timestamp = new Date().toISOString();
+    console[level](`[Download][${timestamp}][${instanceId.current}] ${message}`, data);
+  }, []);
 
-      request.onerror = () => {
-        console.error('[SecureStorage] Error:', request.error);
-        reject(request.error);
-      };
-
-      request.onsuccess = () => {
-        this.db = request.result;
-        console.log('[SecureStorage] ✅ Base de datos inicializada');
-        resolve(this.db);
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
-          store.createIndex('songId', 'songId', { unique: true });
-          store.createIndex('userId', 'userId', { unique: false });
-          store.createIndex('downloadedAt', 'downloadedAt', { unique: false });
-          store.createIndex('expiresAt', 'expiresAt', { unique: false });
-        }
-      };
-    });
-
-    return this.initPromise;
-  }
-
-  /**
-   * Derivar clave de encriptación del token (PBKDF2)
-   */
-  async getEncryptionKey() {
-    if (this.encryptionKey) return this.encryptionKey;
-
-    try {
-      const token = localStorage.getItem('accessToken') || 
-                    localStorage.getItem('access_token') || 
-                    'default-key-do-not-use';
-
-      // Convertir token a buffer
-      const encoder = new TextEncoder();
-      const tokenBuffer = encoder.encode(token);
-      
-      // Salt fijo (en producción, puedes tener uno por usuario)
-      const salt = encoder.encode('DjiDjiMusic-Salt-V2');
-
-      // Importar token como material de clave
-      const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        tokenBuffer,
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits', 'deriveKey']
-      );
-
-      // Derivar clave AES-256
-      this.encryptionKey = await crypto.subtle.deriveKey(
-        {
-          name: 'PBKDF2',
-          salt: salt,
-          iterations: 100000, // Suficiente para móvil
-          hash: 'SHA-256'
-        },
-        keyMaterial,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['encrypt', 'decrypt']
-      );
-
-      console.log('[SecureStorage] 🔑 Clave de encriptación generada');
-      return this.encryptionKey;
-
-    } catch (error) {
-      console.error('[SecureStorage] Error generando clave:', error);
-      throw new Error('No se pudo generar clave de seguridad');
-    }
-  }
-
-  /**
-   * Encriptar datos con AES-256-GCM
-   */
-  async encrypt(data, songId) {
-    try {
-      const key = await this.getEncryptionKey();
-      const encoder = new TextEncoder();
-      
-      // Generar IV aleatorio (12 bytes recomendado para GCM)
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      
-      // Preparar payload con metadatos
-      const payload = {
-        data: data,
-        songId: songId,
-        userId: this.currentUserId,
-        timestamp: Date.now()
-      };
-      
-      const encodedPayload = encoder.encode(JSON.stringify(payload));
-      
-      // Encriptar
-      const encryptedData = await crypto.subtle.encrypt(
-        {
-          name: 'AES-GCM',
-          iv: iv,
-          additionalData: encoder.encode(songId) // Vincular al ID de canción
-        },
-        key,
-        encodedPayload
-      );
-
-      return {
-        data: Array.from(new Uint8Array(encryptedData)),
-        iv: Array.from(iv)
-      };
-      
-    } catch (error) {
-      console.error('[SecureStorage] Error encriptando:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Desencriptar datos
-   */
-  async decrypt(encryptedData, iv, expectedSongId) {
-    try {
-      const key = await this.getEncryptionKey();
-      const encoder = new TextEncoder();
-      const decoder = new TextDecoder();
-      
-      // Desencriptar
-      const decryptedBuffer = await crypto.subtle.decrypt(
-        {
-          name: 'AES-GCM',
-          iv: new Uint8Array(iv),
-          additionalData: encoder.encode(expectedSongId)
-        },
-        key,
-        new Uint8Array(encryptedData)
-      );
-
-      const decryptedStr = decoder.decode(decryptedBuffer);
-      const payload = JSON.parse(decryptedStr);
-      
-      // Verificar integridad
-      if (payload.songId !== expectedSongId) {
-        throw new Error('ID de canción no coincide');
-      }
-      
-      if (payload.userId !== this.currentUserId) {
-        throw new Error('Usuario no autorizado');
-      }
-      
-      return payload.data;
-      
-    } catch (error) {
-      console.error('[SecureStorage] Error desencriptando:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Convertir blob a base64
-   */
-  blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  /**
-   * Convertir base64 a blob
-   */
-  base64ToBlob(base64, mimeType) {
-    return fetch(base64).then(res => res.blob());
-  }
-
-  /**
-   * Guardar canción encriptada
-   */
-  async storeSong(songId, blob, metadata) {
-    await this.init();
-
-    try {
-      // Convertir blob a base64
-      const base64Data = await this.blobToBase64(blob);
-      
-      // Encriptar
-      const { data: encryptedData, iv } = await this.encrypt(base64Data, songId);
-      
-      // Crear registro
-      const record = {
-        id: `${songId}_${Date.now()}`,
-        songId: songId,
-        userId: this.currentUserId,
-        encryptedData: encryptedData,
-        iv: iv,
-        metadata: {
-          title: metadata.title || 'Canción',
-          artist: metadata.artist || 'Artista'
-        },
-        downloadedAt: Date.now(),
-        expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 días
-        fileSize: blob.size,
-        mimeType: blob.type || 'audio/mpeg'
-      };
-
-      return new Promise((resolve, reject) => {
-        const transaction = this.db.transaction([this.storeName], 'readwrite');
-        const store = transaction.objectStore(this.storeName);
-        
-        const request = store.put(record);
-        
-        request.onsuccess = () => {
-          console.log(`[SecureStorage] ✅ Canción ${songId} guardada`, {
-            size: (blob.size / 1024 / 1024).toFixed(2) + 'MB',
-            expires: new Date(record.expiresAt).toLocaleDateString()
-          });
-          resolve(record);
-        };
-        
-        request.onerror = () => {
-          console.error('[SecureStorage] Error guardando:', request.error);
-          reject(request.error);
-        };
-      });
-
-    } catch (error) {
-      console.error('[SecureStorage] Error en storeSong:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Obtener canción desencriptada
-   */
-  async getSong(songId) {
-    await this.init();
-
-    return new Promise(async (resolve, reject) => {
+  // ============================================
+  // INICIALIZACIÓN DE SECURE STORAGE
+  // ============================================
+  useEffect(() => {
+    const initSecureStorage = async () => {
       try {
-        const transaction = this.db.transaction([this.storeName], 'readonly');
-        const store = transaction.objectStore(this.storeName);
-        const index = store.index('songId');
+        log('info', 'Iniciando SecureStorage...');
         
-        const request = index.get(songId);
+        // Inicializar SecureStorage
+        await secureStorage.init();
         
-        request.onsuccess = async () => {
-          const record = request.result;
-          
-          if (!record) {
-            resolve(null);
-            return;
-          }
-
-          // Verificar usuario
-          if (record.userId !== this.currentUserId) {
-            console.warn('[SecureStorage] Acceso denegado - otro usuario');
-            resolve(null);
-            return;
-          }
-
-          // Verificar expiración
-          if (record.expiresAt < Date.now()) {
-            console.log(`[SecureStorage] ⏰ Canción ${songId} expirada`);
-            await this.removeSong(songId);
-            resolve(null);
-            return;
-          }
-
-          try {
-            // Desencriptar
-            const decryptedBase64 = await this.decrypt(
-              record.encryptedData, 
-              record.iv, 
-              songId
-            );
-            
-            // Convertir base64 a blob
-            const blob = await this.base64ToBlob(decryptedBase64, record.mimeType);
-            
-            resolve({
-              blob,
-              metadata: record.metadata,
-              downloadedAt: record.downloadedAt,
-              expiresAt: record.expiresAt,
-              fileSize: record.fileSize
-            });
-            
-          } catch (decryptError) {
-            console.error('[SecureStorage] Error desencriptando:', decryptError);
-            // Si falla la desencriptación, eliminar el registro corrupto
-            await this.removeSong(songId);
-            resolve(null);
-          }
-        };
-        
-        request.onerror = () => {
-          console.error('[SecureStorage] Error obteniendo:', request.error);
-          reject(request.error);
-        };
-        
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
-  /**
-   * Verificar disponibilidad
-   */
-  async isAvailable(songId) {
-    await this.init();
-
-    return new Promise((resolve) => {
-      const transaction = this.db.transaction([this.storeName], 'readonly');
-      const store = transaction.objectStore(this.storeName);
-      const index = store.index('songId');
-      
-      const request = index.get(songId);
-      
-      request.onsuccess = () => {
-        const record = request.result;
-        if (!record) {
-          resolve(false);
-          return;
+        // Limpiar expiradas
+        const deleted = await secureStorage.cleanup();
+        if (deleted > 0) {
+          log('info', `Limpiadas ${deleted} canciones expiradas`);
         }
         
-        const isValid = record.userId === this.currentUserId && 
-                       record.expiresAt > Date.now();
+        // Obtener todas las canciones
+        const songs = await secureStorage.getAllSongs();
         
-        resolve(isValid);
-      };
-      
-      request.onerror = () => resolve(false);
-    });
-  }
-
-  /**
-   * Eliminar canción
-   */
-  async removeSong(songId) {
-    await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const index = store.index('songId');
-      
-      const getRequest = index.get(songId);
-      
-      getRequest.onsuccess = () => {
-        const record = getRequest.result;
-        if (!record) {
-          resolve(false);
-          return;
-        }
-        
-        const deleteRequest = store.delete(record.id);
-        
-        deleteRequest.onsuccess = () => {
-          console.log(`[SecureStorage] 🗑️ Canción ${songId} eliminada`);
-          resolve(true);
-        };
-        
-        deleteRequest.onerror = () => {
-          console.error('[SecureStorage] Error eliminando:', deleteRequest.error);
-          reject(deleteRequest.error);
-        };
-      };
-      
-      getRequest.onerror = () => {
-        reject(getRequest.error);
-      };
-    });
-  }
-
-  /**
-   * Obtener todas las canciones del usuario
-   */
-  async getAllSongs() {
-    await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readonly');
-      const store = transaction.objectStore(this.storeName);
-      const index = store.index('userId');
-      
-      const request = index.getAll(this.currentUserId);
-      const now = Date.now();
-      
-      request.onsuccess = () => {
-        const validSongs = request.result.filter(song => song.expiresAt > now);
-        resolve(validSongs);
-      };
-      
-      request.onerror = () => {
-        console.error('[SecureStorage] Error obteniendo todas:', request.error);
-        reject(request.error);
-      };
-    });
-  }
-
-  /**
-   * Limpiar canciones expiradas
-   */
-  async cleanup() {
-    await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const index = store.index('expiresAt');
-      
-      const now = Date.now();
-      const range = IDBKeyRange.upperBound(now);
-      
-      const request = index.openCursor(range);
-      let deletedCount = 0;
-      
-      request.onsuccess = (event) => {
-        const cursor = event.target.result;
-        if (cursor) {
-          // Solo eliminar si es del usuario actual
-          if (cursor.value.userId === this.currentUserId) {
-            store.delete(cursor.primaryKey);
-            deletedCount++;
-          }
-          cursor.continue();
-        } else {
-          if (deletedCount > 0) {
-            console.log(`[SecureStorage] 🧹 Limpiadas ${deletedCount} canciones expiradas`);
-          }
-          resolve(deletedCount);
-        }
-      };
-      
-      request.onerror = () => {
-        console.error('[SecureStorage] Error en cleanup:', request.error);
-        reject(request.error);
-      };
-    });
-  }
-
-  /**
-   * Limpiar todo (para logout)
-   */
-  async clearAll() {
-    await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const store = transaction.objectStore(this.storeName);
-      const index = store.index('userId');
-      
-      const request = index.getAllKeys(this.currentUserId);
-      
-      request.onsuccess = () => {
-        const keys = request.result;
-        let deleted = 0;
-        
-        keys.forEach(key => {
-          store.delete(key);
-          deleted++;
+        // Construir mapa de descargas para UI rápida
+        const downloads = {};
+        songs.forEach(song => {
+          downloads[song.songId] = {
+            id: song.songId,
+            title: song.metadata?.title || 'Canción',
+            artist: song.metadata?.artist || 'Artista',
+            downloadedAt: song.downloadedAt,
+            fileSize: song.fileSize,
+            encrypted: true,
+            storageType: 'indexeddb',
+            expiresAt: song.expiresAt
+          };
         });
         
-        console.log(`[SecureStorage] 🧹 Eliminadas ${deleted} canciones del usuario`);
-        resolve(deleted);
+        // Guardar en localStorage para UI síncrona
+        localStorage.setItem(DOWNLOAD_CONFIG.STORAGE_KEY, JSON.stringify(downloads));
+        
+        // Actualizar estado
+        setDownloadsMap(downloads);
+        
+        log('info', 'SecureStorage listo', { count: Object.keys(downloads).length });
+        
+      } catch (error) {
+        log('error', 'Error iniciando SecureStorage', { error: error.message });
+      }
+    };
+    
+    initSecureStorage();
+    
+    // Limpiar cada hora
+    const interval = setInterval(async () => {
+      try {
+        const deleted = await secureStorage.cleanup();
+        if (deleted > 0) {
+          log('info', `Cleanup automático: ${deleted} canciones eliminadas`);
+          
+          // Actualizar UI
+          const songs = await secureStorage.getAllSongs();
+          const downloads = {};
+          songs.forEach(song => {
+            downloads[song.songId] = {
+              id: song.songId,
+              title: song.metadata?.title,
+              artist: song.metadata?.artist,
+              downloadedAt: song.downloadedAt,
+              fileSize: song.fileSize,
+              encrypted: true,
+              storageType: 'indexeddb',
+              expiresAt: song.expiresAt
+            };
+          });
+          
+          localStorage.setItem(DOWNLOAD_CONFIG.STORAGE_KEY, JSON.stringify(downloads));
+          setDownloadsMap(downloads);
+        }
+      } catch (error) {
+        log('error', 'Error en cleanup automático', { error: error.message });
+      }
+    }, 60 * 60 * 1000);
+    
+    // Escuchar cambios
+    const handleUpdate = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');
+        setDownloadsMap(saved);
+        log('debug', 'Downloads map actualizado', { count: Object.keys(saved).length });
+      } catch (error) {
+        log('error', 'Error actualizando downloads map', { error: error.message });
+      }
+    };
+
+    window.addEventListener('downloads-updated', handleUpdate);
+    window.addEventListener('download-completed', handleUpdate);
+    window.addEventListener('download-cancelled', handleUpdate);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('downloads-updated', handleUpdate);
+      window.removeEventListener('download-completed', handleUpdate);
+      window.removeEventListener('download-cancelled', handleUpdate);
+    };
+  }, [log]);
+
+  // ============================================
+  // ✅ isDownloaded (SÍNCRONA)
+  // ============================================
+  const isDownloaded = useCallback((songId) => {
+    if (!songId) return false;
+    try {
+      const record = downloadsMap[songId];
+      return !!(record?.fileSize);
+    } catch {
+      return false;
+    }
+  }, [downloadsMap]);
+
+  // ============================================
+  // ✅ getDownloadInfo (SÍNCRONA)
+  // ============================================
+  const getDownloadInfo = useCallback((songId) => {
+    if (!songId) return null;
+    return downloadsMap[songId] || null;
+  }, [downloadsMap]);
+
+  // ============================================
+  // ✅ getAllDownloads
+  // ============================================
+  const getAllDownloads = useCallback(() => {
+    try {
+      return Object.values(downloadsMap)
+        .filter(d => d?.fileSize)
+        .sort((a, b) => new Date(b.downloadedAt) - new Date(a.downloadedAt));
+    } catch {
+      return [];
+    }
+  }, [downloadsMap]);
+
+  // ============================================
+  // ✅ getStreamUrl (para streaming, no para descarga)
+  // ============================================
+  const getStreamUrl = useCallback(async (songId, token) => {
+    try {
+      // Verificar cache
+      if (urlCache.current.has(songId)) {
+        const cached = urlCache.current.get(songId);
+        if (cached.expiresAt > Date.now()) {
+          log('debug', 'URL en cache', { songId });
+          return cached.url;
+        }
+      }
+      
+      // Obtener nueva URL del endpoint de streaming
+      const response = await axios.get(
+        `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/stream/`,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          timeout: DOWNLOAD_CONFIG.SIGNED_URL_TIMEOUT
+        }
+      );
+
+      const streamUrl = response.data?.data?.stream_url;
+      if (streamUrl) {
+        // Cachear por 5 minutos
+        urlCache.current.set(songId, {
+          url: streamUrl,
+          expiresAt: Date.now() + DOWNLOAD_CONFIG.URL_CACHE_TTL
+        });
+        log('info', 'URL de streaming obtenida', { songId });
+        return streamUrl;
+      }
+      
+      throw new Error('No se recibió URL de streaming');
+      
+    } catch (error) {
+      log('error', 'Error obteniendo URL de streaming', { 
+        songId, 
+        error: error.message,
+        status: error.response?.status 
+      });
+      throw new Error(`No se pudo obtener URL: ${error.message}`);
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ getDownloadUrl (NUEVA: obtiene URL directa de R2 para descarga)
+  // ============================================
+  const getDownloadUrl = useCallback(async (songId, token) => {
+    try {
+      // Intentar primero el endpoint de download-url (JSON)
+      try {
+        const response = await axios.get(
+          `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download-url/`,
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            },
+            timeout: DOWNLOAD_CONFIG.SIGNED_URL_TIMEOUT
+          }
+        );
+
+        if (response.data?.download_url) {
+          log('info', 'URL de descarga obtenida', { songId });
+          return {
+            url: response.data.download_url,
+            filename: response.data.filename || `song_${songId}.mp3`,
+            fileSize: response.data.file_size,
+            expiresIn: response.data.expires_in
+          };
+        }
+      } catch (error) {
+        log('debug', 'Endpoint download-url no disponible, usando redirect', { songId });
+      }
+      
+      // Fallback: usar endpoint de download con redirect
+      const response = await fetch(
+        `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download/`,
+        {
+          method: 'GET',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'audio/mpeg'
+          },
+          redirect: 'manual' // No seguir redirect automáticamente
+        }
+      );
+      
+      // Si es redirect (302), obtener la URL de Location
+      if (response.status === 302 || response.status === 301) {
+        const redirectUrl = response.headers.get('Location');
+        if (redirectUrl) {
+          // Extraer filename del Content-Disposition si es posible
+          const contentDisposition = response.headers.get('Content-Disposition');
+          let filename = `song_${songId}.mp3`;
+          
+          if (contentDisposition) {
+            const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (match && match[1]) {
+              filename = match[1].replace(/['"]/g, '');
+            }
+          }
+          
+          return {
+            url: redirectUrl,
+            filename,
+            fileSize: null,
+            expiresIn: 3600
+          };
+        }
+      }
+      
+      throw new Error('No se pudo obtener URL de descarga');
+      
+    } catch (error) {
+      log('error', 'Error obteniendo URL de descarga', { 
+        songId, 
+        error: error.message,
+        status: error.response?.status 
+      });
+      throw new Error(`No se pudo obtener URL de descarga: ${error.message}`);
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ downloadSong (VERSIÓN OPTIMIZADA - DESCARGA DIRECTA)
+  // ============================================
+  const downloadSong = useCallback(async (songId, songTitle = 'Canción', artistName = 'Artista') => {
+    if (errors[songId]?.includes('Límite')) {
+      return Promise.reject(new Error(errors[songId]));
+    }
+    if (downloading[songId]) {
+      return Promise.reject(new Error('Ya se está descargando'));
+    }
+
+    return new Promise((resolve, reject) => {
+      queueRef.current = [...queueRef.current, { songId, songTitle, artistName, resolve, reject }];
+      setQueueVisual([...queueRef.current]);
+      setTimeout(() => processQueue(), 0);
+    });
+  }, [downloading, errors]);
+
+  // ============================================
+  // ✅ getOfflineAudioUrl (CON SECURE STORAGE)
+  // ============================================
+  const getOfflineAudioUrl = useCallback(async (songId) => {
+    try {
+      log('debug', 'Obteniendo URL offline', { songId });
+      
+      const available = await secureStorage.isAvailable(songId);
+      if (!available) {
+        log('warn', 'Canción no disponible offline', { songId });
+        return null;
+      }
+      
+      const songData = await secureStorage.getSong(songId);
+      if (!songData) {
+        log('warn', 'No se pudo obtener datos', { songId });
+        return null;
+      }
+      
+      const url = URL.createObjectURL(songData.blob);
+      
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {}
+      }, 60000);
+      
+      log('info', 'URL offline generada', { songId });
+      return url;
+      
+    } catch (error) {
+      log('error', 'Error obteniendo URL offline', { error: error.message, songId });
+      return null;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ verifyDownload (CON SECURE STORAGE)
+  // ============================================
+  const verifyDownload = useCallback(async (songId) => {
+    try {
+      return await secureStorage.isAvailable(songId);
+    } catch (error) {
+      log('error', 'Error verificando descarga', { error: error.message });
+      return false;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ getDownloadStatus
+  // ============================================
+  const getDownloadStatus = useCallback(async (songId) => {
+    if (!songId) return { 
+      isDownloaded: false, 
+      isDownloading: false, 
+      url: null, 
+      info: null,
+      error: null,
+      progress: 0
+    };
+
+    try {
+      const isDownloading = downloading[songId] || false;
+      const downloadProgress = progress[songId] || 0;
+      const error = errors[songId] || null;
+      
+      if (isDownloading) {
+        return {
+          isDownloaded: false,
+          isDownloading: true,
+          progress: downloadProgress,
+          error: null,
+          url: null,
+          info: null
+        };
+      }
+
+      const info = getDownloadInfo(songId);
+      if (!info) {
+        return { 
+          isDownloaded: false, 
+          isDownloading: false, 
+          progress: 0,
+          error: null, 
+          url: null, 
+          info: null 
+        };
+      }
+
+      const isValid = await verifyDownload(songId);
+      if (!isValid) {
+        return {
+          isDownloaded: false,
+          isDownloading: false,
+          progress: 0,
+          error: 'Archivo corrupto o expirado',
+          url: null,
+          info: info
+        };
+      }
+
+      const url = await getOfflineAudioUrl(songId);
+
+      return {
+        isDownloaded: true,
+        isDownloading: false,
+        progress: 100,
+        error: null,
+        url: url,
+        info: info
+      };
+    } catch (error) {
+      log('error', 'Error en getDownloadStatus', { error: error.message });
+      return { 
+        isDownloaded: false, 
+        isDownloading: false, 
+        progress: 0,
+        error: error.message, 
+        url: null, 
+        info: null 
+      };
+    }
+  }, [downloading, progress, errors, getDownloadInfo, verifyDownload, getOfflineAudioUrl, log]);
+
+  // ============================================
+  // ✅ saveToSecureStorage
+  // ============================================
+  const saveToSecureStorage = useCallback(async (songId, blob, metadata) => {
+    try {
+      log('info', 'Guardando en SecureStorage', { songId, size: blob.size });
+      
+      await secureStorage.storeSong(songId, blob, {
+        title: metadata.title,
+        artist: metadata.artist
+      });
+      
+      const downloadRecord = {
+        id: songId,
+        title: metadata.title,
+        artist: metadata.artist,
+        downloadedAt: Date.now(),
+        fileSize: blob.size,
+        encrypted: true,
+        storageType: 'indexeddb',
+        expiresAt: Date.now() + (DOWNLOAD_CONFIG.DOWNLOAD_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
       };
       
-      request.onerror = () => {
-        console.error('[SecureStorage] Error limpiando:', request.error);
-        reject(request.error);
-      };
-    });
-  }
-
-  /**
-   * Obtener estadísticas
-   */
-  async getStats() {
-    const songs = await this.getAllSongs();
-    
-    const totalSize = songs.reduce((sum, song) => sum + (song.fileSize || 0), 0);
-    
-    return {
-      totalSongs: songs.length,
-      totalSizeMB: (totalSize / 1024 / 1024).toFixed(2),
-      songs: songs.map(s => ({
-        songId: s.songId,
-        title: s.metadata?.title,
-        artist: s.metadata?.artist,
-        downloadedAt: new Date(s.downloadedAt).toLocaleDateString(),
-        expiresAt: new Date(s.expiresAt).toLocaleDateString(),
-        fileSize: (s.fileSize / 1024 / 1024).toFixed(2) + ' MB'
-      }))
-    };
-  }
-
-  /**
-   * Cerrar conexión
-   */
-  close() {
-    if (this.db) {
-      this.db.close();
-      this.db = null;
-      this.encryptionKey = null;
-      this.initPromise = null;
+      return downloadRecord;
+      
+    } catch (error) {
+      log('error', 'Error guardando en SecureStorage', { error: error.message });
+      throw error;
     }
-  }
-}
+  }, [log]);
 
-// Exportar singleton
-export const secureStorage = new SecureStorage();
+  // ============================================
+  // ✅ getSecureStats
+  // ============================================
+  const getSecureStats = useCallback(async () => {
+    try {
+      return await secureStorage.getStats();
+    } catch (error) {
+      log('error', 'Error obteniendo stats', { error: error.message });
+      return null;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ cleanupExpired
+  // ============================================
+  const cleanupExpired = useCallback(async () => {
+    try {
+      const deleted = await secureStorage.cleanup();
+      
+      if (deleted > 0) {
+        // Actualizar UI
+        const songs = await secureStorage.getAllSongs();
+        const downloads = {};
+        songs.forEach(song => {
+          downloads[song.songId] = {
+            id: song.songId,
+            title: song.metadata?.title,
+            artist: song.metadata?.artist,
+            downloadedAt: song.downloadedAt,
+            fileSize: song.fileSize,
+            encrypted: true,
+            storageType: 'indexeddb',
+            expiresAt: song.expiresAt
+          };
+        });
+        
+        localStorage.setItem(DOWNLOAD_CONFIG.STORAGE_KEY, JSON.stringify(downloads));
+        setDownloadsMap(downloads);
+      }
+      
+      return deleted;
+    } catch (error) {
+      log('error', 'Error en cleanup', { error: error.message });
+      return 0;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ removeDownload (CON SECURE STORAGE)
+  // ============================================
+  const removeDownload = useCallback(async (songId) => {
+    try {
+      // Eliminar de SecureStorage
+      await secureStorage.removeSong(songId);
+      
+      // Eliminar de localStorage
+      const downloads = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');
+      delete downloads[songId];
+      localStorage.setItem(DOWNLOAD_CONFIG.STORAGE_KEY, JSON.stringify(downloads));
+      
+      // Actualizar mapa
+      setDownloadsMap(prev => {
+        const newMap = { ...prev };
+        delete newMap[songId];
+        return newMap;
+      });
+      
+      window.dispatchEvent(new Event('downloads-updated'));
+      log('info', 'Descarga eliminada de SecureStorage', { songId });
+      return true;
+      
+    } catch (error) {
+      log('error', 'Error eliminando', { error: error.message });
+      return false;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ clearAllDownloads (CON SECURE STORAGE)
+  // ============================================
+  const clearAllDownloads = useCallback(async () => {
+    try {
+      // Limpiar SecureStorage
+      await secureStorage.clearAll();
+      
+      // Limpiar localStorage
+      localStorage.removeItem(DOWNLOAD_CONFIG.STORAGE_KEY);
+      
+      // Actualizar estado
+      setDownloadsMap({});
+      
+      window.dispatchEvent(new Event('downloads-updated'));
+      log('info', 'Todo limpiado de SecureStorage');
+      return true;
+      
+    } catch (error) {
+      log('error', 'Error limpiando todo', { error: error.message });
+      return false;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ getAuthToken
+  // ============================================
+  const getAuthToken = useCallback(() => {
+    const token =
+      localStorage.getItem('accessToken') ||
+      localStorage.getItem('access_token') ||
+      sessionStorage.getItem('accessToken') ||
+      sessionStorage.getItem('access_token');
+
+    if (!token) {  
+      throw new Error('Debes iniciar sesión para descargar música.');  
+    }  
+
+    return token;
+  }, []);
+
+  // ============================================
+  // ✅ executeWithRetry
+  // ============================================
+  const executeWithRetry = useCallback(async (fn, songId, attempt = 1) => {
+    try {
+      return await fn();
+    } catch (error) {
+      const isRetryable =
+        attempt <= DOWNLOAD_CONFIG.MAX_RETRIES && (
+          error.code === 'ECONNABORTED' ||
+          !error.response ||
+          DOWNLOAD_CONFIG.RETRYABLE_STATUSES.includes(error.response?.status)
+        );
+
+      if (!isRetryable) throw error;  
+
+      const delay = Math.min(  
+        DOWNLOAD_CONFIG.BASE_RETRY_DELAY * Math.pow(2, attempt - 1),  
+        DOWNLOAD_CONFIG.MAX_RETRY_DELAY  
+      ) * (0.5 + Math.random() * 0.5);  
+
+      log('info', `Reintento ${attempt}`, { songId, delay: Math.round(delay) });  
+
+      await new Promise(r => setTimeout(r, delay));  
+      return executeWithRetry(fn, songId, attempt + 1);  
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ calculateSHA256
+  // ============================================
+  const calculateSHA256 = useCallback(async (blob) => {
+    try {
+      const buffer = await blob.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (error) {
+      log('warn', 'Error calculando hash', { error: error.message });
+      return null;
+    }
+  }, [log]);
+
+  // ============================================
+  // ✅ processQueue
+  // ============================================
+  const processQueue = useCallback(() => {
+    while (activeDownloads.current < DOWNLOAD_CONFIG.MAX_CONCURRENT && queueRef.current.length > 0) {
+      const nextDownload = queueRef.current[0];
+      queueRef.current = queueRef.current.slice(1);
+      setQueueVisual([...queueRef.current]);
+
+      activeDownloads.current++;  
+
+      pendingResolvers.current.set(nextDownload.songId, {  
+        resolve: nextDownload.resolve,  
+        reject: nextDownload.reject,  
+        songTitle: nextDownload.songTitle,  
+        artistName: nextDownload.artistName  
+      });  
+
+      executeDownload(  
+        nextDownload.songId,  
+        nextDownload.songTitle,  
+        nextDownload.artistName  
+      );  
+    }
+  }, []);
+
+  // ============================================
+  // ✅ executeDownload (VERSIÓN FINAL CON DESCARGA DIRECTA)
+  // ============================================
+  const executeDownload = useCallback(async (songId, songTitle, artistName) => {
+    const controller = new AbortController();
+    abortControllers.current.set(songId, controller);
+
+    try {  
+      setDownloading(prev => ({ ...prev, [songId]: true }));  
+      setProgress(prev => ({ ...prev, [songId]: 0 }));  
+      setErrors(prev => ({ ...prev, [songId]: null }));  
+
+      log('info', 'Iniciando descarga', { songId, songTitle });  
+
+      const token = await executeWithRetry(() => getAuthToken(), songId);  
+      
+      // ✅ OBTENER URL DIRECTA DE R2 (nueva función)
+      const downloadInfo = await executeWithRetry(
+        () => getDownloadUrl(songId, token), 
+        songId
+      );
+      
+      if (!downloadInfo?.url) {
+        throw new Error('No se pudo obtener URL de descarga');
+      }
+
+      log('info', 'URL de descarga obtenida', { 
+        songId, 
+        urlType: 'direct',
+        fileSize: downloadInfo.fileSize 
+      });
+
+      // ✅ DESCARGAR DIRECTAMENTE DESDE R2
+      const response = await executeWithRetry(async () => {
+        return await axios({
+          method: 'GET',
+          url: downloadInfo.url,
+          responseType: 'blob',
+          signal: controller.signal,
+          onDownloadProgress: (progressEvent) => {
+            if (progressEvent.total && progressEvent.total > 0) {
+              const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setProgress(prev => ({ ...prev, [songId]: percent }));
+            }
+          },
+          timeout: DOWNLOAD_CONFIG.REQUEST_TIMEOUT
+        });
+      }, songId);
+
+      if (!response) throw new Error('No se pudo obtener respuesta');
+
+      const blob = response.data;
+
+      if (blob.size < DOWNLOAD_CONFIG.MIN_FILE_SIZE) {
+        throw new Error('Archivo corrupto (tamaño insuficiente)');
+      }
+
+      const hash = await calculateSHA256(blob);
+
+      // ✅ GUARDAR EN SECURE STORAGE
+      const downloadRecord = await saveToSecureStorage(songId, blob, { 
+        title: songTitle, 
+        artist: artistName 
+      });
+
+      downloadRecord.hash = hash;
+      downloadRecord.filename = downloadInfo.filename;
+
+      // Guardar metadata en localStorage (para UI síncrona)
+      const currentDownloads = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');
+      currentDownloads[songId] = downloadRecord;
+      localStorage.setItem(DOWNLOAD_CONFIG.STORAGE_KEY, JSON.stringify(currentDownloads));
+
+      // Actualizar mapa
+      setDownloadsMap(prev => ({ ...prev, [songId]: downloadRecord }));
+
+      // Resolver promesa
+      const resolver = pendingResolvers.current.get(songId);  
+      if (resolver) {  
+        resolver.resolve(downloadRecord);  
+        pendingResolvers.current.delete(songId);  
+      }  
+
+      window.dispatchEvent(new Event('download-completed'));  
+      window.dispatchEvent(new Event('downloads-updated'));
+
+      log('info', '✅ Descarga completada y guardada en SecureStorage', { 
+        songId, 
+        size: (blob.size / 1024 / 1024).toFixed(2) + 'MB',
+        from: 'R2 direct'
+      });
+
+    } catch (error) {  
+      log('error', 'Error en descarga', { songId, error: error.message });  
+
+      let errorMessage = 'Error al descargar';  
+      if (error.name === 'CanceledError') errorMessage = 'Descarga cancelada';  
+      else if (error.response?.status === 401) errorMessage = 'Sesión expirada';  
+      else if (error.response?.status === 403) errorMessage = 'Sin permiso';  
+      else if (error.response?.status === 404) errorMessage = 'Canción no disponible';  
+      else if (error.response?.status === 429) errorMessage = 'Límite alcanzado';  
+      else if (error.message) errorMessage = error.message;  
+
+      setErrors(prev => ({ ...prev, [songId]: errorMessage }));  
+
+      const resolver = pendingResolvers.current.get(songId);  
+      if (resolver) {  
+        resolver.reject(new Error(errorMessage));  
+        pendingResolvers.current.delete(songId);  
+      }  
+
+    } finally {  
+      abortControllers.current.delete(songId);  
+      setDownloading(prev => {  
+        const newState = { ...prev };  
+        delete newState[songId];  
+        return newState;  
+      });  
+      setProgress(prev => {  
+        const newState = { ...prev };  
+        delete newState[songId];  
+        return newState;  
+      });  
+      activeDownloads.current = Math.max(0, activeDownloads.current - 1);  
+      processQueue();  
+    }
+  }, [getAuthToken, getDownloadUrl, executeWithRetry, calculateSHA256, saveToSecureStorage, processQueue, log]);
+
+  // ============================================
+  // ✅ cancelDownload
+  // ============================================
+  const cancelDownload = useCallback((songId) => {
+    if (abortControllers.current.has(songId)) {
+      abortControllers.current.get(songId).abort();
+      abortControllers.current.delete(songId);
+
+      const resolver = pendingResolvers.current.get(songId);  
+      if (resolver) {  
+        resolver.reject(new Error('Descarga cancelada'));  
+        pendingResolvers.current.delete(songId);  
+      }  
+
+      setDownloading(prev => {  
+        const newState = { ...prev };  
+        delete newState[songId];  
+        return newState;  
+      });  
+
+      setProgress(prev => {  
+        const newState = { ...prev };  
+        delete newState[songId];  
+        return newState;  
+      });  
+
+      activeDownloads.current = Math.max(0, activeDownloads.current - 1);  
+    } else {  
+      queueRef.current = queueRef.current.filter(item => item.songId !== songId);  
+      setQueueVisual([...queueRef.current]);  
+    }  
+
+    window.dispatchEvent(new Event('download-cancelled'));  
+    window.dispatchEvent(new Event('downloads-updated'));  
+    processQueue();
+  }, [processQueue]);
+
+  // ============================================
+  // ✅ clearError
+  // ============================================
+  const clearError = useCallback((songId) => {
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[songId];
+      return newErrors;
+    });
+  }, []);
+
+  // ============================================
+  // ✅ API PÚBLICA
+  // ============================================
+  return {
+    // Acciones
+    downloadSong,
+    cancelDownload,
+    removeDownload,
+    clearAllDownloads,
+    clearError,
+
+    // Estados UI  
+    downloading,  
+    progress,  
+    errors,  
+    queue: queueVisual,  
+
+    // Consultas síncronas  
+    isDownloaded,        
+    getDownloadInfo,     
+    getAllDownloads,     
+
+    // Funciones offline (SecureStorage)
+    getOfflineAudioUrl,  
+    getDownloadStatus,   
+    verifyDownload,      
+    getSecureStats,      
+    cleanupExpired,
+
+    // Utilidades  
+    getAuthToken,
+    getStreamUrl, // Para streaming
+    getDownloadUrl // Para descargas directas
+  };
+};
+
+export default useDownload;
