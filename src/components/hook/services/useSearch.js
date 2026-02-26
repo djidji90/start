@@ -1,4 +1,10 @@
-// src/hooks/useSearch.js - VERSIÓN COMPATIBLE
+// ============================================
+// hooks/useSearch.js - VERSIÓN COMPLETA CORREGIDA
+// ✅ Incluye downloads_count, likes_count, plays_count
+// ✅ Compatible con lógica existente (solo añade campos)
+// ✅ No rompe funcionalidad actual
+// ============================================
+
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 export const useSearch = () => {
@@ -38,7 +44,7 @@ export const useSearch = () => {
       isArray: Array.isArray(apiData),
       data: apiData
     });
-    
+
     const structured = {
       songs: [],
       artists: [],
@@ -46,7 +52,7 @@ export const useSearch = () => {
     };
 
     const allItems = [];
-    
+
     // ============================================
     // 1. PARA VISTA LEGACY (array directo)
     // ============================================
@@ -66,21 +72,23 @@ export const useSearch = () => {
             timestamp: Date.now(),
             isLegacyResult: true
           };
-          
+
           structured.songs.push(songItem);
           allItems.push(songItem);
         });
       }
     }
-    
+
     // ============================================
-    // 2. PARA VISTA MODERNA (con suggestions)
+    // 2. PARA VISTA MODERNA (con suggestions) - VERSIÓN CORREGIDA
     // ============================================
     else if (apiData.suggestions && Array.isArray(apiData.suggestions)) {
       apiData.suggestions.forEach((item, index) => {
         const type = item.type || 'song';
-        
+
+        // ✅ VERSIÓN CORREGIDA: Incluye todos los campos necesarios
         const baseItem = {
+          // Campos existentes (se mantienen igual)
           id: item.id || `temp-${index}-${Date.now()}`,
           type: type,
           title: item.title || 'Sin título',
@@ -91,7 +99,20 @@ export const useSearch = () => {
           score: item.score || 0,
           exact_match: item.exact_match || false,
           raw: item,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          
+          // ✅ NUEVOS CAMPOS PARA MÉTRICAS (NO AFECTAN LÓGICA EXISTENTE)
+          downloads_count: item.downloads_count !== undefined ? item.downloads_count : 0,
+          likes_count: item.likes_count !== undefined ? item.likes_count : 0,
+          plays_count: item.plays_count !== undefined ? item.plays_count : 0,
+          
+          // ✅ NUEVOS CAMPOS PARA IMAGEN/ARCHIVO
+          image_url: item.image_url || null,
+          file_key: item.file_key || null,
+          is_public: item.is_public !== undefined ? item.is_public : true,
+          
+          // ✅ DATOS DEL ARTISTA/UPLOADER
+          uploaded_by: item.uploaded_by || null
         };
 
         // Organizar por tipo según tu backend
@@ -100,7 +121,7 @@ export const useSearch = () => {
             structured.songs.push(baseItem);
             allItems.push(baseItem);
             break;
-            
+
           case 'artist':
             structured.artists.push({
               ...baseItem,
@@ -109,7 +130,7 @@ export const useSearch = () => {
             });
             allItems.push(baseItem);
             break;
-            
+
           case 'genre':
             structured.genres.push({
               ...baseItem,
@@ -120,13 +141,13 @@ export const useSearch = () => {
         }
       });
     }
-    
+
     // ============================================
     // 3. PARA BÚSQUEDA COMPLETA (si implementas)
     // ============================================
     else if (apiData.results) {
       const { songs = [], artists = [], genres = [] } = apiData.results;
-      
+
       songs.forEach(song => {
         const songItem = {
           id: song.id,
@@ -137,12 +158,21 @@ export const useSearch = () => {
           display: `${song.title} - ${song.artist}`,
           score: 0,
           raw: song,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          
+          // ✅ MISMOS CAMPOS AÑADIDOS
+          downloads_count: song.downloads_count !== undefined ? song.downloads_count : 0,
+          likes_count: song.likes_count !== undefined ? song.likes_count : 0,
+          plays_count: song.plays_count !== undefined ? song.plays_count : 0,
+          image_url: song.image_url || null,
+          file_key: song.file_key || null,
+          is_public: song.is_public !== undefined ? song.is_public : true,
+          uploaded_by: song.uploaded_by || null
         };
         structured.songs.push(songItem);
         allItems.push(songItem);
       });
-      
+
       artists.forEach(artist => {
         const artistItem = {
           id: artist.id || `artist-${artist.name}`,
@@ -156,7 +186,7 @@ export const useSearch = () => {
         structured.artists.push(artistItem);
         allItems.push(artistItem);
       });
-      
+
       genres.forEach(genre => {
         const genreItem = {
           id: genre.id || `genre-${genre.name}`,
@@ -185,7 +215,7 @@ export const useSearch = () => {
   const makeRequest = useCallback(async (url, options = {}) => {
     abortController.current = new AbortController();
     const timeoutId = setTimeout(() => abortController.current.abort(), apiConfig.current.timeout);
-    
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -234,7 +264,7 @@ export const useSearch = () => {
     if (!forceRefresh && cache.current.has(cacheKey)) {
       const cachedData = cache.current.get(cacheKey);
       const cacheAge = Date.now() - cachedData.timestamp;
-      
+
       if (cacheAge < apiConfig.current.cacheDuration) {
         console.log('📦 Usando cache:', trimmedQuery);
         setResults(cachedData.allItems);
@@ -260,7 +290,7 @@ export const useSearch = () => {
         types = 'song',
         useLegacyFormat = false 
       } = options;
-      
+
       let url;
       let isLegacyCall = false;
 
@@ -272,7 +302,7 @@ export const useSearch = () => {
         url = `${apiConfig.current.baseUrl}/songs/search/suggestions/?q=${encodeURIComponent(trimmedQuery)}&limit=${limit}`;
         isLegacyCall = true;
         console.log('🔗 Llamando a endpoint LEGACY');
-        
+
       } else if (endpoint === 'suggestions') {
         // Para: /api2/suggestions/?query=texto&limit=8&types=song,artist,genre
         const params = new URLSearchParams({
@@ -282,7 +312,7 @@ export const useSearch = () => {
         });
         url = `${apiConfig.current.baseUrl}/suggestions/?${params.toString()}`;
         console.log('🔗 Llamando a endpoint MODERNO (suggestions)');
-        
+
       } else if (endpoint === 'search-suggestions') {
         // Para: /api2/search/suggestions/?query=texto
         const params = new URLSearchParams({
@@ -292,7 +322,7 @@ export const useSearch = () => {
         });
         url = `${apiConfig.current.baseUrl}/search/suggestions/?${params.toString()}`;
         console.log('🔗 Llamando a endpoint MODERNO (search/suggestions)');
-        
+
       } else {
         // Por defecto, usar suggestions
         const params = new URLSearchParams({
@@ -353,10 +383,10 @@ export const useSearch = () => {
 
     } catch (err) {
       console.error('❌ Error en búsqueda:', err);
-      
+
       let errorMessage = 'Error al buscar. Intenta nuevamente.';
       let errorType = 'unknown';
-      
+
       if (err.name === 'AbortError') {
         errorMessage = 'La búsqueda tardó demasiado. Revisa tu conexión.';
         errorType = 'timeout';
@@ -388,14 +418,14 @@ export const useSearch = () => {
     }
   }, [makeRequest, transformResults]);
 
-  // Debounce automático (mismo que antes)
+  // Debounce automático
   useEffect(() => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
 
     const trimmedQuery = query.trim();
-    
+
     if (trimmedQuery.length < 2) {
       setResults([]);
       setStructuredResults({ songs: [], artists: [], genres: [] });
@@ -442,7 +472,7 @@ export const useSearch = () => {
     }
   }, [search]);
 
-  // Resto de funciones (igual que antes)
+  // Resto de funciones
   const forceSearch = useCallback((options = {}) => {
     if (query.trim().length >= 2) {
       search(query.trim(), true, options);
@@ -457,7 +487,7 @@ export const useSearch = () => {
     setIsOpen(false);
     setStatus('idle');
     setSearchMetrics(null);
-    
+
     if (abortController.current) {
       abortController.current.abort();
     }
@@ -476,7 +506,7 @@ export const useSearch = () => {
   const cacheStats = useMemo(() => {
     const now = Date.now();
     const entries = Array.from(cache.current.entries());
-    
+
     return {
       size: cache.current.size,
       entries: entries.map(([key, value]) => ({
@@ -522,7 +552,7 @@ export const useSearch = () => {
     status,
     searchMetrics,
     cacheStats,
-    
+
     // Acciones
     search,                     // Búsqueda moderna (default)
     searchLegacy,              // Búsqueda legacy específica
@@ -533,7 +563,7 @@ export const useSearch = () => {
     retrySearch,               // Reintentar búsqueda fallida
     clearCache,                // Limpiar cache
     debugSearch,               // Para diagnóstico
-    
+
     // Helpers computados
     hasResults: results.length > 0,
     isValidQuery: query.trim().length >= 2,
@@ -542,7 +572,7 @@ export const useSearch = () => {
     hasArtists: structuredResults.artists.length > 0,
     hasGenres: structuredResults.genres.length > 0,
     isLegacyResult: results.some(item => item.isLegacyResult),
-    
+
     // Grupos de resultados
     groupedResults: {
       topResults: results.slice(0, 3),
