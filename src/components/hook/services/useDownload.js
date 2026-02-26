@@ -1,7 +1,10 @@
 // ============================================
-// hooks/useDownload.js - VERSIÓN COMPLETA CON REPRODUCCIÓN OFFLINE
+// hooks/useDownload.js - VERSIÓN CORREGIDA
+// ✅ Soporte para endpoint JSON (/download-url/)
+// ✅ Fetch en lugar de axios para evitar CORS
+// ✅ Sintaxis corregida de axios
+// ✅ Eliminado link.click() (no guarda en filesystem)
 // ✅ isDownloaded SÍNCRONO (para UI)
-// ✅ getDownloadInfo rápido
 // ✅ getOfflineAudioUrl - Para reproducir desde cache
 // ✅ getDownloadStatus - Estado completo con verificación
 // ✅ verifyDownload - Verifica integridad del archivo
@@ -24,7 +27,7 @@ const DOWNLOAD_CONFIG = {
   API_BASE_URL: 'https://api.djidjimusic.com/api2',
   STORAGE_KEY: 'djidji_downloads',
   CACHE_NAME: 'djidji-audio-v1',
-  ENABLE_LOGGING: false, // Cambiado a false para producción
+  ENABLE_LOGGING: true, // Cambiar a false en producción
   MIN_FILE_SIZE: 1024,
   MOBILE_REGEX: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
 };
@@ -37,10 +40,6 @@ const useDownload = () => {
   const [progress, setProgress] = useState({});
   const [errors, setErrors] = useState({});
   const [queueVisual, setQueueVisual] = useState([]);
-
-  // ============================================
-  // NUEVO: Estado de descargas (SÍNCRONO)
-  // ============================================
   const [downloadsMap, setDownloadsMap] = useState({});
 
   // ============================================
@@ -51,7 +50,6 @@ const useDownload = () => {
   const pendingResolvers = useRef(new Map());
   const queueRef = useRef([]);
   const instanceId = useRef(Math.random().toString(36).substring(7));
-  const broadcastChannel = useRef(null);
 
   // ============================================
   // LOGGING
@@ -66,7 +64,6 @@ const useDownload = () => {
   // CARGA INICIAL DE DESCARGAS
   // ============================================
   useEffect(() => {
-    // Cargar descargas guardadas
     try {
       const saved = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');
       setDownloadsMap(saved);
@@ -75,7 +72,6 @@ const useDownload = () => {
       log('error', 'Error cargando descargas', { error: error.message });
     }
 
-    // Escuchar cambios  
     const handleUpdate = () => {  
       try {  
         const saved = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');  
@@ -109,19 +105,11 @@ const useDownload = () => {
   // ============================================
   const isDownloaded = useCallback((songId) => {
     if (!songId) return false;
-
     try {  
-      // Versión 1: Usar el mapa en memoria (más rápido)  
       const record = downloadsMap[songId];  
-      if (record?.fileSize) {  
-        return true;  
-      }  
-
-      // Versión 2: Fallback a localStorage directo  
+      if (record?.fileSize) return true;  
       const downloads = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');  
-      const directRecord = downloads[songId];  
-
-      return !!(directRecord?.fileSize);  
+      return !!(downloads[songId]?.fileSize);  
     } catch (error) {  
       log('error', 'Error en isDownloaded', { error: error.message });  
       return false;  
@@ -133,14 +121,8 @@ const useDownload = () => {
   // ============================================
   const getDownloadInfo = useCallback((songId) => {
     if (!songId) return null;
-
     try {  
-      // Intentar del mapa primero  
-      if (downloadsMap[songId]) {  
-        return downloadsMap[songId];  
-      }  
-
-      // Fallback a localStorage  
+      if (downloadsMap[songId]) return downloadsMap[songId];  
       const downloads = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');  
       return downloads[songId] || null;  
     } catch {  
@@ -163,20 +145,15 @@ const useDownload = () => {
   }, []);
 
   // ============================================
-  // ✅ NUEVA FUNCIÓN: verifyDownload (ASÍNCRONA)
+  // ✅ FUNCIÓN: verifyDownload (ASÍNCRONA)
   // ============================================
   const verifyDownload = useCallback(async (songId) => {
     try {
       const cache = await caches.open(DOWNLOAD_CONFIG.CACHE_NAME);
       const response = await cache.match(`/song/${songId}/audio`);
-      
       if (!response) return false;
-      
       const blob = await response.blob();
-      const isValid = blob.size > DOWNLOAD_CONFIG.MIN_FILE_SIZE;
-      
-      log('debug', 'Verificación de descarga', { songId, isValid, size: blob.size });
-      return isValid;
+      return blob.size > DOWNLOAD_CONFIG.MIN_FILE_SIZE;
     } catch (error) {
       log('error', 'Error verificando descarga', { error: error.message });
       return false;
@@ -184,13 +161,12 @@ const useDownload = () => {
   }, [log]);
 
   // ============================================
-  // ✅ NUEVA FUNCIÓN: getOfflineAudioUrl (ASÍNCRONA)
+  // ✅ FUNCIÓN: getOfflineAudioUrl (ASÍNCRONA)
   // ============================================
   const getOfflineAudioUrl = useCallback(async (songId) => {
     try {
       log('debug', 'Obteniendo URL offline', { songId });
       
-      // 1️⃣ Verificar si existe en cache
       const cache = await caches.open(DOWNLOAD_CONFIG.CACHE_NAME);
       const response = await cache.match(`/song/${songId}/audio`);
       
@@ -199,29 +175,22 @@ const useDownload = () => {
         return null;
       }
       
-      // 2️⃣ Obtener el blob
       const blob = await response.blob();
       
-      // 3️⃣ Verificar tamaño mínimo
       if (blob.size < DOWNLOAD_CONFIG.MIN_FILE_SIZE) {
-        log('warn', 'Archivo corrupto (tamaño insuficiente)', { songId, size: blob.size });
+        log('warn', 'Archivo corrupto', { songId, size: blob.size });
         return null;
       }
       
-      // 4️⃣ Crear URL blob
       const url = URL.createObjectURL(blob);
       
-      // 5️⃣ Auto-limpiar después de 1 minuto (opcional)
       setTimeout(() => {
         try {
           URL.revokeObjectURL(url);
-          log('debug', 'URL blob limpiada', { songId });
-        } catch (e) {
-          // Ignorar
-        }
+        } catch (e) {}
       }, 60000);
       
-      log('info', 'URL offline generada', { songId, urlType: 'blob' });
+      log('info', 'URL offline generada', { songId });
       return url;
       
     } catch (error) {
@@ -231,7 +200,7 @@ const useDownload = () => {
   }, [log]);
 
   // ============================================
-  // ✅ NUEVA FUNCIÓN: getDownloadStatus (ASÍNCRONA)
+  // ✅ FUNCIÓN: getDownloadStatus (ASÍNCRONA)
   // ============================================
   const getDownloadStatus = useCallback(async (songId) => {
     if (!songId) return { 
@@ -248,7 +217,6 @@ const useDownload = () => {
       const downloadProgress = progress[songId] || 0;
       const error = errors[songId] || null;
       
-      // Si está descargando, no verificar cache
       if (isDownloading) {
         return {
           isDownloaded: false,
@@ -260,7 +228,6 @@ const useDownload = () => {
         };
       }
 
-      // Verificar si está descargada
       const info = getDownloadInfo(songId);
       if (!info) {
         return { 
@@ -273,7 +240,6 @@ const useDownload = () => {
         };
       }
 
-      // Verificar integridad y obtener URL
       const isValid = await verifyDownload(songId);
       if (!isValid) {
         return {
@@ -314,19 +280,16 @@ const useDownload = () => {
   // ============================================
   const removeDownload = useCallback(async (songId) => {
     try {
-      // Eliminar de localStorage
       const downloads = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');
       delete downloads[songId];
       localStorage.setItem(DOWNLOAD_CONFIG.STORAGE_KEY, JSON.stringify(downloads));
 
-      // Actualizar mapa  
       setDownloadsMap(prev => {  
         const newMap = { ...prev };  
         delete newMap[songId];  
         return newMap;  
       });  
 
-      // Eliminar de cache  
       try {  
         const cache = await caches.open(DOWNLOAD_CONFIG.CACHE_NAME);  
         await cache.delete(`/song/${songId}/audio`);  
@@ -385,7 +348,7 @@ const useDownload = () => {
   }, []);
 
   // ============================================
-  // FUNCIONES DE CACHE
+  // ✅ FUNCIÓN: saveToCache
   // ============================================
   const saveToCache = useCallback(async (songId, blob, metadata) => {
     try {
@@ -413,7 +376,7 @@ const useDownload = () => {
   }, [log]);
 
   // ============================================
-  // FUNCIÓN: executeWithRetry
+  // ✅ FUNCIÓN: executeWithRetry
   // ============================================
   const executeWithRetry = useCallback(async (fn, songId, attempt = 1) => {
     try {
@@ -441,31 +404,68 @@ const useDownload = () => {
   }, [log]);
 
   // ============================================
-  // FUNCIÓN: requestSignedUrl
+  // ✅ FUNCIÓN: getDownloadUrl (CORREGIDA - USA JSON ENDPOINT)
   // ============================================
-  const requestSignedUrl = useCallback(async (songId, token) => {
+  const getDownloadUrl = useCallback(async (songId, token) => {
     try {
-      const response = await axios.get(
-        `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/stream/`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: DOWNLOAD_CONFIG.SIGNED_URL_TIMEOUT
-        }
-      );
+      // ✅ PRIMERO: Intentar con el endpoint JSON (nuevo, sin CORS)
+      try {
+        const response = await axios.get(
+          `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download-url/`,
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            },
+            timeout: DOWNLOAD_CONFIG.SIGNED_URL_TIMEOUT
+          }
+        );
 
-      if (response.data?.signedUrl) {  
-        log('debug', 'URL firmada obtenida', { songId });  
-        return response.data.signedUrl;  
-      }  
-    } catch (error) {  
-      log('debug', 'URL firmada no disponible', { songId });  
-    }  
-    return `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download/`;
+        if (response.data?.download_url) {
+          log('info', 'URL de descarga obtenida vía JSON', { songId });
+          return response.data.download_url;
+        }
+      } catch (jsonError) {
+        log('debug', 'Endpoint JSON no disponible, usando stream', { songId });
+      }
+      
+      // ✅ SEGUNDO: Intentar con stream (para obtener URL firmada)
+      try {
+        const response = await axios.get(
+          `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/stream/`,
+          {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+            },
+            timeout: DOWNLOAD_CONFIG.SIGNED_URL_TIMEOUT
+          }
+        );
+
+        if (response.data?.data?.stream_url) {  
+          log('debug', 'URL de streaming obtenida', { songId });  
+          return response.data.data.stream_url;  
+        }
+      } catch (streamError) {
+        log('debug', 'Stream endpoint falló', { songId });
+      }
+      
+      // ❌ FALLBACK: Endpoint de descarga directa (último recurso)
+      log('warn', 'Usando endpoint de descarga directa', { songId });
+      return `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download/`;
+      
+    } catch (error) {
+      log('error', 'Error obteniendo URL', { 
+        songId, 
+        error: error.message,
+        status: error.response?.status 
+      });
+      throw error;
+    }
   }, [log]);
 
   // ============================================
-  // FUNCIÓN: calculateSHA256
+  // ✅ FUNCIÓN: calculateSHA256
   // ============================================
   const calculateSHA256 = useCallback(async (blob) => {
     try {
@@ -480,30 +480,7 @@ const useDownload = () => {
   }, [log]);
 
   // ============================================
-  // FUNCIÓN: saveToFileSystem
-  // ============================================
-  const saveToFileSystem = useCallback(async (blob, songId, fileName) => {
-    if (isMobile() || !('showDirectoryPicker' in window)) {
-      return false;
-    }
-
-    try {  
-      const dir = await navigator.storage.getDirectory();  
-      const fileHandle = await dir.getFileHandle(`djidji_${songId}_${fileName}`, { create: true });  
-      const writable = await fileHandle.createWritable();  
-      await writable.write(blob);  
-      await writable.close();  
-
-      log('info', 'Guardado en File System', { songId, fileName });  
-      return true;  
-    } catch (error) {  
-      log('warn', 'Error guardando en File System', { error: error.message });  
-      return false;  
-    }
-  }, [isMobile, log]);
-
-  // ============================================
-  // PROCESAR COLA
+  // ✅ FUNCIÓN: processQueue
   // ============================================
   const processQueue = useCallback(() => {
     while (activeDownloads.current < DOWNLOAD_CONFIG.MAX_CONCURRENT && queueRef.current.length > 0) {
@@ -529,7 +506,7 @@ const useDownload = () => {
   }, []);
 
   // ============================================
-  // EJECUTAR DESCARGA
+  // ✅ EJECUTAR DESCARGA (CORREGIDA - USA FETCH)
   // ============================================
   const executeDownload = useCallback(async (songId, songTitle, artistName) => {
     const controller = new AbortController();
@@ -543,87 +520,84 @@ const useDownload = () => {
       log('info', 'Iniciando descarga', { songId, songTitle });  
 
       const token = await executeWithRetry(() => getAuthToken(), songId);  
-      const url = await executeWithRetry(() => requestSignedUrl(songId, token), songId);  
+      const url = await executeWithRetry(() => getDownloadUrl(songId, token), songId);  
 
-      let response;  
-      const authAttempts = [  
-        { type: 'Bearer', header: `Bearer ${token}` },  
-        { type: 'Token', header: `Token ${token}` }  
-      ];  
+      log('info', 'URL obtenida, iniciando descarga', { songId, url: url.substring(0, 50) + '...' });
 
-      for (const auth of authAttempts) {  
-        try {  
-          response = await executeWithRetry(async () => {  
-            return await axios({  
-              method: 'GET',  
-              url,  
-              headers: {  
-                'Authorization': auth.header,  
-                'Accept': 'audio/mpeg, */*',  
-              },  
-              responseType: 'blob',  
-              signal: controller.signal,  
-              onDownloadProgress: (progressEvent) => {  
-                if (progressEvent.total && progressEvent.total > 0) {  
-                  const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);  
-                  setProgress(prev => ({ ...prev, [songId]: percent }));  
-                }  
-              },  
-              timeout: DOWNLOAD_CONFIG.REQUEST_TIMEOUT  
-            });  
-          }, songId);  
-          log('info', `Autenticación exitosa con ${auth.type}`, { songId });  
-          break;  
-        } catch (authError) {  
-          if (authError.response?.status === 401 && auth.type === 'Bearer') continue;  
-          throw authError;  
-        }  
-      }  
+      // ✅ USAR FETCH EN LUGAR DE AXIOS PARA EVITAR CORS
+      const response = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal
+      });
 
-      if (!response) throw new Error('No se pudo obtener respuesta');  
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
-      const blob = response.data;  
+      // Obtener el tamaño total si está disponible
+      const contentLength = response.headers.get('content-length');
+      const totalSize = contentLength ? parseInt(contentLength, 10) : 0;
+
+      // Leer el stream para obtener progreso
+      const reader = response.body.getReader();
+      const chunks = [];
+      let receivedSize = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        chunks.push(value);
+        receivedSize += value.length;
+        
+        if (totalSize > 0) {
+          const percent = Math.round((receivedSize * 100) / totalSize);
+          setProgress(prev => ({ ...prev, [songId]: percent }));
+        }
+      }
+
+      // Combinar chunks en un solo blob
+      const blob = new Blob(chunks, { type: 'audio/mpeg' });
 
       if (blob.size < DOWNLOAD_CONFIG.MIN_FILE_SIZE) {  
         throw new Error('Archivo corrupto (tamaño insuficiente)');  
       }  
 
       const hash = await calculateSHA256(blob);  
-      const fileName = `${artistName.replace(/[/\\?%*:|"<>]/g, '_')} - ${songTitle.replace(/[/\\?%*:|"<>]/g, '_')}.mp3`;  
 
-      // Guardar según plataforma  
-      const savedToStorage = isMobile()   
-        ? await saveToCache(songId, blob, { id: songId, title: songTitle, artist: artistName })  
-        : await saveToFileSystem(blob, songId, fileName);  
+      // Guardar en cache (para móvil) o no hacer nada extra
+      const savedToStorage = await saveToCache(songId, blob, { 
+        id: songId, 
+        title: songTitle, 
+        artist: artistName 
+      });  
 
-      // Trigger download en navegador  
-      const blobUrl = URL.createObjectURL(blob);  
-      const link = document.createElement('a');  
-      link.href = blobUrl;  
-      link.download = fileName;  
-      link.click();  
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);  
+      // ✅ ELIMINADO: Trigger download en navegador (no queremos guardar en filesystem)
+      // const blobUrl = URL.createObjectURL(blob);  
+      // const link = document.createElement('a');  
+      // link.href = blobUrl;  
+      // link.download = fileName;  
+      // link.click();  
+      // setTimeout(() => URL.revokeObjectURL(blobUrl), 100);  
 
       // Guardar metadata  
       const downloadRecord = {  
         id: songId,  
         title: songTitle,  
         artist: artistName,  
-        fileName,  
         downloadedAt: new Date().toISOString(),  
         fileSize: blob.size,  
         hash: hash,  
-        storageType: savedToStorage ? (isMobile() ? 'cache' : 'filesystem') : 'none'  
+        storageType: savedToStorage ? 'cache' : 'none'  
       };  
 
       const currentDownloads = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');  
       currentDownloads[songId] = downloadRecord;  
       localStorage.setItem(DOWNLOAD_CONFIG.STORAGE_KEY, JSON.stringify(currentDownloads));  
 
-      // Actualizar mapa  
       setDownloadsMap(prev => ({ ...prev, [songId]: downloadRecord }));  
 
-      // Resolver promesa  
       const resolver = pendingResolvers.current.get(songId);  
       if (resolver) {  
         resolver.resolve(downloadRecord);  
@@ -633,15 +607,20 @@ const useDownload = () => {
       window.dispatchEvent(new Event('download-completed'));  
       window.dispatchEvent(new Event('downloads-updated'));  
 
+      log('info', '✅ Descarga completada', { 
+        songId, 
+        size: (blob.size / 1024 / 1024).toFixed(2) + 'MB' 
+      });
+
     } catch (error) {  
       log('error', 'Error en descarga', { songId, error: error.message });  
 
       let errorMessage = 'Error al descargar';  
-      if (error.name === 'CanceledError') errorMessage = 'Descarga cancelada';  
-      else if (error.response?.status === 401) errorMessage = 'Sesión expirada';  
-      else if (error.response?.status === 403) errorMessage = 'Sin permiso';  
-      else if (error.response?.status === 404) errorMessage = 'Canción no disponible';  
-      else if (error.response?.status === 429) errorMessage = 'Límite alcanzado';  
+      if (error.name === 'AbortError') errorMessage = 'Descarga cancelada';  
+      else if (error.message.includes('401')) errorMessage = 'Sesión expirada';  
+      else if (error.message.includes('403')) errorMessage = 'Sin permiso';  
+      else if (error.message.includes('404')) errorMessage = 'Canción no disponible';  
+      else if (error.message.includes('429')) errorMessage = 'Límite alcanzado';  
       else if (error.message) errorMessage = error.message;  
 
       setErrors(prev => ({ ...prev, [songId]: errorMessage }));  
@@ -667,10 +646,10 @@ const useDownload = () => {
       activeDownloads.current = Math.max(0, activeDownloads.current - 1);  
       processQueue();  
     }
-  }, [getAuthToken, requestSignedUrl, saveToCache, saveToFileSystem, executeWithRetry, processQueue, calculateSHA256, isMobile, log]);
+  }, [getAuthToken, getDownloadUrl, saveToCache, executeWithRetry, processQueue, calculateSHA256, log]);
 
   // ============================================
-  // DOWNLOAD SONG
+  // ✅ DOWNLOAD SONG
   // ============================================
   const downloadSong = useCallback((songId, songTitle = 'Canción', artistName = 'Artista') => {
     if (errors[songId]?.includes('Límite')) {
@@ -688,7 +667,7 @@ const useDownload = () => {
   }, [downloading, errors, processQueue]);
 
   // ============================================
-  // CANCEL DOWNLOAD
+  // ✅ CANCEL DOWNLOAD
   // ============================================
   const cancelDownload = useCallback((songId) => {
     if (abortControllers.current.has(songId)) {
@@ -725,7 +704,7 @@ const useDownload = () => {
   }, [processQueue]);
 
   // ============================================
-  // CLEAR ERROR
+  // ✅ CLEAR ERROR
   // ============================================
   const clearError = useCallback((songId) => {
     setErrors(prev => {
@@ -736,33 +715,33 @@ const useDownload = () => {
   }, []);
 
   // ============================================
-  // API PÚBLICA - VERSIÓN COMPLETA
+  // ✅ API PÚBLICA
   // ============================================
   return {
-    // ✅ ACCIONES
+    // ACCIONES
     downloadSong,
     cancelDownload,
     removeDownload,
     clearAllDownloads,
     clearError,
 
-    // ✅ ESTADOS UI  
+    // ESTADOS UI  
     downloading,  
     progress,  
     errors,  
     queue: queueVisual,  
 
-    // ✅ CONSULTAS SÍNCRONAS  
-    isDownloaded,        // 🔥 SÍNCRONO - true SOLO si tiene archivo  
-    getDownloadInfo,     // 🔥 SÍNCRONO - info completa o null  
-    getAllDownloads,     // 🔥 SÍNCRONO - lista filtrada  
+    // CONSULTAS SÍNCRONAS  
+    isDownloaded,        
+    getDownloadInfo,     
+    getAllDownloads,     
 
-    // ✅ NUEVAS FUNCIONES PARA REPRODUCCIÓN OFFLINE
-    getOfflineAudioUrl,  // 🔥 Obtener URL blob para reproducir
-    getDownloadStatus,   // 🔥 Estado completo con verificación
-    verifyDownload,      // 🔥 Verificar integridad del archivo
+    // FUNCIONES PARA REPRODUCCIÓN OFFLINE
+    getOfflineAudioUrl,  
+    getDownloadStatus,   
+    verifyDownload,      
 
-    // ✅ UTILIDADES  
+    // UTILIDADES  
     getAuthToken
   };
 };
