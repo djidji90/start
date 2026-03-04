@@ -1,41 +1,118 @@
-// EventGridViewer.jsx - Cards circulares con sombra intensa
+// src/components/events/EventGridViewer.jsx
 import React, { useState, useEffect } from "react";
 import {
-  Container, Typography, Grid, Card, CardMedia, CardContent,
+  Container, Typography, Grid, Card, CardContent,
   Chip, IconButton, Modal, Box, Stack, CircularProgress,
-  alpha, Avatar, Badge, Tooltip
+  alpha, Avatar, Badge, Tooltip, Fade, Zoom, Grow,
+  Button, Paper
 } from "@mui/material";
 import {
-  Favorite, FavoriteBorder, Close, CalendarToday,
-  LocationOn, AccessTime, Star, StarBorder
+  Favorite, FavoriteBorder, Close,
+  Star, StarBorder, Event, LocationOn,
+  AccessTime, ConfirmationNumber, MusicNote,
+  CalendarToday, Groups, Share, Info
 } from "@mui/icons-material";
+import { keyframes } from '@emotion/react';
+
+// ============================================
+// 🎨 IDENTIDAD VISUAL - PREMIUM
+// ============================================
+const colors = {
+  primary: '#3B82F6',
+  primaryLight: '#60A5FA',
+  primaryDark: '#2563EB',
+  primaryGradient: 'linear-gradient(145deg, #3B82F6 0%, #2563EB 100%)',
+  secondary: '#8B5CF6',
+  accent: '#F59E0B',
+  success: '#10B981',
+  error: '#EF4444',
+  textDark: '#1a1a1a',
+  textLight: '#FFFFFF',
+  gray600: '#666666',
+  gray500: '#9E9E9E',
+  gray400: '#BDBDBD',
+  gray300: '#E0E0E0',
+  gray200: '#e0e0e0',
+  gray100: '#fafafa',
+};
+
+// Colores por tipo de evento
+const eventTypeColors = {
+  festival: '#3B82F6',
+  concert: '#8B5CF6',
+  club: '#EC4899',
+  streaming: '#10B981',
+  conference: '#F59E0B',
+  workshop: '#6366F1',
+  default: '#64748B'
+};
+
+// Traducción de tipos
+const getSpanishEventType = (type) => ({
+  festival: 'Festival',
+  concert: 'Concierto',
+  club: 'Club',
+  streaming: 'Streaming',
+  conference: 'Conferencia',
+  workshop: 'Taller'
+}[type] || type);
+
+// Animaciones
+const floatAnimation = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(0px); }
+`;
+
+const pulseGlow = keyframes`
+  0% { box-shadow: 0 0 0 0 ${alpha('#3B82F6', 0.4)}; }
+  70% { box-shadow: 0 0 0 10px ${alpha('#3B82F6', 0)}; }
+  100% { box-shadow: 0 0 0 0 ${alpha('#3B82F6', 0)}; }
+`;
+
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
 
 const EventGridViewer = () => {
   const [events, setEvents] = useState([]);
-  const [favorites, setFavorites] = useState([]);
+  const [favorites, setFavorites] = useState(() => {
+    const saved = localStorage.getItem('djidjiEventFavorites');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hoveredEvent, setHoveredEvent] = useState(null);
+  const [showWelcomeTip, setShowWelcomeTip] = useState(() => {
+    const tipClosed = localStorage.getItem('djidjiEventTipClosed');
+    return !tipClosed;
+  });
 
   useEffect(() => {
-    fetch('https://api.djidjimusic.com/api2/events/')
-      .then(res => res.json())
-      .then(data => {
-        setEvents(data.results || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-
-    const saved = localStorage.getItem('eventFavorites');
-    if (saved) setFavorites(JSON.parse(saved));
+    fetchEvents();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('eventFavorites', JSON.stringify(favorites));
+    localStorage.setItem('djidjiEventFavorites', JSON.stringify(favorites));
   }, [favorites]);
 
+  const fetchEvents = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.djidjimusic.com/api2/events/');
+      const data = await response.json();
+      setEvents(data.results || []);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleFavorite = (eventId, e) => {
-    if (e) e.stopPropagation();
+    e.stopPropagation();
     setFavorites(prev =>
       prev.includes(eventId)
         ? prev.filter(id => id !== eventId)
@@ -54,324 +131,615 @@ const EventGridViewer = () => {
     });
   };
 
+  const formatShortDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getInitials = (title) => {
+    return title
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
+  const closeWelcomeTip = () => {
+    setShowWelcomeTip(false);
+    localStorage.setItem('djidjiEventTipClosed', 'true');
+  };
+
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-        <CircularProgress sx={{ color: '#D4AF37' }} />
-      </Box>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress size={48} sx={{ color: colors.primary }} />
+        </Box>
+      </Container>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Título */}
-      <Box sx={{ mb: 5, textAlign: 'center' }}>
-        <Typography
-          variant="h3"
-          sx={{
-            fontWeight: 300,
-            color: "primary.main",
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: '2.5rem',
-            letterSpacing: '0.05em',
-            mb: 1
-          }}
-        >
-          Eventos Musicales
-        </Typography>
+    <Box sx={{ 
+      p: { xs: 1.5, sm: 2, md: 2.5 }, 
+      maxWidth: '1200px', 
+      mx: 'auto',
+      bgcolor: 'background.default'
+    }}>
+      {/* Welcome Tip - como el de Pokémon */}
+      {showWelcomeTip && (
+        <Box sx={{
+          bgcolor: alpha(colors.primary, 0.08),
+          borderRadius: 2,
+          p: 2,
+          mb: 3,
+          border: `1px solid ${alpha(colors.primary, 0.15)}`,
+          animation: 'fadeIn 0.5s ease',
+          '@keyframes fadeIn': {
+            from: { opacity: 0, transform: 'translateY(-10px)' },
+            to: { opacity: 1, transform: 'translateY(0)' }
+          }
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+            <Avatar sx={{ 
+              bgcolor: colors.primary, 
+              width: 32, 
+              height: 32,
+              fontSize: '0.875rem'
+            }}>
+              <MusicNote sx={{ fontSize: 18 }} />
+            </Avatar>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle2" fontWeight={600} color={colors.primary} gutterBottom>
+                🇬🇶 Eventos Musicales en Guinea Ecuatorial
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                Descubre los próximos conciertos, festivales y eventos. 
+                Guarda tus favoritos para no perdértelos. Cada evento tiene su ritmo único, 
+                como la música que amamos.
+              </Typography>
+            </Box>
+            <IconButton 
+              size="small" 
+              onClick={closeWelcomeTip}
+              sx={{ alignSelf: 'flex-start', color: 'text.secondary' }}
+            >
+              <Close fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
+      )}
+
+      {/* Header minimalista - como el de Pokémon */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'stretch', sm: 'center' },
+        gap: 2,
+        mb: 3 
+      }}>
+        <Box>
+          <Typography variant="h6" fontWeight={700} gutterBottom sx={{ color: colors.primary }}>
+            🎪 Próximos Eventos
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {events.length} eventos • {favorites.length} en tu agenda
+          </Typography>
+        </Box>
         
-        <Typography
-          variant="body1"
-          sx={{
-            color: 'text.secondary',
-            fontFamily: "'Cormorant Garamond', serif",
-            fontSize: '1.1rem',
-            maxWidth: 600,
-            mx: 'auto',
-          }}
-        >
-          ¡Ponte al día con los próximos eventos!
-        </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 1,
+          flexWrap: 'wrap',
+          justifyContent: { xs: 'center', sm: 'flex-end' }
+        }}>
+          <Tooltip title="Eventos destacados">
+            <Button
+              variant="outlined"
+              startIcon={<Star />}
+              onClick={() => {}}
+              size="small"
+              sx={{ 
+                borderRadius: 2,
+                borderColor: alpha(colors.primary, 0.3),
+                color: colors.primary,
+                '&:hover': {
+                  borderColor: colors.primary,
+                  bgcolor: alpha(colors.primary, 0.04)
+                }
+              }}
+            >
+              Destacados
+            </Button>
+          </Tooltip>
+          
+          <Tooltip title="Ver todos">
+            <Button
+              variant="contained"
+              startIcon={<Event />}
+              onClick={() => {}}
+              size="small"
+              sx={{ 
+                borderRadius: 2,
+                bgcolor: colors.primary,
+                '&:hover': { bgcolor: colors.primaryDark }
+              }}
+            >
+              Calendario
+            </Button>
+          </Tooltip>
+        </Box>
       </Box>
 
-      {/* Grid de eventos con cards circulares */}
-      <Grid container spacing={2} justifyContent="center">
-        {events.map((event) => {
+      {/* Grid de eventos - estilo Pokémon premium */}
+      <Grid container spacing={1.5}>
+        {events.map((event, index) => {
+          const mainType = event.event_type || 'default';
+          const bgColor = eventTypeColors[mainType] || eventTypeColors.default;
           const isFavorite = favorites.includes(event.id);
           const isPast = new Date(event.event_date) < new Date();
-          const initials = event.title
-            .split(' ')
-            .map(word => word[0])
-            .join('')
-            .toUpperCase()
-            .substring(0, 2);
+          const initials = getInitials(event.title);
+          const isHovered = hoveredEvent === event.id;
 
           return (
             <Grid item xs={6} sm={4} md={3} key={event.id}>
-              <Tooltip title={isPast ? "Evento pasado" : "Ver detalles"} arrow>
-                <Card
-                  onClick={() => !isPast && (() => {
-                    setSelectedEvent(event);
-                    setModalOpen(true);
-                  })()}
-                  sx={{
-                    cursor: isPast ? 'default' : 'pointer',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    borderRadius: '50%',
-                    width: 150,
-                    height: 150,
-                    margin: '0 auto',
-                    position: 'relative',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: isPast 
-                      ? `0 8px 16px ${alpha('#000', 0.1)}`
-                      : `0 15px 35px ${alpha('#D4AF37', 0.3)}, 0 5px 15px ${alpha('#000', 0.2)}`,
-                    border: `2px solid ${isPast ? alpha('#ccc', 0.3) : alpha('#D4AF37', 0.2)}`,
-                    overflow: 'visible',
-                    '&:hover': !isPast && {
-                      transform: 'scale(1.05)',
-                      boxShadow: `0 25px 50px ${alpha('#D4AF37', 0.4)}, 0 10px 20px ${alpha('#000', 0.3)}`,
-                      borderColor: alpha('#D4AF37', 0.4),
+              <Card 
+                onClick={() => !isPast && (() => {
+                  setSelectedEvent(event);
+                  setModalOpen(true);
+                })()}
+                onMouseEnter={() => setHoveredEvent(event.id)}
+                onMouseLeave={() => setHoveredEvent(null)}
+                sx={{
+                  height: '100%',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  cursor: isPast ? 'default' : 'pointer',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  opacity: isPast ? 0.6 : 1,
+                  filter: isPast ? 'grayscale(0.6)' : 'none',
+                  border: isFavorite ? `2px solid ${bgColor}` : 'none',
+                  animation: index % 2 === 0 ? `${floatAnimation} 3s ease-in-out infinite` : 'none',
+                  '&:hover': !isPast && {
+                    transform: 'translateY(-6px)',
+                    boxShadow: `0 20px 30px ${alpha(bgColor, 0.2)}`,
+                    '& .event-image': {
+                      transform: 'scale(1.08)'
                     }
-                  }}
-                >
-                  {/* Fondo con gradiente */}
+                  }
+                }}
+              >
+                {/* Indicador favorito */}
+                {isFavorite && (
                   <Box sx={{
                     position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
+                    top: 8,
+                    left: 8,
+                    zIndex: 2,
+                    bgcolor: bgColor,
+                    color: 'white',
                     borderRadius: '50%',
-                    background: isPast 
-                      ? `linear-gradient(135deg, ${alpha('#ccc', 0.8)} 0%, ${alpha('#999', 0.9)} 100%)`
-                      : `linear-gradient(135deg, ${alpha('#D4AF37', 0.9)} 0%, ${alpha('#8B7355', 0.8)} 100%)`,
-                    zIndex: 1,
-                  }} />
+                    width: 24,
+                    height: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    animation: `${pulseGlow} 2s infinite`,
+                  }}>
+                    <Favorite sx={{ fontSize: 14 }} />
+                  </Box>
+                )}
 
-                  {/* Imagen circular o iniciales */}
+                {/* Imagen del evento */}
+                <Box sx={{ 
+                  height: 140, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  bgcolor: alpha(bgColor, 0.1),
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}>
+                  {/* Número/ID del evento */}
+                  <Box sx={{
+                    position: 'absolute',
+                    bottom: 8,
+                    right: 8,
+                    bgcolor: alpha('#000', 0.7),
+                    color: 'white',
+                    borderRadius: 1,
+                    px: 1,
+                    py: 0.25,
+                    zIndex: 2
+                  }}>
+                    <Typography variant="caption" fontWeight={500}>
+                      #{index + 1}
+                    </Typography>
+                  </Box>
+
+                  {/* Fecha destacada */}
+                  <Box sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    bgcolor: alpha('#fff', 0.9),
+                    borderRadius: 1,
+                    px: 1,
+                    py: 0.5,
+                    zIndex: 2,
+                    border: `1px solid ${alpha(bgColor, 0.3)}`
+                  }}>
+                    <Typography variant="caption" fontWeight={600} color={bgColor}>
+                      {formatShortDate(event.event_date)}
+                    </Typography>
+                  </Box>
+
+                  {/* Imagen o iniciales */}
                   {event.image_url ? (
-                    <Avatar
+                    <img
                       src={event.image_url}
                       alt={event.title}
-                      sx={{
-                        width: 130,
-                        height: 130,
-                        marginTop: '-15px',
-                        border: `3px solid ${alpha('#fff', 0.8)}`,
-                        boxShadow: `0 4px 12px ${alpha('#000', 0.2)}`,
-                        zIndex: 2,
+                      className="event-image"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        transition: 'transform 0.5s ease'
                       }}
                     />
                   ) : (
-                    <Avatar
-                      sx={{
-                        width: 130,
-                        height: 130,
-                        marginTop: '-15px',
-                        bgcolor: alpha('#fff', 0.9),
-                        color: '#D4AF37',
-                        fontSize: '2rem',
-                        fontWeight: 'bold',
-                        border: `3px solid ${alpha('#fff', 0.8)}`,
-                        boxShadow: `0 4px 12px ${alpha('#000', 0.2)}`,
-                        zIndex: 2,
-                      }}
-                    >
-                      {initials}
-                    </Avatar>
+                    <Box sx={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: alpha(bgColor, 0.2)
+                    }}>
+                      <Typography variant="h2" fontWeight={700} color={alpha(bgColor, 0.5)}>
+                        {initials}
+                      </Typography>
+                    </Box>
                   )}
 
-                  {/* Botón favorito */}
-                  <IconButton
-                    size="small"
-                    onClick={(e) => toggleFavorite(event.id, e)}
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      zIndex: 3,
-                      backgroundColor: alpha('#fff', 0.9),
-                      width: 28,
-                      height: 28,
-                      '&:hover': {
-                        backgroundColor: alpha('#fff', 1),
-                      }
+                  {/* Overlay de hover con más info */}
+                  {isHovered && !isPast && (
+                    <Fade in timeout={200}>
+                      <Box sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        bgcolor: alpha('#000', 0.7),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'column',
+                        gap: 1,
+                        zIndex: 3
+                      }}>
+                        <Typography variant="caption" sx={{ color: '#fff', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <LocationOn sx={{ fontSize: 14 }} />
+                          {event.location || 'Ubicación por confirmar'}
+                        </Typography>
+                        {event.price && event.price !== '0.00' && (
+                          <Chip
+                            label={`${event.price} €`}
+                            size="small"
+                            sx={{ bgcolor: '#fff', color: bgColor, fontWeight: 600 }}
+                          />
+                        )}
+                      </Box>
+                    </Fade>
+                  )}
+                </Box>
+
+                {/* Contenido de la card */}
+                <CardContent sx={{ p: 1.5 }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    fontWeight={600} 
+                    sx={{ 
+                      mb: 1,
+                      lineHeight: 1.2,
+                      fontSize: '0.875rem',
+                      textTransform: 'capitalize',
+                      color: isPast ? 'text.secondary' : 'text.primary'
                     }}
                   >
-                    {isFavorite ? (
-                      <Star sx={{ color: '#FFD700', fontSize: 16 }} />
-                    ) : (
-                      <StarBorder sx={{ color: '#666', fontSize: 16 }} />
-                    )}
-                  </IconButton>
+                    {event.title}
+                  </Typography>
 
-                  {/* Chip de precio */}
-                  {event.price && event.price !== '0.00' && !isPast && (
+                  {/* Tipo de evento */}
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
                     <Chip
-                      label={`$${event.price}`}
+                      label={getSpanishEventType(event.event_type)}
                       size="small"
                       sx={{
-                        position: 'absolute',
-                        bottom: 8,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        backgroundColor: alpha('#fff', 0.95),
-                        color: '#8B7355',
-                        fontWeight: 'bold',
-                        fontSize: '0.7rem',
+                        bgcolor: alpha(bgColor, 0.9),
+                        color: 'white',
+                        fontSize: '0.65rem',
                         height: 20,
-                        zIndex: 3,
-                        border: `1px solid ${alpha('#D4AF37', 0.3)}`,
-                        boxShadow: `0 2px 4px ${alpha('#000', 0.1)}`,
+                        flex: 1,
+                        fontWeight: 500
                       }}
                     />
-                  )}
-
-                  {/* Badge para eventos pasados */}
-                  {isPast && (
-                    <Badge
-                      badgeContent="PASADO"
-                      color="default"
-                      sx={{
-                        position: 'absolute',
-                        top: -10,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        '& .MuiBadge-badge': {
-                          backgroundColor: alpha('#666', 0.9),
-                          color: '#fff',
-                          fontSize: '0.6rem',
-                          fontWeight: 'bold',
-                          padding: '2px 6px',
-                          borderRadius: '10px',
-                        }
-                      }}
-                    />
-                  )}
-                </Card>
-              </Tooltip>
-
-              {/* Info debajo del círculo */}
-              <Box sx={{ textAlign: 'center', mt: 1.5 }}>
-                <Typography 
-                  variant="subtitle2" 
-                  sx={{ 
-                    fontWeight: 500,
-                    fontFamily: "'Cormorant Garamond', serif",
-                    color: isPast ? 'text.disabled' : 'text.primary',
-                    fontSize: '0.9rem',
-                    lineHeight: 1.2,
-                    mb: 0.5,
-                  }}
-                >
-                  {event.title.length > 20 
-                    ? `${event.title.substring(0, 20)}...` 
-                    : event.title}
-                </Typography>
-                
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    display: 'block',
-                    color: isPast ? 'text.disabled' : 'text.secondary',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  {formatDate(event.event_date)}
-                </Typography>
-              </Box>
+                  </Box>
+                </CardContent>
+              </Card>
             </Grid>
           );
         })}
       </Grid>
 
-      {/* Modal - Mantenido similar */}
+      {/* Modal de detalles - estilo Pokémon premium */}
       {selectedEvent && (
         <Modal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
-          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 2
+          }}
         >
           <Box sx={{
             maxWidth: 500,
             width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto',
             bgcolor: 'background.paper',
-            borderRadius: 2,
-            boxShadow: `0 24px 48px ${alpha('#000', 0.2)}`,
-            overflow: 'hidden'
+            borderRadius: 3,
+            boxShadow: 24,
+            animation: 'modalSlide 0.3s ease',
+            '@keyframes modalSlide': {
+              from: { opacity: 0, transform: 'scale(0.95) translateY(20px)' },
+              to: { opacity: 1, transform: 'scale(1) translateY(0)' }
+            }
           }}>
-            {/* Imagen */}
-            {selectedEvent.image_url && (
-              <Box sx={{ height: 200, overflow: 'hidden' }}>
-                <img
-                  src={selectedEvent.image_url}
-                  alt={selectedEvent.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              </Box>
-            )}
-
-            <Box sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Typography 
-                  variant="h5" 
-                  sx={{ 
-                    fontWeight: 500,
-                    fontFamily: "'Cormorant Garamond', serif",
-                    color: '#333'
-                  }}
-                >
-                  {selectedEvent.title}
-                </Typography>
-                <IconButton 
-                  onClick={() => setModalOpen(false)}
-                  sx={{ color: '#666' }}
-                >
-                  <Close />
-                </IconButton>
-              </Box>
-
-              <Stack spacing={2} sx={{ mb: 3 }}>
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#999', display: 'block', mb: 0.5 }}>
-                    🗓️ Fecha y Hora
-                  </Typography>
-                  <Typography variant="body1" sx={{ color: '#333' }}>
-                    {formatDate(selectedEvent.event_date)}
-                  </Typography>
+            {/* Header del modal con color según tipo */}
+            <Box sx={{
+              bgcolor: alpha(eventTypeColors[selectedEvent.event_type] || colors.primary, 0.15),
+              p: 3,
+              position: 'relative',
+              borderBottom: `4px solid ${eventTypeColors[selectedEvent.event_type] || colors.primary}`
+            }}>
+              <IconButton
+                onClick={() => setModalOpen(false)}
+                sx={{
+                  position: 'absolute',
+                  right: 16,
+                  top: 16,
+                  bgcolor: 'white',
+                  boxShadow: 1,
+                  '&:hover': { bgcolor: 'white' }
+                }}
+              >
+                <Close />
+              </IconButton>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                {/* Imagen del evento en modal */}
+                <Box sx={{ 
+                  width: 120, 
+                  height: 120,
+                  flexShrink: 0,
+                  position: 'relative',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  boxShadow: `0 8px 16px ${alpha('#000', 0.2)}`
+                }}>
+                  {selectedEvent.image_url ? (
+                    <img
+                      src={selectedEvent.image_url}
+                      alt={selectedEvent.title}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    <Box sx={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: alpha(eventTypeColors[selectedEvent.event_type] || colors.primary, 0.2)
+                    }}>
+                      <Typography variant="h2" fontWeight={700} color={alpha(eventTypeColors[selectedEvent.event_type] || colors.primary, 0.5)}>
+                        {getInitials(selectedEvent.title)}
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  <IconButton
+                    onClick={(e) => toggleFavorite(selectedEvent.id, e)}
+                    sx={{
+                      position: 'absolute',
+                      bottom: -8,
+                      right: -8,
+                      bgcolor: 'white',
+                      boxShadow: 2,
+                      '&:hover': { bgcolor: 'white' }
+                    }}
+                  >
+                    {favorites.includes(selectedEvent.id) ? 
+                      <Favorite sx={{ color: '#ff4081' }} /> : 
+                      <FavoriteBorder />
+                    }
+                  </IconButton>
                 </Box>
+                
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                    Evento
+                  </Typography>
+                  <Typography variant="h5" fontWeight={700} sx={{ 
+                    mb: 1,
+                    fontSize: '1.25rem',
+                    lineHeight: 1.2
+                  }}>
+                    {selectedEvent.title}
+                  </Typography>
+                  
+                  <Chip
+                    label={getSpanishEventType(selectedEvent.event_type)}
+                    size="small"
+                    sx={{
+                      bgcolor: eventTypeColors[selectedEvent.event_type] || colors.primary,
+                      color: 'white',
+                      fontWeight: 600,
+                      mb: 2
+                    }}
+                  />
+                  
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Tooltip title="Fecha">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <CalendarToday sx={{ color: 'text.secondary', fontSize: 16 }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDate(selectedEvent.event_date)}
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
 
-                {selectedEvent.location && (
-                  <Box>
-                    <Typography variant="caption" sx={{ color: '#999', display: 'block', mb: 0.5 }}>
-                      📍 Ubicación
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: '#333' }}>
+            {/* Contenido del modal */}
+            <Box sx={{ p: 3 }}>
+              {/* Ubicación */}
+              {selectedEvent.location && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <LocationOn sx={{ fontSize: 20, color: colors.primary }} />
+                    Ubicación
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                    <Typography variant="body2">
                       {selectedEvent.location}
                     </Typography>
-                  </Box>
-                )}
+                  </Paper>
+                </Box>
+              )}
 
-                {selectedEvent.description && (
-                  <Box>
-                    <Typography variant="caption" sx={{ color: '#999', display: 'block', mb: 0.5 }}>
-                      📝 Descripción
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: '#333', lineHeight: 1.6 }}>
+              {/* Descripción */}
+              {selectedEvent.description && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <Info sx={{ fontSize: 20, color: colors.primary }} />
+                    Descripción
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                    <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
                       {selectedEvent.description}
                     </Typography>
-                  </Box>
-                )}
-              </Stack>
+                  </Paper>
+                </Box>
+              )}
+
+              {/* Precio */}
+              {selectedEvent.price && selectedEvent.price !== '0.00' && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <ConfirmationNumber sx={{ fontSize: 20, color: colors.primary }} />
+                    Precio
+                  </Typography>
+                  <Chip
+                    label={`${selectedEvent.price} €`}
+                    sx={{
+                      bgcolor: alpha(colors.primary, 0.1),
+                      color: colors.primaryDark,
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      height: 36,
+                      px: 2
+                    }}
+                  />
+                </Box>
+              )}
+
+              {/* Conexión Musical - como en Pokémon */}
+              <Box sx={{
+                bgcolor: alpha(colors.primary, 0.05),
+                borderRadius: 2,
+                p: 2.5,
+                border: `1px solid ${alpha(colors.primary, 0.1)}`,
+                position: 'relative',
+                mb: 2
+              }}>
+                <Avatar sx={{ 
+                  position: 'absolute',
+                  top: -12,
+                  left: 16,
+                  bgcolor: colors.primary,
+                  width: 24,
+                  height: 24
+                }}>
+                  <MusicNote sx={{ fontSize: 14 }} />
+                </Avatar>
+                
+                <Typography variant="subtitle2" fontWeight={600} color={colors.primary} gutterBottom>
+                  🇬🇶 Ritmo Ecuatoguineano
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                  Este evento tiene su propio ritmo, como la música que late en 
+                  Malabo y Bata. Los artistas locales están listos para hacerte vibrar 
+                  con los sonidos auténticos de Guinea Ecuatorial.
+                </Typography>
+              </Box>
+
+              {/* CTA final - como en Pokémon */}
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mt: 2,
+                pt: 2,
+                borderTop: `1px solid ${alpha('#000', 0.1)}`
+              }}>
+                <Typography variant="caption" color="text.secondary">
+                  {favorites.includes(selectedEvent.id) ? '⭐ En tu agenda' : '✨ Nuevo evento'}
+                </Typography>
+                
+                <Button
+                  variant="text"
+                  startIcon={<Share />}
+                  onClick={() => {}}
+                  sx={{ color: colors.primary, fontWeight: 600 }}
+                >
+                  Compartir
+                </Button>
+              </Box>
             </Box>
           </Box>
         </Modal>
       )}
-    </Container>
+    </Box>
   );
 };
 

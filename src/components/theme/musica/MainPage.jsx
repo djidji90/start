@@ -1,10 +1,4 @@
-// ============================================
-// src/pages/MainPage.jsx - VERSIÓN COMPLETA CORREGIDA
-// ✅ Incluye downloads_count en canciones seleccionadas
-// ✅ Sin placeholder de duración (mantiene null)
-// ✅ Contador de descargas visible en SongCarousel
-// ============================================
-
+// src/components/theme/musica/MainPage.jsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
@@ -18,10 +12,13 @@ import {
   Snackbar,
   Grow,
   IconButton,
-  alpha
+  alpha,
+  Fab,
+  Tooltip
 } from "@mui/material";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { useNavigate } from 'react-router-dom';
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
@@ -30,17 +27,19 @@ import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
-
-// 🔥 Hook de descarga
 import useDownload from "../../../components/hook/services/useDownload";
 
+// 🔥 Importar componentes
+import UploadModal from "../../../upload/UploadModal";
+import EventGridViewer from "../../../components/search/EventGridViewer";
+
 // ============================================
-// 🎨 IDENTIDAD VISUAL
+// 🎨 IDENTIDAD VISUAL - AHORA EN AZUL
 // ============================================
 const colors = {
-  primary: '#FF6B35',
-  primaryLight: '#FF8B5C',
-  primaryDark: '#E55A2B',
+  primary: '#3B82F6',        // Azul vibrante
+  primaryLight: '#60A5FA',   // Azul claro
+  primaryDark: '#2563EB',    // Azul oscuro
   textDark: '#1a1a1a',
   textLight: '#FFFFFF',
   gray600: '#666666',
@@ -73,16 +72,24 @@ const getSongImageUrl = (song) => {
     return imageUrl;
   }
 
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(song.title || '?')}&background=FF6B35&color=fff&size=200&bold=true&length=2&font-size=0.50`;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(song.title || '?')}&background=3B82F6&color=fff&size=200&bold=true&length=2&font-size=0.50`;
 };
 
 // ============================================
-// 🎵 HERO SECTION PROFESIONAL
+// 🎵 HERO SECTION CON UPLOAD (SIN REDIRECCIÓN)
 // ============================================
-const Hero = () => {
-  const navigate = useNavigate();
+const Hero = ({ onUploadClick }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  const handleExploreClick = () => {
+    console.log('🎧 Explorar música - Próximamente');
+  };
+
+  const handleUploadClick = () => {
+    console.log('🎤 Abrir modal de subida');
+    onUploadClick();
+  };
 
   return (
     <Box
@@ -127,7 +134,7 @@ const Hero = () => {
           <Box sx={{
             width: "100%",
             height: "100%",
-            background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 50%, #FFA07A 100%)`,
+            background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 50%, #93C5FD 100%)`,
           }} />
         )}
 
@@ -208,7 +215,7 @@ const Hero = () => {
         }}>
           <Box
             component="button"
-            onClick={() => navigate('')}
+            onClick={handleExploreClick}
             sx={{
               bgcolor: colors.primary,
               color: "white",
@@ -234,7 +241,7 @@ const Hero = () => {
 
           <Box
             component="button"
-            onClick={() => navigate('')}
+            onClick={handleUploadClick}
             sx={{
               bgcolor: "rgba(255,255,255,0.15)",
               color: "white",
@@ -278,11 +285,15 @@ const Hero = () => {
 };
 
 // ============================================
-// 🎵 MAIN PAGE COMPLETA (VERSIÓN CORREGIDA)
+// 🎵 MAIN PAGE CON FAB DE UPLOAD Y EVENTOS
 // ============================================
 const MainPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  // 🔥 Estado para modal de upload
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [showFab, setShowFab] = useState(false);
 
   const {
     query,
@@ -295,7 +306,7 @@ const MainPage = () => {
     searchMetrics
   } = useSearch();
 
-  // Hook de descarga
+  // 🔥 Hook de descarga
   const download = useDownload();
 
   const [showResults, setShowResults] = useState(false);
@@ -318,12 +329,16 @@ const MainPage = () => {
 
   const MAX_SELECTED_SONGS = 50;
 
-  // Exponer download API globalmente para pruebas
+  // Mostrar FAB con fade después de montar
+  useEffect(() => {
+    const timer = setTimeout(() => setShowFab(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 🔥 Exponer download API globalmente para pruebas
   useEffect(() => {
     window.downloadAPI = download;
     console.log('✅ downloadAPI disponible globalmente');
-    console.log('📦 Métodos:', Object.keys(download));
-    console.log('💡 Para probar: window.downloadAPI.downloadSong("70", "merci beaucoup", "pop_smoke")');
 
     return () => {
       delete window.downloadAPI;
@@ -406,11 +421,8 @@ const MainPage = () => {
       return;
     }
 
-    // Determinar la URL de la imagen correcta
     const imageUrl = item.image_url || item.cover || item.album_cover || item.thumbnail || null;
-
-    // Si no hay imagen, usar placeholder con iniciales
-    const finalImageUrl = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=FF6B35&color=fff&size=200&bold=true&length=2&font-size=0.50`;
+    const finalImageUrl = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=3B82F6&color=fff&size=200&bold=true&length=2&font-size=0.50`;
 
     // ✅ VERSIÓN CORREGIDA: Incluye TODOS los campos necesarios
     const newSong = {
@@ -459,9 +471,9 @@ const MainPage = () => {
   };
 
   return (
-    <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh" }}>
-      {/* HERO */}
-      <Hero />
+    <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh", position: "relative" }}>
+      {/* HERO con prop onUploadClick */}
+      <Hero onUploadClick={() => setUploadModalOpen(true)} />
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
         {/* CONTADOR FLOTANTE */}
@@ -633,6 +645,11 @@ const MainPage = () => {
           <ArtistCarousel />
         </Box>
 
+        {/* 🔥 NUEVA SECCIÓN DE EVENTOS */}
+        <Box sx={{ mb: 6 }}>
+          <EventGridViewer />
+        </Box>
+
         <Box sx={{ mb: 6 }}>
           <PopularSongs />
         </Box>
@@ -693,6 +710,58 @@ const MainPage = () => {
           </Alert>
         </Snackbar>
       </Container>
+
+      {/* 🔥 FAB DE UPLOAD */}
+      <Fade in={showFab} timeout={800}>
+        <Tooltip 
+          title="Subir mi música" 
+          placement="left"
+          componentsProps={{
+            tooltip: {
+              sx: {
+                bgcolor: '#1a1a1a',
+                color: 'white',
+                fontSize: '0.85rem',
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              }
+            }
+          }}
+        >
+          <Fab
+            onClick={() => setUploadModalOpen(true)}
+            sx={{
+              position: 'fixed',
+              bottom: { xs: 20, md: 28 },
+              right: { xs: 20, md: 28 },
+              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
+              color: 'white',
+              boxShadow: `0 8px 20px ${alpha(colors.primary, 0.3)}`,
+              width: { xs: 60, md: 70 },
+              height: { xs: 60, md: 70 },
+              '&:hover': {
+                transform: 'scale(1.1) rotate(3deg)',
+                background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)`,
+                boxShadow: `0 12px 28px ${alpha(colors.primary, 0.5)}`
+              },
+              transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              zIndex: 1200,
+              border: '2px solid rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(4px)'
+            }}
+          >
+            <CloudUploadIcon sx={{ fontSize: { xs: 30, md: 36 } }} />
+          </Fab>
+        </Tooltip>
+      </Fade>
+
+      {/* 🔥 MODAL DE UPLOAD */}
+      <UploadModal 
+        open={uploadModalOpen} 
+        onClose={() => setUploadModalOpen(false)} 
+      />
     </Box>
   );
 };
