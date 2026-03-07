@@ -208,7 +208,7 @@ const EventGridViewer = () => {
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
                 Descubre los próximos conciertos, festivales y eventos que se celebraran en tu ciudad.
-                Guarda tus favoritos para no perdérte ninguno 😚
+                Guarda tus favoritos para no perdérte ninguno.
               </Typography>
             </Box>
             <IconButton 
@@ -710,7 +710,7 @@ const EventGridViewer = () => {
                   🇬🇶 Ritmo Ecuatoguineano
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  Publicar tu evento en esta plataforma es muy sencillo, solo tienes que enviarnos los datos del mismo a nuestro, más info. vista de nuestras redes sociales.
+                  Publicar tu evento en esta plataforma es muy sencillo, solo tienes que enviarnos los datos del mismo contactando con nosotros. más info,  vista de nuestras redes sociales.
                 </Typography>
               </Box>
 
