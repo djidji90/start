@@ -32,7 +32,7 @@ const colors = {
   gray500: '#9E9E9E',
   gray400: '#BDBDBD',
   gray300: '#E0E0E0',
-  gray200: '#e0e0e0',
+  gray200: '#EEEEEE',
   gray100: '#fafafa',
 };
 
@@ -48,14 +48,17 @@ const eventTypeColors = {
 };
 
 // Traducción de tipos
-const getSpanishEventType = (type) => ({
-  festival: 'Festival',
-  concert: 'Concierto',
-  club: 'Club',
-  streaming: 'Streaming',
-  conference: 'Conferencia',
-  workshop: 'Taller'
-}[type] || type);
+const getSpanishEventType = (type) => {
+  const types = {
+    festival: 'Festival',
+    concert: 'Concierto',
+    club: 'Club',
+    streaming: 'Streaming',
+    conference: 'Conferencia',
+    workshop: 'Taller'
+  };
+  return types[type] || type;
+};
 
 // Animaciones
 const floatAnimation = keyframes`
@@ -70,10 +73,36 @@ const pulseGlow = keyframes`
   100% { box-shadow: 0 0 0 0 ${alpha('#3B82F6', 0)}; }
 `;
 
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
+// Funciones helper fuera del componente
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('es-ES', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const formatShortDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const getInitials = (title) => {
+  return title
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+};
 
 const EventGridViewer = () => {
   const [events, setEvents] = useState([]);
@@ -120,34 +149,12 @@ const EventGridViewer = () => {
     );
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatShortDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getInitials = (title) => {
-    return title
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
+  const handleEventClick = (event) => {
+    const isPast = new Date(event.event_date) < new Date();
+    if (!isPast) {
+      setSelectedEvent(event);
+      setModalOpen(true);
+    }
   };
 
   const closeWelcomeTip = () => {
@@ -197,12 +204,11 @@ const EventGridViewer = () => {
             </Avatar>
             <Box sx={{ flex: 1 }}>
               <Typography variant="subtitle2" fontWeight={600} color={colors.primary} gutterBottom>
-                🇬🇶 Eventos Musicales en Guinea Ecuatorial
+                🇬🇶 Eventos musicales en tu ciudad
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
-                Descubre los próximos conciertos, festivales y eventos. 
-                Guarda tus favoritos para no perdértelos. Cada evento tiene su ritmo único, 
-                como la música que amamos.
+                Descubre los próximos conciertos, festivales y eventos que se celebraran en tu ciudad.
+                Guarda tus favoritos para no perdérte ninguno 😚
               </Typography>
             </Box>
             <IconButton 
@@ -291,10 +297,7 @@ const EventGridViewer = () => {
           return (
             <Grid item xs={6} sm={4} md={3} key={event.id}>
               <Card 
-                onClick={() => !isPast && (() => {
-                  setSelectedEvent(event);
-                  setModalOpen(true);
-                })()}
+                onClick={() => handleEventClick(event)}
                 onMouseEnter={() => setHoveredEvent(event.id)}
                 onMouseLeave={() => setHoveredEvent(null)}
                 sx={{
@@ -707,9 +710,7 @@ const EventGridViewer = () => {
                   🇬🇶 Ritmo Ecuatoguineano
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  Este evento tiene su propio ritmo, como la música que late en 
-                  Malabo y Bata. Los artistas locales están listos para hacerte vibrar 
-                  con los sonidos auténticos de Guinea Ecuatorial.
+                  Publicar tu evento en esta plataforma es muy sencillo, solo tienes que enviarnos los datos del mismo a nuestro, más info. vista de nuestras redes sociales.
                 </Typography>
               </Box>
 
