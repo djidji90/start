@@ -14,7 +14,8 @@ import {
   IconButton,
   alpha,
   Fab,
-  Tooltip
+  Tooltip,
+  Grid
 } from "@mui/material";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
@@ -32,6 +33,8 @@ import useDownload from "../../../components/hook/services/useDownload";
 // 🔥 Importar componentes
 import UploadModal from "../../../upload/UploadModal";
 import EventGridViewer from "../../../components/search/EventGridViewer";
+import ArtistCard from "../../../components/profile/ArtistCard"; // 👈 RUTA CORREGIDA
+import useArtists from "../../../components/hook/services/useArtists"; // 👈 IMPORTAR HOOK DE ARTISTAS
 
 // ============================================
 // 🎨 IDENTIDAD VISUAL - AHORA EN AZUL
@@ -294,6 +297,9 @@ const MainPage = () => {
   // 🔥 Estado para modal de upload
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [showFab, setShowFab] = useState(false);
+
+  // 🔥 Hook para obtener artistas
+  const { artists, loading: artistsLoading } = useArtists();
 
   const {
     query,
@@ -610,6 +616,40 @@ const MainPage = () => {
                 />
               </Box>
             </Grow>
+          </Box>
+        )}
+
+        {/* 🔥 SECCIÓN DE ARTISTAS - JUSTO DEBAJO DE SONG CAROUSEL */}
+        {!artistsLoading && artists.length > 0 && (
+          <Box sx={{ mb: 6 }}>
+            {/* Título de sección con el mismo estilo que TUS BEATS */}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              mb: 3,
+              borderBottom: `2px solid ${alpha(colors.primary, 0.2)}`,
+              pb: 1
+            }}>
+              <Typography variant="h5" sx={{
+                fontWeight: 600,
+                color: colors.textDark,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <MusicNoteIcon sx={{ color: colors.primary }} />
+                ARTISTAS DESTACADOS
+              </Typography>
+            </Box>
+
+            {/* Grid de artistas - responsive */}
+            <Grid container spacing={2}>
+              {artists.slice(0, 6).map((artist) => ( // Mostrar solo 6 artistas
+                <Grid item xs={12} sm={6} key={artist.username}>
+                  <ArtistCard artist={artist} />
+                </Grid>
+              ))}
+            </Grid>
           </Box>
         )}
 

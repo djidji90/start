@@ -2,6 +2,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import "./styles.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from 'react-helmet-async'; // 👈 IMPORTAR HELMET PROVIDER
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import CartDrawer from "./components/CartDrawer";
@@ -13,6 +14,9 @@ import DownloadsPage from "./components/context/DownloadsPage";
 // 🎵 Import Player
 import { PlayerProvider } from "./components/PlayerContext";
 import PlayerBar from "./components/theme/musica/PlayerBar";
+
+// 🔥 IMPORTAR NUEVA PÁGINA DE PERFIL DE ARTISTA
+import ArtistProfile from "./components/profile/ArtistProfile";
 
 // Configuración React Query
 const queryClient = new QueryClient({
@@ -89,45 +93,51 @@ export default function App() {
   const toggleCart = () => setCartOpen(!isCartOpen);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProviderWrapper>
-          {/* 🎵 PlayerProvider a nivel global */}
-          <PlayerProvider>
-            <BrowserRouter>
-              <CartDrawer cartItems={cartItems} isOpen={isCartOpen} toggleDrawer={toggleCart} />
-              <Navbar />
+    <HelmetProvider> {/* 👈 ENVOLVER TODO CON HELMET PROVIDER */}
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemeProviderWrapper>
+            {/* 🎵 PlayerProvider a nivel global */}
+            <PlayerProvider>
+              <BrowserRouter>
+                <CartDrawer cartItems={cartItems} isOpen={isCartOpen} toggleDrawer={toggleCart} />
+                <Navbar />
 
-              <Suspense fallback={<LoadingSpinner />}>
-                <Routes>
-                  <Route path="/" element={<Login />} />
-                  <Route path="/MainPage" element={<MainPage />} />
-                  <Route path="/AboutUS" element={<AboutUs />} />
-                  <Route path="/categoria/:id" element={<CategoriaProductos />} />
-                  <Route path="/SingInPage" element={<Register />} />
-                  <Route path="/ProfilePage" element={<ProfilePage />} />
-                  <Route path="/Todo/*" element={<Todo />} />
-                  <Route path="/TechStyleHub" element={<TechStyleHub />} />
-                  <Route path="/downloads" element={<DownloadsPage />} />
-                  <Route
-                    path="/song/:songId"
-                    element={
-                      <ProtectedRoute>
-                        <MainPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
-              </Suspense>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Routes>
+                    <Route path="/" element={<Login />} />
+                    <Route path="/MainPage" element={<MainPage />} />
+                    <Route path="/AboutUS" element={<AboutUs />} />
+                    <Route path="/categoria/:id" element={<CategoriaProductos />} />
+                    <Route path="/SingInPage" element={<Register />} />
+                    <Route path="/ProfilePage" element={<ProfilePage />} />
+                    <Route path="/Todo/*" element={<Todo />} />
+                    <Route path="/TechStyleHub" element={<TechStyleHub />} />
+                    <Route path="/downloads" element={<DownloadsPage />} />
+                    
+                    {/* 🔥 RUTA PARA PERFIL DE ARTISTA */}
+                    <Route path="/perfil/:username" element={<ArtistProfile />} />
+                    
+                    <Route
+                      path="/song/:songId"
+                      element={
+                        <ProtectedRoute>
+                          <MainPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Routes>
+                </Suspense>
 
-              <Footer />
+                <Footer />
 
-              {/* 🎵 PlayerBar global fijo */}
-              <PlayerBar />
-            </BrowserRouter>
-          </PlayerProvider>
-        </ThemeProviderWrapper>
-      </AuthProvider>
-    </QueryClientProvider>
+                {/* 🎵 PlayerBar global fijo */}
+                <PlayerBar />
+              </BrowserRouter>
+            </PlayerProvider>
+          </ThemeProviderWrapper>
+        </AuthProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 }
