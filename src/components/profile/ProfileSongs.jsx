@@ -1,5 +1,5 @@
-// src/components/profile/ProfileSongs.jsx
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+// src/components/profile/ProfileSongs.jsx (versión final)
+import React, { useCallback, useRef, useEffect } from 'react';
 import {
   Box,
   Grid,
@@ -22,66 +22,73 @@ import {
 } from '@mui/icons-material';
 import SongCard from '../../songs/SongCard';
 
-/**
- * Componente para mostrar el grid de canciones del perfil
- * @param {Array} songs - Lista de canciones
- * @param {Function} onSortChange - Función para cambiar ordenamiento
- * @param {string} currentSort - Criterio actual de ordenamiento
- * @param {boolean} hasMore - Si hay más canciones para cargar
- * @param {Function} onLoadMore - Función para cargar más canciones
- * @param {boolean} loading - Estado de carga
- */
 const ProfileSongs = ({
   songs = [],
   onSortChange,
   currentSort = 'popular',
   hasMore = false,
   onLoadMore,
-  loading = false
+  loading = false,
+  loadingMore = false  // ← NUEVA PROPIEDAD
 }) => {
   const theme = useTheme();
   const primaryColor = theme.palette.primary.main;
-  const observerRef = useRef();
-  const lastSongRef = useRef();
+  const observerRef = useRef(null);
+  const lastSongElementRef = useRef(null);
 
-  // ============================================
-  // CONFIGURACIÓN DE ORDENAMIENTO
-  // ============================================
-  
   const sortOptions = [
-    { value: 'popular', label: 'Populares', icon: Whatshot, tooltip: 'Más populares' },
-    { value: 'recent', label: 'Recientes', icon: NewReleases, tooltip: 'Últimos en subirse' },
-    { value: 'likes', label: 'Likes', icon: Favorite, tooltip: 'Más likes' },
-    { value: 'downloads', label: 'Descargas', icon: Download, tooltip: 'Más descargados' },
+    { value: 'popular', label: 'Populares', icon: Whatshot },
+    { value: 'recent', label: 'Recientes', icon: NewReleases },
+    { value: 'likes', label: 'Likes', icon: Favorite },
+    { value: 'downloads', label: 'Descargas', icon: Download },
   ];
 
   // ============================================
-  // SCROLL INFINITO (opcional)
+  // SCROLL INFINITO
   // ============================================
   
-  useEffect(() => {
-    if (loading || !hasMore || !onLoadMore) return;
+  const observeLastElement = useCallback(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
 
-    const observer = new IntersectionObserver(
+    if (!hasMore || loadingMore || !onLoadMore) return;  // ← USAR loadingMore
+
+    observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasMore && !loadingMore && onLoadMore) {  // ← USAR loadingMore
           onLoadMore();
         }
       },
-      { threshold: 0.5, rootMargin: '100px' }
+      { threshold: 0.1, rootMargin: '200px' }
     );
 
-    if (lastSongRef.current) {
-      observer.observe(lastSongRef.current);
+    if (lastSongElementRef.current) {
+      observerRef.current.observe(lastSongElementRef.current);
     }
+  }, [hasMore, loadingMore, onLoadMore]);  // ← DEPENDENCIA ACTUALIZADA
 
-    return () => observer.disconnect();
-  }, [loading, hasMore, onLoadMore]);
+  useEffect(() => {
+    observeLastElement();
+    return () => observerRef.current?.disconnect();
+  }, [observeLastElement]);
 
   // ============================================
-  // MANEJO DE ORDENAMIENTO
+  // CALLBACK REF
   // ============================================
   
+  const setLastSongRef = useCallback((node) => {
+    lastSongElementRef.current = node;
+    if (node && observerRef.current) {
+      observerRef.current.observe(node);
+    }
+  }, []);
+
+  // ============================================
+  // HANDLERS
+  // ============================================
+
   const handleSortChange = (event, newSort) => {
     if (newSort && onSortChange) {
       onSortChange(newSort);
@@ -89,10 +96,9 @@ const ProfileSongs = ({
   };
 
   // ============================================
-  // RENDER DE ESTADOS
+  // RENDER
   // ============================================
-  
-  // Estado vacío
+
   if (!loading && songs.length === 0) {
     return (
       <Paper
@@ -145,27 +151,11 @@ const ProfileSongs = ({
             exclusive
             onChange={handleSortChange}
             size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                border: 'none',
-                borderRadius: 1.5,
-                px: 2,
-                py: 0.8,
-                color: alpha('#000', 0.6),
-                '&.Mui-selected': {
-                  bgcolor: alpha(primaryColor, 0.1),
-                  color: primaryColor,
-                  '&:hover': {
-                    bgcolor: alpha(primaryColor, 0.15),
-                  }
-                }
-              }
-            }}
           >
             {sortOptions.map(option => (
               <ToggleButton key={option.value} value={option.value}>
                 <option.icon sx={{ fontSize: 16, mr: 0.5 }} />
-                <span style={{ display: 'none', sm: 'inline' }}>{option.label}</span>
+                <span style={{ display: { xs: 'none', sm: 'inline' } }}>{option.label}</span>
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
@@ -176,7 +166,7 @@ const ProfileSongs = ({
       <Grid container spacing={2}>
         {songs.map((song, index) => {
           const isLastElement = index === songs.length - 1 && hasMore;
-          
+
           return (
             <Grid
               item
@@ -185,7 +175,7 @@ const ProfileSongs = ({
               md={3}
               lg={2.4}
               key={song.id}
-              ref={isLastElement ? lastSongRef : null}
+              ref={isLastElement ? setLastSongRef : null}
             >
               <Fade in timeout={300 + (index % 10) * 50}>
                 <Box>
@@ -202,14 +192,14 @@ const ProfileSongs = ({
       </Grid>
 
       {/* Loader para scroll infinito */}
-      {loading && (
+      {loadingMore && (  // ← AHORA USA loadingMore
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress size={32} sx={{ color: primaryColor }} />
         </Box>
       )}
 
-      {/* Botón "Cargar más" (alternativa al scroll infinito) */}
-      {hasMore && !loading && onLoadMore && (
+      {/* Botón "Cargar más" (fallback) */}
+      {hasMore && !loadingMore && onLoadMore && (  // ← AHORA USA loadingMore
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <Button
             variant="outlined"
@@ -234,4 +224,4 @@ const ProfileSongs = ({
   );
 };
 
-export default ProfileSongs;
+export default React.memo(ProfileSongs);
