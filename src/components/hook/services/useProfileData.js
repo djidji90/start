@@ -1,10 +1,7 @@
-// src/components/profile/hooks/useProfileData.js (versión corregida)
+// src/components/hook/services/useProfileData.js
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-/**
- * Hook personalizado para obtener y procesar datos del perfil de un usuario/artista
- */
-const useProfileData = (username) => {
+const useProfileData = (identifier) => {
   // ============================================
   // 1. ESTADOS LOCALES
   // ============================================
@@ -19,7 +16,7 @@ const useProfileData = (username) => {
     genres: [],
   });
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false); // 🔥 NUEVO: estado separado para carga adicional
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     next: null,
@@ -27,29 +24,60 @@ const useProfileData = (username) => {
     count: 0,
   });
 
-  // Referencia para evitar múltiples cargas simultáneas
   const isLoadingMoreRef = useRef(false);
 
   // ============================================
-  // 2. FUNCIÓN PRINCIPAL PARA OBTENER DATOS
+  // 2. DETECTAR TIPO DE IDENTIFICADOR
+  // ============================================
+  
+  // ✅ NUEVO: Detectar si es ID numérico o username string
+  const isId = !isNaN(identifier) && identifier !== '';
+
+  // ============================================
+  // 3. FUNCIÓN PRINCIPAL PARA OBTENER DATOS
   // ============================================
 
   const fetchUserSongs = useCallback(async (url = null) => {
-    const apiUrl = url || `https://api.djidjimusic.com/api2/songs/?uploaded_by__username=${username}`;
-    
-    console.log('📡 Fetching:', apiUrl);
-    
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Error ${response.status}: No se pudo cargar el perfil`);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // ✅ Construir URL según el tipo de identificador
+      let apiUrl;
+      if (url) {
+        apiUrl = url;
+      } else if (isId) {
+        apiUrl = `https://api.djidjimusic.com/api2/songs/?uploaded_by__id=${identifier}`;
+      } else {
+        apiUrl = `https://api.djidjimusic.com/api2/songs/?uploaded_by__username=${identifier}`;
+      }
+
+      console.log('📡 Fetching perfil:', { 
+        identifier, 
+        isId, 
+        apiUrl 
+      });
+
+      const response = await fetch(apiUrl);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { results: [], count: 0, next: null, previous: null };
+        }
+        throw new Error(`Error ${response.status}: No se pudo cargar el perfil`);
+      }
+
+      const data = await response.json();
+      return data;
+
+    } catch (err) {
+      console.error('❌ Error en fetchUserSongs:', err);
+      throw err;
     }
-    
-    return await response.json();
-  }, [username]);
+  }, [identifier, isId]);
 
   // ============================================
-  // 3. CARGA INICIAL
+  // 4. CARGA INICIAL
   // ============================================
 
   const loadInitialData = useCallback(async () => {
@@ -65,7 +93,12 @@ const useProfileData = (username) => {
         setSongs(firstPageData.results);
         calculateStats(firstPageData.results, firstPageData.count || 0);
       } else {
-        setProfile(null);
+        // Usuario existe pero no tiene canciones, crear perfil mínimo
+        setProfile({ 
+          username: identifier,
+          full_name: identifier,
+          profile: { bio: null, avatar_url: null, location: null }
+        });
         setSongs([]);
       }
       
@@ -81,18 +114,13 @@ const useProfileData = (username) => {
     } finally {
       setLoading(false);
     }
-  }, [fetchUserSongs]);
+  }, [fetchUserSongs, identifier]);
 
   // ============================================
-  // 4. CARGA DE MÁS CANCIONES (CORREGIDA)
+  // 5. CARGA DE MÁS CANCIONES
   // ============================================
 
-  /**
-   * Carga la siguiente página de canciones
-   * Versión corregida que evita ciclos infinitos
-   */
   const loadMoreSongs = useCallback(async () => {
-    // Prevenir múltiples cargas simultáneas
     if (loadingMore || isLoadingMoreRef.current || !pagination.next) {
       return;
     }
@@ -107,13 +135,11 @@ const useProfileData = (username) => {
       const pageData = await fetchUserSongs(nextUrl);
       
       if (pageData.results) {
-        // ✅ IMPORTANTE: Usar función actualizadora para evitar closure con songs antiguas
         setSongs(prevSongs => {
           const newSongs = [...prevSongs, ...pageData.results];
           return newSongs;
         });
         
-        // Actualizar paginación
         setPagination(prev => ({
           ...prev,
           next: pageData.next,
@@ -127,17 +153,10 @@ const useProfileData = (username) => {
       setLoadingMore(false);
       isLoadingMoreRef.current = false;
     }
-  }, [loadingMore, pagination.next, fetchUserSongs]); // ✅ SOLO depende de lo necesario
-
-  /**
-   * Versión legacy para compatibilidad (pero ahora usa loadMoreSongs)
-   */
-  const loadAllPages = useCallback(() => {
-    loadMoreSongs();
-  }, [loadMoreSongs]);
+  }, [loadingMore, pagination.next, fetchUserSongs]);
 
   // ============================================
-  // 5. CALCULAR ESTADÍSTICAS AGREGADAS
+  // 6. CALCULAR ESTADÍSTICAS
   // ============================================
 
   const calculateStats = (songsList, totalCount) => {
@@ -163,7 +182,7 @@ const useProfileData = (username) => {
   };
 
   // ============================================
-  // 6. ORDENAR CANCIONES
+  // 7. ORDENAR CANCIONES
   // ============================================
 
   const sortSongs = useCallback((criteria = 'popular') => {
@@ -194,7 +213,7 @@ const useProfileData = (username) => {
   }, []);
 
   // ============================================
-  // 7. FILTRAR POR GÉNERO
+  // 8. FILTRAR POR GÉNERO
   // ============================================
 
   const filterByGenre = useCallback((genre) => {
@@ -209,15 +228,14 @@ const useProfileData = (username) => {
   }, [loadInitialData]);
 
   // ============================================
-  // 8. EFECTO PRINCIPAL
+  // 9. EFECTO PRINCIPAL
   // ============================================
 
   useEffect(() => {
-    if (username) {
+    if (identifier) {
       loadInitialData();
     }
     
-    // Limpiar al desmontar o cambiar username
     return () => {
       setProfile(null);
       setSongs([]);
@@ -225,10 +243,10 @@ const useProfileData = (username) => {
       setError(null);
       isLoadingMoreRef.current = false;
     };
-  }, [username, loadInitialData]);
+  }, [identifier, loadInitialData]);
 
   // ============================================
-  // 9. LO QUE DEVUELVE EL HOOK
+  // 10. LO QUE DEVUELVE EL HOOK
   // ============================================
 
   return {
@@ -236,11 +254,11 @@ const useProfileData = (username) => {
     songs,
     stats,
     loading,
-    loadingMore, // 🔥 NUEVO: para mostrar loader en scroll
+    loadingMore,
     error,
     hasMore: !!pagination.next,
-    loadMoreSongs, // 🔥 NUEVO: función específica para cargar más
-    loadAllPages,  // Mantenido por compatibilidad
+    loadMoreSongs,
+    loadAllPages: loadMoreSongs,
     sortSongs,
     filterByGenre,
     refresh: loadInitialData,
