@@ -1,5 +1,5 @@
 // src/components/profile/ArtistProfile.jsx
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Container,
@@ -13,34 +13,38 @@ import ProfileStats from '../../components/profile/ProfileStats';
 import ProfileSongs from '../../components/profile/ProfileSongs';
 import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
 import UserNotFound from '../../components/profile/UserNotFound';
-import MetaTags from '../../components/profile/MetaTags'; // 👈 IMPORTAR META TAGS
+import MetaTags from '../../components/profile/MetaTags';
 
 const ArtistProfile = () => {
   const { username } = useParams();
   const [sortBy, setSortBy] = useState('popular');
-  
+
+  // 🔥 Obtener loadingMore del hook
   const {
     profile,
     songs,
     stats,
     loading,
+    loadingMore,  // ← NUEVO: estado para carga adicional
     error,
     hasMore,
-    loadAllPages,
+    loadMoreSongs, // ← NUEVO: usar esta función en lugar de loadAllPages
     sortSongs,
-    refresh
   } = useProfileData(username);
 
   // Manejar cambio de ordenamiento
-  const handleSortChange = (newSort) => {
+  const handleSortChange = useCallback((newSort) => {
     setSortBy(newSort);
     sortSongs(newSort);
-  };
+  }, [sortSongs]);
 
-  // Manejar carga de más canciones
-  const handleLoadMore = () => {
-    loadAllPages();
-  };
+  // 🔥 Manejar carga de más canciones (optimizado)
+  const handleLoadMore = useCallback(() => {
+    // Solo cargar si hay más y no está cargando actualmente
+    if (hasMore && !loadingMore) {
+      loadMoreSongs();
+    }
+  }, [hasMore, loadingMore, loadMoreSongs]);
 
   // Mostrar skeleton mientras carga
   if (loading) {
@@ -67,15 +71,15 @@ const ArtistProfile = () => {
 
   return (
     <>
-      {/* 🏷️ META TAGS DINÁMICOS PARA COMPARTIR EN REDES */}
+      {/* 🏷️ META TAGS DINÁMICOS */}
       <MetaTags profile={profile} username={username} />
-      
+
       <Fade in timeout={500}>
         <Container maxWidth="lg" sx={{ py: 4 }}>
           {/* Cabecera */}
           <ProfileHeader 
             profile={profile}
-            isOwner={false} // TODO: Implementar lógica de autenticación
+            isOwner={false}
           />
 
           {/* Estadísticas */}
@@ -84,7 +88,7 @@ const ArtistProfile = () => {
             genres={stats.genres}
           />
 
-          {/* Canciones */}
+          {/* Canciones - AHORA CON loadingMore */}
           <ProfileSongs
             songs={songs}
             currentSort={sortBy}
@@ -92,6 +96,7 @@ const ArtistProfile = () => {
             hasMore={hasMore}
             onLoadMore={handleLoadMore}
             loading={loading}
+            loadingMore={loadingMore}  // ← NUEVA PROP
           />
         </Container>
       </Fade>
@@ -99,4 +104,4 @@ const ArtistProfile = () => {
   );
 };
 
-export default ArtistProfile;
+export default React.memo(ArtistProfile); 
