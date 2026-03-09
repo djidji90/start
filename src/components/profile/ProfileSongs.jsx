@@ -1,4 +1,4 @@
-// src/components/profile/ProfileSongs.jsx (versión final)
+// src/components/profile/ProfileSongs.jsx
 import React, { useCallback, useRef, useEffect } from 'react';
 import {
   Box,
@@ -29,7 +29,7 @@ const ProfileSongs = ({
   hasMore = false,
   onLoadMore,
   loading = false,
-  loadingMore = false  // ← NUEVA PROPIEDAD
+  loadingMore = false
 }) => {
   const theme = useTheme();
   const primaryColor = theme.palette.primary.main;
@@ -44,34 +44,50 @@ const ProfileSongs = ({
   ];
 
   // ============================================
-  // SCROLL INFINITO
+  // SCROLL INFINITO - VERSIÓN ESTABLE
   // ============================================
   
   const observeLastElement = useCallback(() => {
+    // Desconectar observer anterior
     if (observerRef.current) {
       observerRef.current.disconnect();
     }
 
-    if (!hasMore || loadingMore || !onLoadMore) return;  // ← USAR loadingMore
+    // No observar si no hay más elementos o está cargando
+    if (!hasMore || loadingMore || !onLoadMore) return;
 
+    // Crear nuevo observer
     observerRef.current = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
-        if (entry.isIntersecting && hasMore && !loadingMore && onLoadMore) {  // ← USAR loadingMore
+        // Solo llamar si es visible, hay más, no está cargando
+        if (entry.isIntersecting && hasMore && !loadingMore && onLoadMore) {
+          console.log('🔄 Cargando más canciones...');
           onLoadMore();
         }
       },
-      { threshold: 0.1, rootMargin: '200px' }
+      {
+        threshold: 0.1,
+        rootMargin: '200px',
+      }
     );
 
+    // Observar el último elemento
     if (lastSongElementRef.current) {
       observerRef.current.observe(lastSongElementRef.current);
     }
-  }, [hasMore, loadingMore, onLoadMore]);  // ← DEPENDENCIA ACTUALIZADA
+  }, [hasMore, loadingMore, onLoadMore]);
 
+  // Efecto para manejar el observer
   useEffect(() => {
     observeLastElement();
-    return () => observerRef.current?.disconnect();
+    
+    // Limpiar al desmontar
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
   }, [observeLastElement]);
 
   // ============================================
@@ -80,6 +96,7 @@ const ProfileSongs = ({
   
   const setLastSongRef = useCallback((node) => {
     lastSongElementRef.current = node;
+    // Reconectar observer si existe
     if (node && observerRef.current) {
       observerRef.current.observe(node);
     }
@@ -104,9 +121,9 @@ const ProfileSongs = ({
       <Paper
         elevation={0}
         sx={{
-          p: 6,
+          p: { xs: 4, sm: 6 },
           textAlign: 'center',
-          borderRadius: 3,
+          borderRadius: { xs: 2, sm: 3 },
           bgcolor: alpha(primaryColor, 0.02),
           border: `1px solid ${alpha(primaryColor, 0.1)}`,
         }}
@@ -122,48 +139,43 @@ const ProfileSongs = ({
   }
 
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box sx={{ mt: { xs: 2, sm: 3, md: 4 } }}>
       {/* Header con ordenamiento */}
       <Box sx={{
         display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
         justifyContent: 'space-between',
-        alignItems: 'center',
-        mb: 3,
-        flexWrap: 'wrap',
-        gap: 2
+        alignItems: { xs: 'stretch', sm: 'center' },
+        mb: { xs: 2, sm: 3 },
+        gap: { xs: 1.5, sm: 2 }
       }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SortIcon sx={{ color: primaryColor }} />
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
           Canciones {songs.length > 0 && `(${songs.length})`}
         </Typography>
 
-        <Paper
-          elevation={0}
+        <ToggleButtonGroup
+          value={currentSort}
+          exclusive
+          onChange={handleSortChange}
+          size="small"
           sx={{
-            p: 0.5,
-            bgcolor: alpha(primaryColor, 0.05),
-            borderRadius: 2,
-            border: `1px solid ${alpha(primaryColor, 0.1)}`,
+            width: { xs: '100%', sm: 'auto' },
+            '& .MuiToggleButton-root': {
+              flex: { xs: 1, sm: 'none' },
+            }
           }}
         >
-          <ToggleButtonGroup
-            value={currentSort}
-            exclusive
-            onChange={handleSortChange}
-            size="small"
-          >
-            {sortOptions.map(option => (
-              <ToggleButton key={option.value} value={option.value}>
-                <option.icon sx={{ fontSize: 16, mr: 0.5 }} />
-                <span style={{ display: { xs: 'none', sm: 'inline' } }}>{option.label}</span>
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Paper>
+          {sortOptions.map(option => (
+            <ToggleButton key={option.value} value={option.value}>
+              <option.icon sx={{ fontSize: 16, mr: 0.5 }} />
+              <span style={{ display: { xs: 'none', sm: 'inline' } }}>{option.label}</span>
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
       </Box>
 
       {/* Grid de canciones */}
-      <Grid container spacing={2}>
+      <Grid container spacing={{ xs: 1, sm: 1.5, md: 2 }}>
         {songs.map((song, index) => {
           const isLastElement = index === songs.length - 1 && hasMore;
 
@@ -191,29 +203,26 @@ const ProfileSongs = ({
         })}
       </Grid>
 
-      {/* Loader para scroll infinito */}
-      {loadingMore && (  // ← AHORA USA loadingMore
+      {/* Loader para scroll infinito - USAR loadingMore */}
+      {loadingMore && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress size={32} sx={{ color: primaryColor }} />
         </Box>
       )}
 
-      {/* Botón "Cargar más" (fallback) */}
-      {hasMore && !loadingMore && onLoadMore && (  // ← AHORA USA loadingMore
+      {/* Botón "Cargar más" (fallback) - USAR loadingMore */}
+      {hasMore && !loadingMore && onLoadMore && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <Button
             variant="outlined"
             onClick={onLoadMore}
+            fullWidth={false}
             sx={{
               borderColor: alpha(primaryColor, 0.3),
               color: primaryColor,
               px: 4,
               py: 1,
               borderRadius: 2,
-              '&:hover': {
-                borderColor: primaryColor,
-                bgcolor: alpha(primaryColor, 0.04),
-              }
             }}
           >
             Cargar más canciones
