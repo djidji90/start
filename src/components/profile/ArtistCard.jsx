@@ -2,23 +2,22 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Card,
-  CardContent,
   Typography,
   Avatar,
   Box,
   alpha,
   useTheme,
   Tooltip,
-  Stack
+  Fade
 } from '@mui/material';
 import { MusicNote } from '@mui/icons-material';
 
 /**
- * Tarjeta horizontal para mostrar artista
+ * Tarjeta circular para mostrar artista (estilo Spotify)
  * @param {Object} artist - Datos del artista
+ * @param {number} index - Índice para animación
  */
-const ArtistCard = ({ artist }) => {
+const ArtistCard = ({ artist, index = 0 }) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const [imageError, setImageError] = useState(false);
@@ -59,48 +58,53 @@ const ArtistCard = ({ artist }) => {
   const displayName = artist.name || artist.username;
 
   const handleClick = () => {
-    navigate(`/perfil/${artist.username}`);
+    navigate(`/perfil/${artist.id}`);
   };
 
   return (
-    <Card
-      onClick={handleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        cursor: 'pointer',
-        borderRadius: 2,
-        bgcolor: '#FFFFFF',
-        border: `1px solid ${alpha(artistColor, 0.2)}`,
-        boxShadow: isHovered 
-          ? `0 4px 12px ${alpha(artistColor, 0.2)}`
-          : '0 2px 8px rgba(0,0,0,0.05)',
-        transition: 'all 0.2s ease',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          borderColor: artistColor,
-          boxShadow: `0 8px 20px ${alpha(artistColor, 0.25)}`,
-        },
-        width: '100%',
-        maxWidth: '100%',
-      }}
-    >
-      {/* Avatar circular a la izquierda */}
-      <Box sx={{ p: 1.5, pr: 1 }}>
+    <Fade in timeout={500 + index * 100}>
+      <Box
+        onClick={handleClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          cursor: 'pointer',
+          width: '100%',
+          maxWidth: 180,
+          mx: 'auto',
+          transition: 'transform 0.2s ease',
+          transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+        }}
+      >
+        {/* Contenedor circular - como Spotify */}
         <Box
           sx={{
             position: 'relative',
-            width: 56,
-            height: 56,
+            width: '100%',
+            aspectRatio: '1/1',
             borderRadius: '50%',
             overflow: 'hidden',
-            border: `2px solid ${isHovered ? artistColor : alpha(artistColor, 0.3)}`,
-            boxShadow: isHovered ? `0 4px 12px ${alpha(artistColor, 0.3)}` : 'none',
-            transition: 'all 0.2s ease',
+            boxShadow: isHovered 
+              ? `0 8px 20px ${alpha(artistColor, 0.4)}`
+              : '0 4px 12px rgba(0,0,0,0.1)',
+            transition: 'all 0.3s ease',
+            '&::after': isHovered ? {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              borderRadius: '50%',
+              boxShadow: `inset 0 0 0 2px ${alpha(artistColor, 0.5)}`,
+              pointerEvents: 'none',
+            } : {},
           }}
         >
+          {/* Imagen o iniciales */}
           {artist.avatar_url && !imageError ? (
             <Avatar
               src={artist.avatar_url}
@@ -120,85 +124,108 @@ const ArtistCard = ({ artist }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                bgcolor: alpha(artistColor, 0.8),
+                background: `linear-gradient(135deg, ${alpha(artistColor, 0.9)}, ${alpha(artistColor, 0.7)})`,
                 color: 'white',
-                fontSize: '1.2rem',
+                fontSize: '2rem',
                 fontWeight: 600,
               }}
             >
               {getInitials()}
             </Box>
           )}
-        </Box>
-      </Box>
 
-      {/* Contenido a la derecha */}
-      <CardContent sx={{ 
-        flex: 1, 
-        p: 1.5, 
-        pl: 0.5,
-        '&:last-child': { pb: 1.5 }
-      }}>
-        <Stack spacing={0.5}>
-          {/* Nombre y username */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {/* Overlay en hover - estilo Spotify */}
+          {isHovered && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                bgcolor: alpha('#000', 0.3),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  bgcolor: alpha(artistColor, 0.9),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transform: 'scale(0.8)',
+                  animation: 'scaleIn 0.2s ease forwards',
+                  '@keyframes scaleIn': {
+                    from: { transform: 'scale(0.8)', opacity: 0 },
+                    to: { transform: 'scale(1)', opacity: 1 },
+                  },
+                }}
+              >
+                <MusicNote sx={{ color: 'white', fontSize: 24 }} />
+              </Box>
+            </Box>
+          )}
+        </Box>
+
+        {/* Información debajo del círculo */}
+        <Box sx={{ 
+          textAlign: 'center', 
+          mt: 1.5, 
+          width: '100%',
+          px: 1
+        }}>
+          {/* Nombre del artista */}
+          <Tooltip title={displayName} arrow placement="top">
             <Typography
               sx={{
                 fontWeight: 600,
-                fontSize: '0.95rem',
+                fontSize: '0.9rem',
                 color: isHovered ? artistColor : 'text.primary',
                 transition: 'color 0.2s ease',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
               {displayName}
             </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: alpha('#000', 0.4),
-                fontSize: '0.7rem',
-              }}
-            >
-              @{artist.username}
+          </Tooltip>
+
+          {/* Badge de canciones */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            gap: 0.3,
+            mt: 0.5
+          }}>
+            <MusicNote sx={{ fontSize: 10, color: alpha('#000', 0.4) }} />
+            <Typography variant="caption" sx={{ color: alpha('#000', 0.5), fontWeight: 500 }}>
+              {artist.songs_count} canciones
             </Typography>
           </Box>
 
-          {/* Badge de canciones y ubicación */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-              <MusicNote sx={{ fontSize: 12, color: artistColor }} />
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                {artist.songs_count} canciones
-              </Typography>
-            </Box>
-
-            {artist.location && (
-              <Typography variant="caption" sx={{ color: alpha('#000', 0.4) }}>
-                📍 {artist.location}
-              </Typography>
-            )}
-          </Box>
-
-          {/* Bio corta si existe */}
-          {artist.bio && (
-            <Typography
-              variant="caption"
-              sx={{
-                color: alpha('#000', 0.6),
-                display: 'block',
-                fontSize: '0.7rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: 200,
-              }}
-            >
-              {artist.bio}
-            </Typography>
-          )}
-        </Stack>
-      </CardContent>
-    </Card>
+          {/* Username (opcional, pequeño) */}
+          <Typography
+            variant="caption"
+            sx={{
+              color: alpha('#000', 0.3),
+              fontSize: '0.65rem',
+              display: 'block',
+              mt: 0.25,
+            }}
+          >
+            @{artist.username}
+          </Typography>
+        </Box>
+      </Box>
+    </Fade>
   );
 };
 

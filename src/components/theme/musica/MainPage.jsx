@@ -33,8 +33,9 @@ import useDownload from "../../../components/hook/services/useDownload";
 // 🔥 Importar componentes
 import UploadModal from "../../../upload/UploadModal";
 import EventGridViewer from "../../../components/search/EventGridViewer";
-import ArtistCard from "../../../components/profile/ArtistCard"; // 👈 RUTA CORREGIDA
-import useArtists from "../../../components/hook/services/useArtists"; // 👈 IMPORTAR HOOK DE ARTISTAS
+import ArtistCard from "../../../components/profile/ArtistCard";
+import useArtists from "../../../components/hook/services/useArtists";
+import ArtistCarouselHorizontal from "../../../components/profile/ArtistCarouselHorizontal";
 
 // ============================================
 // 🎨 IDENTIDAD VISUAL - AHORA EN AZUL
@@ -430,22 +431,18 @@ const MainPage = () => {
     const imageUrl = item.image_url || item.cover || item.album_cover || item.thumbnail || null;
     const finalImageUrl = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=3B82F6&color=fff&size=200&bold=true&length=2&font-size=0.50`;
 
-    // ✅ VERSIÓN CORREGIDA: Incluye TODOS los campos necesarios
     const newSong = {
       id: songId,
       title: item.title || "Sin título",
       artist: item.artist || "Artista desconocido",
       artist_id: item.artist_id || item.artistId || null,
       genre: item.genre || "Desconocido",
-      // ⚠️ IMPORTANTE: Mantener duration como viene del backend (puede ser null)
-      duration: item.duration, // Sin placeholder
+      duration: item.duration,
       cover: finalImageUrl,
       image_url: finalImageUrl,
       image: finalImageUrl,
       addedAt: new Date().toISOString(),
-      // ✅ NUEVO: Incluir contador de descargas
       downloads_count: item.downloads_count || 0,
-      // ✅ NUEVO: Incluir otros campos útiles
       likes_count: item.likes_count || 0,
       plays_count: item.plays_count || 0,
       file_key: item.file_key,
@@ -478,7 +475,6 @@ const MainPage = () => {
 
   return (
     <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh", position: "relative" }}>
-      {/* HERO con prop onUploadClick */}
       <Hero onUploadClick={() => setUploadModalOpen(true)} />
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
@@ -575,37 +571,128 @@ const MainPage = () => {
           )}
         </Box>
 
-        {/* CANCIONES SELECCIONADAS - AHORA CON CONTADOR DE DESCARGAS */}
+        {/* ============================================ */}
+        {/* 🎵 SECCIÓN TUS BEATS - VERSIÓN PREMIUM */}
+        {/* ============================================ */}
         {selectedSongs.length > 0 && (
           <Box ref={selectedSongsRef} sx={{ mb: 6 }}>
+            {/* Header con diseño premium */}
             <Box sx={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              mb: 2,
-              borderBottom: `2px solid ${alpha(colors.primary, 0.2)}`,
-              pb: 1
+              mb: 3,
+              position: 'relative',
             }}>
-              <Typography variant="h5" sx={{
-                fontWeight: 600,
-                color: colors.textDark,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
+              {/* Línea decorativa izquierda */}
+              <Box sx={{
+                width: 4,
+                height: 32,
+                background: `linear-gradient(180deg, ${colors.primary}, ${alpha(colors.primary, 0.3)})`,
+                borderRadius: 2,
+                mr: 2,
+              }} />
+
+              {/* Título con icono animado */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
+                flex: 1,
               }}>
-                <MusicNoteIcon sx={{ color: colors.primary }} />
-                TUS BEATS ({selectedSongs.length})
-              </Typography>
-              <IconButton
-                onClick={handleClearAllSongs}
-                size="small"
-                sx={{ color: colors.gray600, '&:hover': { color: colors.primary } }}
-                title="Eliminar todas"
-              >
-                <DeleteSweepIcon />
-              </IconButton>
+                <Box sx={{
+                  position: 'relative',
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    top: -4,
+                    left: -4,
+                    right: -4,
+                    bottom: -4,
+                    borderRadius: '50%',
+                    background: `radial-gradient(circle, ${alpha(colors.primary, 0.2)} 0%, transparent 70%)`,
+                    animation: 'pulse 2s infinite',
+                    zIndex: 0,
+                  },
+                  '@keyframes pulse': {
+                    '0%': { transform: 'scale(0.95)', opacity: 0.5 },
+                    '50%': { transform: 'scale(1.2)', opacity: 0.8 },
+                    '100%': { transform: 'scale(0.95)', opacity: 0.5 },
+                  }
+                }}>
+                  <MusicNoteIcon 
+                    sx={{ 
+                      color: colors.primary,
+                      fontSize: 32,
+                      filter: `drop-shadow(0 4px 8px ${alpha(colors.primary, 0.3)})`,
+                      position: 'relative',
+                      zIndex: 1,
+                    }} 
+                  />
+                </Box>
+                
+                <Box>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 800,
+                      fontSize: { xs: '1.5rem', sm: '2rem' },
+                      background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    TUS BEATS
+                  </Typography>
+                  
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: alpha(colors.primary, 0.6),
+                      fontWeight: 500,
+                      fontSize: '0.8rem',
+                      display: 'block',
+                    }}
+                  >
+                    {selectedSongs.length} {selectedSongs.length === 1 ? 'canción seleccionada' : 'canciones seleccionadas'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Botón eliminar con diseño premium */}
+              <Tooltip title="Eliminar todas las canciones" arrow>
+                <IconButton
+                  onClick={handleClearAllSongs}
+                  sx={{
+                    bgcolor: alpha('#f44336', 0.1),
+                    color: '#f44336',
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha('#f44336', 0.2)}`,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: alpha('#f44336', 0.2),
+                      transform: 'scale(1.05)',
+                      boxShadow: `0 8px 16px ${alpha('#f44336', 0.3)}`,
+                      '& .MuiSvgIcon-root': {
+                        transform: 'rotate(10deg)',
+                      }
+                    },
+                  }}
+                >
+                  <DeleteSweepIcon sx={{ 
+                    fontSize: 24,
+                    transition: 'transform 0.2s ease',
+                  }} />
+                </IconButton>
+              </Tooltip>
             </Box>
 
+            {/* Contenido con animación */}
             <Grow in timeout={500}>
               <Box>
                 <SongCarousel
@@ -613,44 +700,20 @@ const MainPage = () => {
                   title=""
                   onRemoveSong={handleRemoveSong}
                   showRemoveButton={true}
+                  variant="compact"
                 />
               </Box>
             </Grow>
           </Box>
         )}
 
-        {/* 🔥 SECCIÓN DE ARTISTAS - JUSTO DEBAJO DE SONG CAROUSEL */}
+        {/* 🔥 CARRUSEL DE ARTISTAS - ESTILO SPOTIFY */}
         {!artistsLoading && artists.length > 0 && (
-          <Box sx={{ mb: 6 }}>
-            {/* Título de sección con el mismo estilo que TUS BEATS */}
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              mb: 3,
-              borderBottom: `2px solid ${alpha(colors.primary, 0.2)}`,
-              pb: 1
-            }}>
-              <Typography variant="h5" sx={{
-                fontWeight: 600,
-                color: colors.textDark,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <MusicNoteIcon sx={{ color: colors.primary }} />
-                ARTISTAS DESTACADOS
-              </Typography>
-            </Box>
-
-            {/* Grid de artistas - responsive */}
-            <Grid container spacing={2}>
-              {artists.slice(0, 6).map((artist) => ( // Mostrar solo 6 artistas
-                <Grid item xs={12} sm={6} key={artist.username}>
-                  <ArtistCard artist={artist} />
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
+          <ArtistCarouselHorizontal
+            artists={artists}
+            title=""
+            loading={artistsLoading}
+          />
         )}
 
         {/* SEPARADOR */}
@@ -685,7 +748,7 @@ const MainPage = () => {
           <ArtistCarousel />
         </Box>
 
-        {/* 🔥 NUEVA SECCIÓN DE EVENTOS */}
+        {/* SECCIÓN DE EVENTOS */}
         <Box sx={{ mb: 6 }}>
           <EventGridViewer />
         </Box>
@@ -751,7 +814,7 @@ const MainPage = () => {
         </Snackbar>
       </Container>
 
-      {/* 🔥 FAB DE UPLOAD */}
+      {/* FAB DE UPLOAD */}
       <Fade in={showFab} timeout={800}>
         <Tooltip 
           title="Subir mi música" 
@@ -797,7 +860,7 @@ const MainPage = () => {
         </Tooltip>
       </Fade>
 
-      {/* 🔥 MODAL DE UPLOAD */}
+      {/* MODAL DE UPLOAD */}
       <UploadModal 
         open={uploadModalOpen} 
         onClose={() => setUploadModalOpen(false)} 

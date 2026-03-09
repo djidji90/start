@@ -11,7 +11,8 @@ const MetaTags = ({ profile, username }) => {
   // Datos del perfil
   const fullName = profile?.full_name || username;
   const bio = profile?.profile?.bio || `Artista en DjidjiMusic. Descubre su música y apoya el talento de Guinea Ecuatorial.`;
-  const avatarUrl = profile?.profile?.avatar_url || 'https://djidjimusic.com/og-image.jpg';
+  // ✅ Usar la imagen local como respaldo
+  const avatarUrl = profile?.profile?.avatar_url || '/web-app-icon-192-v2.png';
   const songsCount = profile?.profile?.songs_uploaded || 0;
   
   // URL canónica

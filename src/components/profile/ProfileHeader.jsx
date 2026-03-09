@@ -1,14 +1,16 @@
+// src/components/profile/ProfileHeader.jsx
 import React from 'react';
-import { 
-  Paper, 
-  Box, 
-  Avatar, 
-  Typography, 
-  Chip, 
-  IconButton, 
-  Tooltip 
+import {
+  Box,
+  Typography,
+  Avatar,
+  Chip,
+  alpha,
+  useTheme,
+  Paper,
+  IconButton,
+  Tooltip
 } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
 import {
   LocationOn,
   Link as LinkIcon,
@@ -17,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import ShareButton from '../../components/profile/ShareButton'; // 👈 IMPORTAR SHARE BUTTON
 
 /**
  * Componente para mostrar la cabecera del perfil de usuario/artista
@@ -193,11 +196,12 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
               </Typography>
             )}
 
-            {/* Metadata chips */}
+            {/* Metadata chips + Share Button */}
             <Box sx={{
               display: 'flex',
               flexWrap: 'wrap',
               gap: 1.5,
+              alignItems: 'center',
               justifyContent: { xs: 'center', sm: 'flex-start' }
             }}>
               {/* Ubicación */}
@@ -247,6 +251,9 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
                   '& .MuiChip-icon': { color: primaryColor }
                 }}
               />
+
+              {/* 🔥 BOTÓN DE COMPARTIR */}
+              <ShareButton profile={profile} username={profile.username} />
             </Box>
           </Box>
         </Box>
