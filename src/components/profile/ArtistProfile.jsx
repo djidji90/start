@@ -1,5 +1,5 @@
 // src/components/profile/ArtistProfile.jsx
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LoginIcon from '@mui/icons-material/Login';
-import { useAuth } from '../../components/hook/UseAut'; // Ajusta la ruta según tu proyecto
+import { AuthContext } from '../../components/hook/UseAut'; // 👈 IMPORTAR CONTEXTO
 import useProfileData from '../../components/hook/services/useProfileData';
 import ProfileHeader from '../../components/profile/ProfileHeader';
 import ProfileStats from '../../components/profile/ProfileStats';
@@ -27,7 +27,10 @@ import MetaTags from '../../components/profile/MetaTags';
 const ArtistProfile = () => {
   const { username } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth(); // Hook de autenticación
+  
+  // 👈 USAR CONTEXTO DIRECTAMENTE
+  const { isAuthenticated } = useContext(AuthContext);
+  
   const [sortBy, setSortBy] = useState('popular');
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [promptDismissed, setPromptDismissed] = useState(false);
@@ -66,8 +69,8 @@ const ArtistProfile = () => {
 
   const handleLoginRedirect = () => {
     // Guardar la URL actual para volver después del login
-    sessionStorage.setItem('redirectAfterLogin', );
-    navigate('/'); // Ajusta la ruta de login según tu app
+    sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+    navigate('/login'); // Ajusta la ruta de login según tu app
   };
 
   const handleDismissPrompt = () => {
@@ -271,4 +274,3 @@ const ArtistProfile = () => {
 };
 
 export default React.memo(ArtistProfile);
-
