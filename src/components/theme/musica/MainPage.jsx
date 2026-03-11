@@ -38,23 +38,6 @@ import useArtists from "../../../components/hook/services/useArtists";
 import ArtistCarouselHorizontal from "../../../components/profile/ArtistCarouselHorizontal";
 
 // ============================================
-// 🎨 IDENTIDAD VISUAL - AHORA EN AZUL
-// ============================================
-const colors = {
-  primary: '#3B82F6',        // Azul vibrante
-  primaryLight: '#60A5FA',   // Azul claro
-  primaryDark: '#2563EB',    // Azul oscuro
-  textDark: '#1a1a1a',
-  textLight: '#FFFFFF',
-  gray600: '#666666',
-  gray500: '#9E9E9E',
-  gray400: '#BDBDBD',
-  gray300: '#E0E0E0',
-  gray200: '#e0e0e0',
-  gray100: '#fafafa',
-};
-
-// ============================================
 // 🎵 FUNCIÓN AUXILIAR PARA IMAGEN DE CANCIÓN
 // ============================================
 const getSongImageUrl = (song) => {
@@ -83,6 +66,7 @@ const getSongImageUrl = (song) => {
 // 🎵 HERO SECTION CON UPLOAD (SIN REDIRECCIÓN)
 // ============================================
 const Hero = ({ onUploadClick }) => {
+  const theme = useTheme();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -138,7 +122,7 @@ const Hero = ({ onUploadClick }) => {
           <Box sx={{
             width: "100%",
             height: "100%",
-            background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 50%, #93C5FD 100%)`,
+            background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 50%, ${alpha(theme.palette.primary.light, 0.8)} 100%)`,
           }} />
         )}
 
@@ -155,7 +139,7 @@ const Hero = ({ onUploadClick }) => {
             content: '""',
             position: "absolute",
             inset: 0,
-            background: `radial-gradient(circle at 70% 30%, ${alpha(colors.primary, 0.1)} 0%, transparent 60%)`,
+            background: `radial-gradient(circle at 70% 30%, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 60%)`,
             mixBlendMode: 'overlay'
           }
         }} />
@@ -221,7 +205,7 @@ const Hero = ({ onUploadClick }) => {
             component="button"
             onClick={handleExploreClick}
             sx={{
-              bgcolor: colors.primary,
+              bgcolor: theme.palette.primary.main,
               color: "white",
               border: "none",
               px: 5,
@@ -231,12 +215,12 @@ const Hero = ({ onUploadClick }) => {
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.2s ease",
-              boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
               backdropFilter: "blur(4px)",
               "&:hover": {
-                bgcolor: colors.primaryDark,
+                bgcolor: theme.palette.primary.dark,
                 transform: "translateY(-2px)",
-                boxShadow: `0 8px 20px ${alpha(colors.primary, 0.4)}`
+                boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.4)}`
               }
             }}
           >
@@ -474,7 +458,11 @@ const MainPage = () => {
   };
 
   return (
-    <Box sx={{ backgroundColor: "#ffffff", minHeight: "100vh", position: "relative" }}>
+    <Box sx={{ 
+      backgroundColor: theme.palette.background.default, 
+      minHeight: "100vh", 
+      position: "relative" 
+    }}>
       <Hero onUploadClick={() => setUploadModalOpen(true)} />
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
@@ -492,16 +480,16 @@ const MainPage = () => {
               width: 40,
               height: 40,
               borderRadius: '12px',
-              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
               color: 'white',
               fontSize: '0.95rem',
               fontWeight: 700,
-              boxShadow: `0 4px 12px ${alpha(colors.primary, 0.3)}`,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
               cursor: 'pointer',
               transition: 'transform 0.2s',
               '&:hover': {
                 transform: 'scale(1.05)',
-                boxShadow: `0 6px 16px ${alpha(colors.primary, 0.4)}`
+                boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.4)}`
               }
             }}
             onClick={() => selectedSongsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -516,11 +504,13 @@ const MainPage = () => {
         <Box ref={searchBarRef} sx={{ maxWidth: 600, mx: "auto", mb: 4, position: "relative" }}>
           <Paper elevation={0} sx={{
             borderRadius: "12px",
-            bgcolor: colors.gray100,
-            border: `1px solid ${colors.gray200}`,
+            bgcolor: theme.palette.mode === 'light' 
+              ? theme.palette.grey[100] 
+              : theme.palette.grey[900],
+            border: `1px solid ${theme.palette.divider}`,
             '&:focus-within': {
-              borderColor: colors.gray500,
-              boxShadow: `0 0 0 3px ${alpha(colors.gray500, 0.15)}`,
+              borderColor: theme.palette.primary.main,
+              boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
             },
             transition: 'all 0.2s ease'
           }}>
@@ -562,7 +552,7 @@ const MainPage = () => {
                 display: 'block',
                 textAlign: 'center',
                 mt: 1.5,
-                color: colors.gray600,
+                color: theme.palette.text.secondary,
                 fontStyle: 'italic'
               }}
             >
@@ -588,7 +578,7 @@ const MainPage = () => {
               <Box sx={{
                 width: 4,
                 height: 32,
-                background: `linear-gradient(180deg, ${colors.primary}, ${alpha(colors.primary, 0.3)})`,
+                background: `linear-gradient(180deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.main, 0.3)})`,
                 borderRadius: 2,
                 mr: 2,
               }} />
@@ -610,7 +600,7 @@ const MainPage = () => {
                     right: -4,
                     bottom: -4,
                     borderRadius: '50%',
-                    background: `radial-gradient(circle, ${alpha(colors.primary, 0.2)} 0%, transparent 70%)`,
+                    background: `radial-gradient(circle, ${alpha(theme.palette.primary.main, 0.2)} 0%, transparent 70%)`,
                     animation: 'pulse 2s infinite',
                     zIndex: 0,
                   },
@@ -622,22 +612,22 @@ const MainPage = () => {
                 }}>
                   <MusicNoteIcon 
                     sx={{ 
-                      color: colors.primary,
+                      color: theme.palette.primary.main,
                       fontSize: 32,
-                      filter: `drop-shadow(0 4px 8px ${alpha(colors.primary, 0.3)})`,
+                      filter: `drop-shadow(0 4px 8px ${alpha(theme.palette.primary.main, 0.3)})`,
                       position: 'relative',
                       zIndex: 1,
                     }} 
                   />
                 </Box>
-                
+
                 <Box>
                   <Typography 
                     variant="h4" 
                     sx={{ 
                       fontWeight: 800,
                       fontSize: { xs: '1.5rem', sm: '2rem' },
-                      background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryLight})`,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
                       backgroundClip: 'text',
                       WebkitBackgroundClip: 'text',
                       color: 'transparent',
@@ -647,11 +637,11 @@ const MainPage = () => {
                   >
                     TUS BEATS
                   </Typography>
-                  
+
                   <Typography
                     variant="caption"
                     sx={{
-                      color: alpha(colors.primary, 0.6),
+                      color: alpha(theme.palette.primary.main, 0.6),
                       fontWeight: 500,
                       fontSize: '0.8rem',
                       display: 'block',
@@ -667,17 +657,17 @@ const MainPage = () => {
                 <IconButton
                   onClick={handleClearAllSongs}
                   sx={{
-                    bgcolor: alpha('#f44336', 0.1),
-                    color: '#f44336',
+                    bgcolor: alpha(theme.palette.error.main, 0.1),
+                    color: theme.palette.error.main,
                     width: 48,
                     height: 48,
                     borderRadius: 2,
-                    border: `1px solid ${alpha('#f44336', 0.2)}`,
+                    border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      bgcolor: alpha('#f44336', 0.2),
+                      bgcolor: alpha(theme.palette.error.main, 0.2),
                       transform: 'scale(1.05)',
-                      boxShadow: `0 8px 16px ${alpha('#f44336', 0.3)}`,
+                      boxShadow: `0 8px 16px ${alpha(theme.palette.error.main, 0.3)}`,
                       '& .MuiSvgIcon-root': {
                         transform: 'rotate(10deg)',
                       }
@@ -727,14 +717,14 @@ const MainPage = () => {
           <Box sx={{
             width: '40px',
             height: '2px',
-            background: `linear-gradient(90deg, ${colors.primary}, ${alpha(colors.primary, 0.3)})`,
+            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.main, 0.3)})`,
             borderRadius: '2px'
           }} />
-          <Typography sx={{ color: alpha(colors.primary, 0.5), fontSize: '1.1rem' }}>♫</Typography>
+          <Typography sx={{ color: alpha(theme.palette.primary.main, 0.5), fontSize: '1.1rem' }}>♫</Typography>
           <Box sx={{
             width: '40px',
             height: '2px',
-            background: `linear-gradient(90deg, ${alpha(colors.primary, 0.3)}, ${colors.primary})`,
+            background: `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.3)}, ${theme.palette.primary.main})`,
             borderRadius: '2px'
           }} />
         </Box>
@@ -763,25 +753,37 @@ const MainPage = () => {
           pt: 4,
           pb: 2,
           textAlign: 'center',
-          borderTop: `1px solid ${alpha(colors.primary, 0.1)}`
+          borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
         }}>
-          <Typography variant="body2" sx={{ color: colors.gray600, fontWeight: 400 }}>
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 400 }}>
             EL SONIDO ES NUESTRO
           </Typography>
-          <Typography variant="caption" sx={{ color: alpha(colors.gray600, 0.6), display: 'block', mt: 1 }}>
+          <Typography variant="caption" sx={{ color: alpha(theme.palette.text.secondary, 0.6), display: 'block', mt: 1 }}>
             {/* empty */}
           </Typography>
         </Box>
 
         {/* NOTIFICACIONES */}
         <Snackbar open={showCacheNotification} autoHideDuration={2000} onClose={() => setShowCacheNotification(false)}>
-          <Alert severity="info" sx={{ bgcolor: alpha(colors.primary, 0.08), color: colors.primary }}>
+          <Alert 
+            severity="info" 
+            sx={{ 
+              bgcolor: alpha(theme.palette.primary.main, 0.08), 
+              color: theme.palette.primary.main 
+            }}
+          >
             📦 Resultados desde caché • {searchMetrics?.time}ms
           </Alert>
         </Snackbar>
 
         <Snackbar open={showLimitNotification} autoHideDuration={2000} onClose={() => setShowLimitNotification(false)}>
-          <Alert severity="warning" sx={{ bgcolor: '#FFF3E0', color: '#E65100' }}>
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              bgcolor: alpha(theme.palette.warning.main, 0.1), 
+              color: theme.palette.warning.dark 
+            }}
+          >
             🎵 Máximo {MAX_SELECTED_SONGS} canciones
           </Alert>
         </Snackbar>
@@ -790,8 +792,8 @@ const MainPage = () => {
           <Alert
             severity="success"
             sx={{
-              bgcolor: '#E8F5E9',
-              color: '#2E7D32',
+              bgcolor: alpha(theme.palette.success.main, 0.1),
+              color: theme.palette.success.main,
               display: 'flex',
               alignItems: 'center',
               gap: 1
@@ -822,7 +824,7 @@ const MainPage = () => {
           componentsProps={{
             tooltip: {
               sx: {
-                bgcolor: '#1a1a1a',
+                bgcolor: theme.palette.mode === 'light' ? '#1a1a1a' : theme.palette.grey[800],
                 color: 'white',
                 fontSize: '0.85rem',
                 px: 2,
@@ -839,15 +841,15 @@ const MainPage = () => {
               position: 'fixed',
               bottom: { xs: 20, md: 28 },
               right: { xs: 20, md: 28 },
-              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
               color: 'white',
-              boxShadow: `0 8px 20px ${alpha(colors.primary, 0.3)}`,
+              boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
               width: { xs: 60, md: 70 },
               height: { xs: 60, md: 70 },
               '&:hover': {
                 transform: 'scale(1.1) rotate(3deg)',
-                background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)`,
-                boxShadow: `0 12px 28px ${alpha(colors.primary, 0.5)}`
+                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+                boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.5)}`
               },
               transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
               zIndex: 1200,
