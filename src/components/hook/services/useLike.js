@@ -1,21 +1,16 @@
-// src/hooks/services/useLike.js
+// src/components/hook/services/useLike.js
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 const API_BASE_URL = 'https://api.djidjimusic.com/api2';
 
-// Cache de peticiones para evitar duplicados
-const likesCache = new Map();
+// ============================================
+// FUNCIONES API
+// ============================================
 
 const fetchLikes = async (songId) => {
-  // Verificar cache en memoria
-  if (likesCache.has(songId)) {
-    return likesCache.get(songId);
-  }
-  
   const { data } = await axios.get(`${API_BASE_URL}/songs/${songId}/likes/`);
-  likesCache.set(songId, data);
   return data;
 };
 
@@ -23,65 +18,84 @@ const toggleLike = async (songId, token) => {
   const { data } = await axios.post(
     `${API_BASE_URL}/songs/${songId}/like/`,
     {},
-    { headers: { 'Authorization': `Bearer ${token}` } }
+    { 
+      headers: { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      } 
+    }
   );
   return data;
 };
 
+// ============================================
+// HOOK PRINCIPAL - VERSIÓN CORREGIDA
+// ============================================
+
+/**
+ * Hook profesional para manejo de likes
+ * @param {number|string} songId - ID de la canción
+ * @param {number} initialLikes - Likes iniciales del backend (song.likes_count)
+ * @param {boolean} initialLiked - Si el usuario ya dio like (song.is_liked)
+ */
 const useLike = (songId, initialLikes = 0, initialLiked = false) => {
   const queryClient = useQueryClient();
   const queryKey = ['likes', songId];
-  const channelRef = useRef(null);
-  const timeoutRef = useRef(null);
   
-  // Estados ultra rápidos
+  // Estados locales con valores iniciales del backend
   const [optimisticLiked, setOptimisticLiked] = useState(null);
   const [optimisticCount, setOptimisticCount] = useState(null);
-  const [userLiked, setUserLiked] = useState(initialLiked);
+  const [userLiked, setUserLiked] = useState(initialLiked); // ✅ Usar initialLiked
+  
+  // Refs para debounce y broadcast
+  const timeoutRef = useRef(null);
+  const channelRef = useRef(null);
 
-  // Token
+  // ============================================
+  // OBTENER TOKEN
+  // ============================================
   const getToken = useCallback(() => {
-    return localStorage.getItem('accessToken') || localStorage.getItem('access_token');
+    return localStorage.getItem('accessToken') || 
+           localStorage.getItem('access_token') ||
+           sessionStorage.getItem('accessToken') ||
+           sessionStorage.getItem('access_token');
   }, []);
 
-  // ========================================== //
-  // QUERY: Cache de 5 minutos
-  // ========================================== //
+  // ============================================
+  // QUERY: OBTENER LIKES (CON CACHÉ)
+  // ============================================
   const { 
     data, 
-    isLoading,
-    error 
+    isLoading, 
+    error: queryError,
+    refetch 
   } = useQuery({
     queryKey,
     queryFn: () => fetchLikes(songId),
     enabled: !!songId,
-    staleTime: 5 * 60 * 1000,        // 5 minutos sin refetch
-    cacheTime: 10 * 60 * 1000,       // 10 minutos en caché
+    staleTime: 5 * 60 * 1000, // 5 minutos en caché
+    cacheTime: 10 * 60 * 1000, // 10 minutos en disco
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
+    // ✅ Usar initialLikes mientras carga
     initialData: { likes_count: initialLikes },
-    refetchOnWindowFocus: false,      // ❌ No recargar al enfocar ventana
-    refetchOnReconnect: false,        // ❌ No recargar al reconectar
-    retry: 1,                         // Solo 1 reintento
   });
 
-  // ========================================== //
-  // MUTATION: Optimistic + debounce
-  // ========================================== //
+  // ============================================
+  // MUTATION: TOGGLE LIKE
+  // ============================================
   const { mutate, isLoading: isToggling } = useMutation({
     mutationFn: () => toggleLike(songId, getToken()),
     
+    // OPTIMISTIC UPDATE INMEDIATO
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey });
       const previousData = queryClient.getQueryData(queryKey);
       
-      // Optimistic update inmediato
-      const newLiked = !(optimisticLiked ?? userLiked);
-      const newCount = (data?.likes_count ?? initialLikes) + (newLiked ? 1 : -1);
-      
-      setOptimisticLiked(newLiked);
-      setOptimisticCount(newCount);
-      setUserLiked(newLiked);
-      
-      queryClient.setQueryData(queryKey, { likes_count: newCount });
+      queryClient.setQueryData(queryKey, (old) => ({
+        ...old,
+        likes_count: (old?.likes_count ?? initialLikes) + (userLiked ? -1 : 1),
+      }));
       
       return { previousData };
     },
@@ -91,52 +105,34 @@ const useLike = (songId, initialLikes = 0, initialLiked = false) => {
       setOptimisticLiked(null);
       setOptimisticCount(null);
       setUserLiked(!userLiked);
+      console.error('Error en like:', err);
     },
     
     onSuccess: (data) => {
       queryClient.setQueryData(queryKey, data);
       setOptimisticLiked(null);
       setOptimisticCount(null);
-      
-      // Broadcast a otras pestañas
-      channelRef.current?.postMessage({ type: 'LIKE_UPDATED', data });
-      
-      // Actualizar cache en memoria
-      likesCache.set(songId, data);
+      setUserLiked(data.message === 'Like agregado');
+      broadcastLikeUpdate(data);
     },
   });
 
-  // ========================================== //
-  // HANDLER CON DEBOUNCE (300ms)
-  // ========================================== //
-  const handleLike = useCallback(() => {
-    const token = getToken();
-    if (!token) return;
-
-    // Cancelar petición anterior (debounce)
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+  // ============================================
+  // BROADCAST CHANNEL
+  // ============================================
+  const broadcastLikeUpdate = useCallback((data) => {
+    if (!channelRef.current) return;
+    try {
+      channelRef.current.postMessage({
+        type: 'LIKE_UPDATED',
+        data: data,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.log('Broadcast no soportado:', error);
     }
-    
-    // Optimistic update instantáneo
-    const newLiked = !(optimisticLiked ?? userLiked);
-    const newCount = (data?.likes_count ?? initialLikes) + (newLiked ? 1 : -1);
-    
-    setOptimisticLiked(newLiked);
-    setOptimisticCount(newCount);
-    setUserLiked(newLiked);
-    
-    // Petición real con debounce
-    timeoutRef.current = setTimeout(() => {
-      mutate();
-      timeoutRef.current = null;
-    }, 300); // 300ms de espera
-    
-  }, [data?.likes_count, initialLikes, userLiked, optimisticLiked, mutate, getToken]);
+  }, []);
 
-  // ========================================== //
-  // BROADCAST CHANNEL (sincronización 0ms)
-  // ========================================== //
   useEffect(() => {
     if (!songId) return;
     
@@ -148,39 +144,86 @@ const useLike = (songId, initialLikes = 0, initialLiked = false) => {
         queryClient.setQueryData(queryKey, event.data.data);
         setOptimisticLiked(null);
         setOptimisticCount(null);
-        
-        // Inferir si el usuario actual dio like (por el mensaje)
-        if (event.data.data.message) {
-          setUserLiked(event.data.data.message === 'Like agregado');
-        }
+        setUserLiked(event.data.data.message === 'Like agregado');
       }
     };
     
     return () => {
-      channelRef.current?.close();
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (channelRef.current) {
+        channelRef.current.close();
+        channelRef.current = null;
+      }
     };
   }, [songId, queryClient, queryKey]);
 
-  // Valores a mostrar (optimistic > real)
-  const displayLiked = optimisticLiked !== null ? optimisticLiked : userLiked;
-  const displayCount = optimisticCount !== null ? optimisticCount : (data?.likes_count ?? initialLikes);
+  // ============================================
+  // HANDLER CON DEBOUNCE
+  // ============================================
+  const handleLike = useCallback(() => {
+    const token = getToken();
+    if (!token) {
+      console.warn('Usuario no autenticado');
+      return;
+    }
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    const newLikedState = !userLiked;
+    const currentLikes = data?.likes_count ?? initialLikes;
+    const newCount = currentLikes + (newLikedState ? 1 : -1);
+    
+    setUserLiked(newLikedState);
+    setOptimisticLiked(newLikedState);
+    setOptimisticCount(newCount);
+    
+    timeoutRef.current = setTimeout(() => {
+      mutate();
+      timeoutRef.current = null;
+    }, 300);
+    
+  }, [userLiked, data?.likes_count, initialLikes, mutate, getToken]);
 
-  // Formateador ultra rápido
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // ============================================
+  // VALORES A MOSTRAR
+  // ============================================
+  const displayLikesCount = optimisticCount !== null 
+    ? optimisticCount 
+    : (data?.likes_count ?? initialLikes); // ✅ Usar initialLikes como fallback
+    
+  const displayUserLiked = optimisticLiked !== null 
+    ? optimisticLiked 
+    : userLiked;
+
+  // ============================================
+  // FORMATO DE NÚMEROS
+  // ============================================
   const formatLikes = useCallback((count) => {
+    if (!count && count !== 0) return '0';
     if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
     if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
     return count.toString();
   }, []);
 
   return {
-    likesCount: displayCount,
-    userLiked: displayLiked,
+    likesCount: displayLikesCount,
+    userLiked: displayUserLiked,
     isLoading,
     isToggling,
-    error,
+    error: queryError,
     handleLike,
+    refetch,
     formatLikes,
+    rawData: data,
   };
 };
 

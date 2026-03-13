@@ -1,522 +1,764 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+// ============================================
+// src/components/songs/SongCard.jsx
+// VERSIÓN CON LikeButton COMPONENTE
+// ============================================
+
+import React, { useState, useCallback, useEffect } from "react";
 import {
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  IconButton,
-  CardMedia,
-  Box,
-  Snackbar,
-  CircularProgress,
-  Alert,
-  LinearProgress,
-  Chip,
-  Tooltip, // ✅ IMPORTADO - ANTES FALTABA
-  Badge,
-  alpha
+  Card, CardContent, CardMedia, Typography,
+  IconButton, Box, Chip, Tooltip, Menu, MenuItem,
+  ListItemIcon, ListItemText, Divider, Snackbar, Alert,
+  Dialog, DialogTitle, DialogContent, DialogContentText,
+  DialogActions, CircularProgress, Button,
+  LinearProgress, Fade, Zoom
 } from "@mui/material";
 import {
-  GetApp,
-  Comment,
-  PlayArrow,
-  Pause,
-  Cancel as CancelIcon,
-  CheckCircle as SuccessIcon,
-  Error as ErrorIcon,
-  Queue as QueueIcon,
-} from "@mui/icons-material"; // ✅ CheckCircle existe? Si no, usa Check
-import axios from "axios";
-import { useConfig } from "../../hook/useConfig";
-import CommentDialog from "./CommentDialog";
-import LikeManager from "./LikeManager";
-import useDownload from "../../hook/useDownload";
+  PlayArrow, Pause, Download, CheckCircle, Delete, MoreVert,
+  Info, Storage as StorageIcon,
+  Warning as WarningIcon, AccessTime,
+  VolumeUp
+} from "@mui/icons-material";
+import { useTheme, alpha } from "@mui/material/styles";
+import { useAudioPlayer } from "../components/hook/services/usePlayer";
+import useDownload from "../components/hook/services/useDownload";
+import { useMediaQuery } from "@mui/material";
 
-const SongCard = ({ song, onLikeToggle }) => {
-  const { api: { baseURL } } = useConfig();
+// 🆕 IMPORTAR EL COMPONENTE DE LIKES
+import LikeButton from "../../../components/likes/LikeButton";
+
+// ============================================ //
+// SISTEMA DE DISEÑO PROFESIONAL
+// ============================================ //
+const designTokens = {
+  colors: {
+    primary: '#FF6B35',
+    success: '#10B981',
+    error: '#EF4444',
+    warning: '#F59E0B',
+    gray: { 400: '#9CA3AF', 500: '#6B7280', 600: '#4B5563' }
+  },
+  shadows: {
+    card: '0 2px 8px -2px rgba(0,0,0,0.1)',
+    hover: '0 8px 20px -6px rgba(0,0,0,0.15)',
+    button: '0 4px 12px -2px rgba(0,0,0,0.2)',
+  },
+  borderRadius: {
+    card: 8,
+    button: 999,
+    menu: 8,
+    chip: 4,
+  }
+};
+
+const SongCard = ({ 
+  song, 
+  showIndex = false, 
+  onLike, 
+  onMoreActions,
+  variant = 'compact'
+}) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [isHovered, setIsHovered] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [downloadInfoDialog, setDownloadInfoDialog] = useState(false);
   
-  // Hook de descarga optimizado
+  // Optimistic update para contador de descargas
+  const [optimisticDownloads, setOptimisticDownloads] = useState(null);
+  
+  // Reset optimistic cuando cambia la canción
+  useEffect(() => {
+    setOptimisticDownloads(null);
+  }, [song?.id]);
+
+  // Hooks
+  const player = useAudioPlayer();
   const download = useDownload();
-  
-  const audioRef = useRef(null);
-  const abortRef = useRef(null);
-  const mountedRef = useRef(true); // ✅ Para evitar memory leaks
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
-  
-  // 🔥 ESTADOS CORREGIDOS
-  const [downloaded, setDownloaded] = useState(false); // Estado REAL
-  const [checkingStatus, setCheckingStatus] = useState(true); // Para loading
-  const [downloadInfo, setDownloadInfo] = useState(null); // Info adicional
+  // ============================================ //
+  // CONFIGURACIÓN DE VARIANTES
+  // ============================================ //
+  const variants = {
+    compact: {
+      imageHeight: isMobile ? 140 : 160,
+      contentPadding: 1.2,
+      showGenre: false,
+      showFileSize: false,
+      showDuration: true,
+      titleSize: '0.9rem',
+      artistSize: '0.75rem',
+      metadataSize: '0.65rem',
+      iconSize: 'small',
+      buttonSize: 44,
+      spacing: 0.3,
+      chipSize: 'small',
+      showDownloads: true,
+      showLikes: true
+    },
+    default: {
+      imageHeight: isMobile ? 160 : 180,
+      contentPadding: 1.5,
+      showGenre: false,
+      showFileSize: false,
+      showDuration: true,
+      titleSize: '0.95rem',
+      artistSize: '0.8rem',
+      metadataSize: '0.7rem',
+      iconSize: 'small',
+      buttonSize: 48,
+      spacing: 0.4,
+      chipSize: 'small',
+      showDownloads: true,
+      showLikes: true
+    },
+    detailed: {
+      imageHeight: isMobile ? 200 : 220,
+      contentPadding: 2,
+      showGenre: true,
+      showFileSize: true,
+      showDuration: true,
+      titleSize: '1rem',
+      artistSize: '0.85rem',
+      metadataSize: '0.75rem',
+      iconSize: 'small',
+      buttonSize: 52,
+      spacing: 0.5,
+      chipSize: 'small',
+      showDownloads: true,
+      showLikes: true
+    }
+  };
 
-  const songId = song.id.toString();
-  const isDownloading = download.downloading[songId];
-  const downloadProgress = download.progress[songId] || 0;
-  const downloadError = download.errors[songId];
-  const queuePosition = download.getQueuePosition(songId);
+  const config = variants[variant] || variants.default;
 
-  /* ================= VERIFICAR ESTADO REAL ================= */
-  useEffect(() => {
-    let isActive = true;
+  // ============================================ //
+  // FUNCIÓN PARA FORMATEAR NÚMEROS DE DESCARGA
+  // ============================================ //
+  const formatNumber = (count) => {
+    if (!count && count !== 0) return '0';
+    if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
+    if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
+    return count.toString();
+  };
+
+  // ============================================ //
+  // FUNCIÓN PARA FORMATEAR DURACIÓN
+  // ============================================ //
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds <= 0) return null;
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // ============================================ //
+  // ESTADO DE DESCARGA
+  // ============================================ //
+  const songId = song?.id?.toString();
+  const isDownloaded = download.isDownloaded?.(songId) || false;
+  const downloadInfo = download.getDownloadInfo?.(songId);
+  const isDownloading = download.downloading?.[songId];
+  const downloadProgress = download.progress?.[songId] || 0;
+  const downloadError = download.errors?.[songId];
+  const songStatus = player.getSongStatus?.(song.id) || {};
+
+  // Determinar qué contador de descargas mostrar (optimistic vs real)
+  const realDownloads = song?.downloads_count || 0;
+  const displayDownloads = optimisticDownloads !== null ? optimisticDownloads : realDownloads;
+  const hasDownloads = displayDownloads > 0;
+
+  // Duración real (solo si existe)
+  const durationFormatted = formatDuration(song?.duration);
+
+  // ============================================ //
+  // ESTADO PRINCIPAL
+  // ============================================ //
+  const getPrimaryState = useCallback(() => {
+    if (songStatus?.isLoading) return 'loading';
+    if (isDownloading) return 'downloading';
+    if (downloadError) return 'error';
+    if (isDownloaded) return 'downloaded';
+    if (songStatus?.isCurrent) return songStatus?.isPlaying ? 'playing' : 'paused';
+    return 'idle';
+  }, [songStatus, isDownloading, downloadError, isDownloaded]);
+
+  const primaryState = getPrimaryState();
+  const isActive = primaryState !== 'idle' || isHovered;
+
+  const stateColors = {
+    idle: designTokens.colors.primary,
+    playing: '#F50057',
+    paused: '#00838F',
+    loading: designTokens.colors.warning,
+    downloading: designTokens.colors.success,
+    downloaded: designTokens.colors.success,
+    error: designTokens.colors.error
+  };
+  const currentColor = stateColors[primaryState] || designTokens.colors.primary;
+
+  // ============================================ //
+  // HANDLER DE DESCARGA CON OPTIMISTIC UPDATE
+  // ============================================ //
+  const handleDownload = useCallback(async (e) => {
+    e?.stopPropagation();
+    handleMenuClose();
     
-    const checkDownloadStatus = async () => {
-      try {
-        setCheckingStatus(true);
-        
-        // ✅ Usar la función async correctamente
-        const status = await download.isDownloaded(songId);
-        
-        if (isActive) {
-          setDownloaded(status);
-          
-          if (status) {
-            // Si está descargada, obtener info adicional
-            const info = download.getDownloadInfo(songId);
-            setDownloadInfo(info);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking download status:', error);
-      } finally {
-        if (isActive) {
-          setCheckingStatus(false);
-        }
-      }
-    };
-
-    checkDownloadStatus();
-
-    // ✅ Escuchar eventos para actualizar en tiempo real
-    const handleDownloadComplete = (e) => {
-      if (e.detail?.id === songId) {
-        setDownloaded(true);
-        setDownloadInfo(e.detail);
-        setCheckingStatus(false);
-      }
-    };
-
-    const handleDownloadsUpdated = () => {
-      checkDownloadStatus();
-    };
-
-    window.addEventListener('download-completed', handleDownloadComplete);
-    window.addEventListener('downloads-updated', handleDownloadsUpdated);
-
-    return () => {
-      isActive = false;
-      window.removeEventListener('download-completed', handleDownloadComplete);
-      window.removeEventListener('downloads-updated', handleDownloadsUpdated);
-    };
-  }, [download, songId]); // ✅ Dependencias correctas
-
-  /* ================= CLEANUP ================= */
-  useEffect(() => {
-    mountedRef.current = true;
+    setOptimisticDownloads(realDownloads + 1);
+    setSnackbar({ open: true, message: `📥 Descargando ${song?.title}...`, severity: 'info' });
     
-    return () => {
-      mountedRef.current = false;
-      audioRef.current?.pause();
-      audioRef.current = null;
-      abortRef.current?.abort();
-    };
+    try {
+      await download.downloadSong?.(songId, song?.title, song?.artist);
+      setSnackbar({ open: true, message: '✅ Canción descargada', severity: 'success' });
+    } catch (error) {
+      setOptimisticDownloads(realDownloads);
+      setSnackbar({ open: true, message: `❌ ${error.message}`, severity: 'error' });
+    }
+  }, [download, songId, song, realDownloads]);
+
+  // ============================================ //
+  // HANDLER PARA LIKE (AHORA USA EL COMPONENTE)
+  // ============================================ //
+  const handleLikeSuccess = useCallback((result) => {
+    console.log('Like exitoso:', result);
+    // Opcional: mostrar snackbar solo si quieres
   }, []);
 
-  /* ================= STREAM ================= */
-  const handleStream = useCallback(async () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        audioRef.current.play();
-        setIsPlaying(true);
-      }
-      return;
-    }
-
-    try {
-      abortRef.current = new AbortController();
-
-      const { data } = await axios.get(
-        `${baseURL}/api2/songs/${song.id}/stream/`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-          responseType: "blob",
-          signal: abortRef.current.signal,
-        }
-      );
-
-      const url = URL.createObjectURL(data);
-      const audio = new Audio(url);
-
-      audio.onended = () => setIsPlaying(false);
-      audio.onerror = () => {
-        setIsPlaying(false);
-        if (mountedRef.current) {
-          setSnackbar({
-            open: true,
-            message: "Error al reproducir la canción",
-            severity: "error",
-          });
-        }
-      };
-
-      audioRef.current = audio;
-      await audio.play();
-      setIsPlaying(true);
-    } catch (err) {
-      if (!axios.isCancel(err) && mountedRef.current) {
-        setSnackbar({
-          open: true,
-          message:
-            err.response?.status === 401
-              ? "Debes iniciar sesión para reproducir"
-              : "No se pudo reproducir",
-          severity: "error",
-        });
-      }
-    }
-  }, [baseURL, song.id, isPlaying]);
-
-  /* ================= DOWNLOAD ================= */
-  const handleDownload = useCallback(async () => {
-    try {
-      setSnackbar({
-        open: true,
-        message: `Iniciando descarga: ${song.title}`,
-        severity: "info",
-      });
-
-      const result = await download.downloadSong(
-        songId,
-        song.title,
-        song.artist
-      );
-
-      if (mountedRef.current) {
-        // ✅ Actualizar estado local
-        setDownloaded(true);
-        setDownloadInfo(result);
-        
-        setSnackbar({
-          open: true,
-          message: `✅ Descarga completada: ${song.title}`,
-          severity: "success",
-        });
-      }
-
-      console.log('Descarga exitosa:', result);
-
-    } catch (error) {
-      if (error.message.includes('cancelada') || !mountedRef.current) return;
-      
-      setSnackbar({
-        open: true,
-        message: `❌ Error: ${error.message}`,
-        severity: "error",
-      });
-    }
-  }, [download, songId, song.title, song.artist]);
-
-  const handleCancelDownload = useCallback(() => {
-    download.cancelDownload(songId);
-    setSnackbar({
-      open: true,
-      message: `Descarga cancelada: ${song.title}`,
-      severity: "warning",
+  const handleLikeError = useCallback((error) => {
+    console.error('Error en like:', error);
+    setSnackbar({ 
+      open: true, 
+      message: 'Error al procesar like', 
+      severity: 'error' 
     });
-  }, [download, songId, song.title]);
+  }, []);
 
-  const handleRetryDownload = useCallback(() => {
-    download.clearError(songId);
-    handleDownload();
-  }, [download, songId, handleDownload]);
+  const handleCancelDownload = useCallback((e) => {
+    e?.stopPropagation();
+    download.cancelDownload?.(songId);
+    setSnackbar({ open: true, message: '⏹️ Descarga cancelada', severity: 'warning' });
+    handleMenuClose();
+  }, [download, songId]);
 
-  const handleRemoveFromHistory = useCallback(async () => {
-    const success = await download.removeDownload(songId);
-    if (success && mountedRef.current) {
-      setDownloaded(false);
-      setDownloadInfo(null);
-      setSnackbar({
-        open: true,
-        message: `Eliminado del historial: ${song.title}`,
-        severity: "info",
-      });
+  const handleRemoveDownload = useCallback(() => {
+    setConfirmDialogOpen(false);
+    download.removeDownload?.(songId);
+    setSnackbar({ open: true, message: '🗑️ Eliminada del dispositivo', severity: 'success' });
+  }, [download, songId]);
+
+  const handleMenuOpen = (event) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => setAnchorEl(null);
+
+  const handlePlayPause = async (e) => {
+    e.stopPropagation();
+    if (songStatus?.isCurrent) {
+      player.toggle?.();
+    } else {
+      setSnackbar({ open: true, message: `Cargando ${song?.title}...`, severity: 'info' });
+      await player.playSongFromCard?.(song);
+      setSnackbar({ open: false });
     }
-  }, [download, songId, song.title]);
+  };
 
-  /* ================= RENDER BOTÓN DE DESCARGA ================= */
-  const renderDownloadButton = () => {
-    // Estado: Verificando
-    if (checkingStatus) {
-      return (
-        <Tooltip title="Verificando estado...">
-          <IconButton disabled size="small">
-            <CircularProgress size={20} />
-          </IconButton>
-        </Tooltip>
-      );
-    }
+  const handleCardClick = (e) => {
+    if (e.target.closest('button') || e.target.closest('.MuiMenu-paper')) return;
+    handlePlayPause(e);
+  };
 
-    // Estado: Descargando
-    if (isDownloading) {
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip title={`Cancelar descarga (${downloadProgress}%)`}>
-            <IconButton onClick={handleCancelDownload} color="warning" size="small">
-              <CancelIcon />
-            </IconButton>
-          </Tooltip>
-          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-            <CircularProgress 
-              variant="determinate" 
-              value={downloadProgress} 
-              size={30}
-              color="warning"
-            />
+  // ============================================ //
+  // RENDER MENÚ
+  // ============================================ //
+  const renderMenu = () => {
+    const menuItems = [
+      !isDownloaded && !isDownloading && {
+        label: 'Descargar',
+        icon: <Download fontSize="small" />,
+        onClick: handleDownload
+      },
+      isDownloading && {
+        label: 'Descargando...',
+        icon: <CircularProgress size={16} />,
+        disabled: true,
+        progress: `${downloadProgress}%`
+      },
+      isDownloaded && {
+        label: 'Información',
+        icon: <Info fontSize="small" />,
+        onClick: () => setDownloadInfoDialog(true)
+      },
+      isDownloaded && {
+        label: 'Eliminar del dispositivo',
+        icon: <Delete fontSize="small" />,
+        onClick: () => setConfirmDialogOpen(true),
+        color: designTokens.colors.error
+      },
+      (isDownloaded || isDownloading) && { divider: true },
+      { divider: true },
+      {
+        label: 'Compartir',
+        icon: <Info fontSize="small" />,
+        onClick: () => setSnackbar({ open: true, message: 'Compartir no implementado', severity: 'info' })
+      }
+    ].filter(Boolean);
+
+    return (
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            borderRadius: designTokens.borderRadius.menu,
+            minWidth: 200,
+            boxShadow: designTokens.shadows.hover,
+            mt: 0.5
+          }
+        }}
+      >
+        {menuItems.map((item, index) =>
+          item.divider ? (
+            <Divider key={index} sx={{ my: 0.5 }} />
+          ) : (
+            <MenuItem
+              key={item.label}
+              onClick={item.onClick}
+              disabled={item.disabled}
+              sx={{ py: 1, px: 1.5 }}
+            >
+              <ListItemIcon sx={{ minWidth: 32 }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+              {item.progress && (
+                <Typography variant="caption" sx={{ ml: 1, fontWeight: 600 }}>
+                  {item.progress}
+                </Typography>
+              )}
+            </MenuItem>
+          )
+        )}
+      </Menu>
+    );
+  };
+
+  // ============================================ //
+  // RENDER PRINCIPAL
+  // ============================================ //
+  return (
+    <>
+      <Card
+        onClick={handleCardClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        sx={{
+          borderRadius: designTokens.borderRadius.card,
+          overflow: "hidden",
+          cursor: "pointer",
+          bgcolor: "#FFFFFF",
+          border: `1px solid ${alpha('#000', 0.06)}`,
+          boxShadow: isHovered ? designTokens.shadows.hover : designTokens.shadows.card,
+          transition: 'all 0.2s ease',
+          position: "relative",
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            borderColor: alpha(currentColor, 0.3),
+            boxShadow: designTokens.shadows.hover,
+          }
+        }}
+      >
+        {/* Barra de progreso */}
+        {(songStatus?.isLoading || isDownloading) && (
+          <Fade in={true}>
             <Box sx={{
               position: 'absolute',
               top: 0,
               left: 0,
-              bottom: 0,
               right: 0,
+              height: 3,
+              zIndex: 20,
+            }}>
+              <LinearProgress
+                variant="determinate"
+                value={songStatus?.isLoading ? songStatus?.loadingProgress || 0 : downloadProgress}
+                sx={{
+                  height: '100%',
+                  bgcolor: 'transparent',
+                  '& .MuiLinearProgress-bar': {
+                    bgcolor: currentColor,
+                  }
+                }}
+              />
+            </Box>
+          </Fade>
+        )}
+
+        {/* Badge de estado */}
+        {(primaryState !== 'idle' && primaryState !== 'downloaded') && (
+          <Zoom in={true}>
+            <Box sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              zIndex: 15,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 0.3,
+              bgcolor: alpha(currentColor, 0.95),
+              color: 'white',
+              px: 1,
+              py: 0.3,
+              borderRadius: designTokens.borderRadius.chip,
+              fontSize: '0.6rem',
+              fontWeight: 600,
+              boxShadow: `0 2px 8px ${alpha(currentColor, 0.3)}`,
             }}>
-              <Typography variant="caption" component="div" color="text.secondary">
-                {`${Math.round(downloadProgress)}%`}
-              </Typography>
+              {primaryState === 'loading' && <CircularProgress size={8} sx={{ color: 'white' }} />}
+              {primaryState === 'downloading' && <Download sx={{ fontSize: 10 }} />}
+              {primaryState === 'playing' && <VolumeUp sx={{ fontSize: 10 }} />}
+              {primaryState === 'paused' && <PlayArrow sx={{ fontSize: 10 }} />}
+              {primaryState === 'error' && <WarningIcon sx={{ fontSize: 10 }} />}
+              <span>
+                {primaryState === 'loading' && 'CARGANDO'}
+                {primaryState === 'downloading' && `${downloadProgress}%`}
+                {primaryState === 'playing' && 'REPRODUCIENDO'}
+                {primaryState === 'paused' && 'PAUSADA'}
+                {primaryState === 'error' && 'ERROR'}
+              </span>
             </Box>
-          </Box>
-        </Box>
-      );
-    }
-
-    // Estado: En cola
-    if (queuePosition) {
-      return (
-        <Tooltip title={`En cola: posición ${queuePosition}`}>
-          <Badge badgeContent={queuePosition} color="warning">
-            <IconButton disabled>
-              <QueueIcon />
-            </IconButton>
-          </Badge>
-        </Tooltip>
-      );
-    }
-
-    // Estado: Error
-    if (downloadError) {
-      return (
-        <Tooltip title={downloadError}>
-          <IconButton onClick={handleRetryDownload} color="error" size="small">
-            <ErrorIcon />
-          </IconButton>
-        </Tooltip>
-      );
-    }
-
-    // ✅ ESTADO CORREGIDO: Usar variable local, no la promesa
-    if (downloaded) {
-      const fileSize = downloadInfo?.fileSize 
-        ? (downloadInfo.fileSize / 1024 / 1024).toFixed(2) 
-        : '?';
-      
-      // Mostrar ícono diferente según plataforma
-      const storageIcon = downloadInfo?.storageType === 'cache' ? '📱' : '💾';
-      
-      return (
-        <Tooltip title={`Descargada ${fileSize}MB ${storageIcon} - Click para eliminar`}>
-          <IconButton onClick={handleRemoveFromHistory} color="success" size="small">
-            <SuccessIcon />
-          </IconButton>
-        </Tooltip>
-      );
-    }
-
-    // Estado: Por defecto
-    return (
-      <Tooltip title="Descargar canción">
-        <IconButton onClick={handleDownload} size="small">
-          <GetApp />
-        </IconButton>
-      </Tooltip>
-    );
-  };
-
-  /* ================= IMAGE ================= */
-  const cleanBaseURL = baseURL?.replace(/\/$/, "");
-  const imageUrl = song.image
-    ? song.image.startsWith("http")
-      ? song.image.replace(
-          `${cleanBaseURL}/media/`,
-          `${cleanBaseURL}/api2/media/`
-        )
-      : `${cleanBaseURL}/api2/media/images/${song.image.split("/").pop()}`
-    : "/djidji.png";
-
-  /* ================= RENDER ================= */
-  return (
-    <Card sx={{ 
-      maxWidth: 345, 
-      m: 2, 
-      borderRadius: 4, 
-      boxShadow: isDownloading ? '0 0 0 2px #ff9800' : 
-                 downloadError ? '0 0 0 2px #f44336' : 
-                 downloaded ? '0 0 0 2px #4caf50' : 10,
-      transition: 'all 0.3s ease',
-      position: 'relative',
-      opacity: checkingStatus ? 0.8 : 1
-    }}>
-      {/* Barra de progreso superior */}
-      {isDownloading && (
-        <LinearProgress 
-          variant="determinate" 
-          value={downloadProgress} 
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 4,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            zIndex: 1
-          }}
-          color="warning"
-        />
-      )}
-
-      {/* Badge de estado - AHORA USA downloaded EN VEZ DE isDownloaded */}
-      {(isDownloading || queuePosition || downloadError || downloaded) && !checkingStatus && (
-        <Chip
-          label={
-            isDownloading ? `${downloadProgress}%` :
-            queuePosition ? `Cola ${queuePosition}` :
-            downloadError ? 'Error' :
-            'Descargada'
-          }
-          size="small"
-          color={
-            isDownloading ? 'warning' :
-            queuePosition ? 'default' :
-            downloadError ? 'error' :
-            'success'
-          }
-          sx={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            zIndex: 1,
-            fontWeight: 'bold'
-          }}
-        />
-      )}
-
-      {/* Skeleton mientras verifica */}
-      {checkingStatus && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.1)',
-            borderRadius: 4,
-            zIndex: 2
-          }}
-        >
-          <CircularProgress size={40} />
-        </Box>
-      )}
-
-      <CardMedia
-        component="img"
-        height="200"
-        image={imageUrl}
-        alt={song.title}
-        sx={{
-          opacity: isDownloading ? 0.7 : checkingStatus ? 0.5 : 1,
-          filter: isDownloading ? 'blur(1px)' : 'none',
-          transition: 'all 0.3s ease'
-        }}
-      />
-
-      <CardContent>
-        <Typography variant="h6" fontWeight={700}>
-          {song.title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {song.artist} · {song.genre}
-        </Typography>
-        
-        {/* Información adicional si está descargada */}
-        {downloaded && downloadInfo && (
-          <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 1 }}>
-            📅 {new Date(downloadInfo.downloadedAt).toLocaleDateString()}
-            {downloadInfo.storageType && ` • ${downloadInfo.storageType === 'cache' ? '📱 App' : '💾 PC'}`}
-          </Typography>
+          </Zoom>
         )}
-      </CardContent>
 
-      <CardActions sx={{ justifyContent: "space-between" }}>
-        <Box>
-          <LikeManager
-            songId={song.id}
-            initialLikes={song.likes_count}
-            initialLiked={song.is_liked}
-            onLikeToggle={onLikeToggle}
+        {/* Imagen */}
+        <Box sx={{ position: "relative" }}>
+          <CardMedia
+            component="img"
+            height={config.imageHeight}
+            image={imageError || !song?.image_url ? "/djidji.png" : song.image_url}
+            alt={song?.title}
+            onError={() => setImageError(true)}
+            sx={{
+              objectFit: "cover",
+              opacity: (songStatus?.isLoading || isDownloading) ? 0.6 : 1,
+              transition: 'opacity 0.2s ease',
+            }}
           />
 
-          {renderDownloadButton()}
-
-          <IconButton onClick={() => setCommentsOpen(true)}>
-            <Comment />
-            <Typography variant="caption" ml={0.5}>
-              {song.comments_count}
-            </Typography>
-          </IconButton>
+          {/* Botón principal */}
+          <Tooltip
+            title={
+              songStatus?.isLoading ? `Cargando ${songStatus?.loadingProgress}%` :
+              isDownloading ? `Descargando ${downloadProgress}%` :
+              songStatus?.isPlaying ? 'Pausar' : 'Reproducir'
+            }
+            arrow
+          >
+            <Zoom in={isActive || primaryState !== 'idle'}>
+              <IconButton
+                onClick={handlePlayPause}
+                disabled={songStatus?.isLoading}
+                sx={{
+                  position: 'absolute',
+                  bottom: 12,
+                  right: 12,
+                  width: config.buttonSize,
+                  height: config.buttonSize,
+                  bgcolor: alpha('#FFFFFF', 0.98),
+                  color: currentColor,
+                  boxShadow: designTokens.shadows.button,
+                  backdropFilter: 'blur(4px)',
+                  border: `1px solid ${alpha(currentColor, 0.2)}`,
+                  transition: 'all 0.2s ease',
+                  transform: isActive ? 'scale(1)' : 'scale(0.8)',
+                  opacity: isActive ? 1 : 0.7,
+                  '&:hover:not(:disabled)': {
+                    bgcolor: '#FFFFFF',
+                    transform: 'scale(1.05)',
+                    borderColor: currentColor,
+                  }
+                }}
+              >
+                {songStatus?.isLoading ? (
+                  <CircularProgress size={20} sx={{ color: currentColor }} />
+                ) : isDownloading ? (
+                  <Box sx={{ position: 'relative', width: 20, height: 20 }}>
+                    <CircularProgress size={20} value={downloadProgress} variant="determinate" />
+                    <Box sx={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      fontSize: '0.5rem',
+                      fontWeight: 700
+                    }}>
+                      {downloadProgress}%
+                    </Box>
+                  </Box>
+                ) : (
+                  songStatus?.isPlaying ? <Pause fontSize="small" /> : <PlayArrow fontSize="small" />
+                )}
+              </IconButton>
+            </Zoom>
+          </Tooltip>
         </Box>
 
-        <IconButton
-          color="primary"
-          onClick={handleStream}
-          disabled={checkingStatus}
-        >
-          {isPlaying ? <Pause /> : <PlayArrow />}
-        </IconButton>
-      </CardActions>
+        {/* Contenido */}
+        <CardContent sx={{ p: config.contentPadding, '&:last-child': { pb: config.contentPadding } }}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+            {showIndex && (
+              <Box sx={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                bgcolor: alpha(currentColor, 0.1),
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                mt: 0.2
+              }}>
+                <Typography variant="caption" sx={{ color: currentColor, fontWeight: 600, fontSize: '0.65rem' }}>
+                  {showIndex}
+                </Typography>
+              </Box>
+            )}
 
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              {/* Título */}
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  fontSize: config.titleSize,
+                  lineHeight: 1.3,
+                  mb: config.spacing / 2,
+                  color: downloadError ? designTokens.colors.error : 'text.primary',
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {song?.title}
+              </Typography>
+
+              {/* Artista */}
+              <Typography
+                sx={{
+                  fontSize: config.artistSize,
+                  color: "text.secondary",
+                  mb: config.spacing,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {song?.artist}
+              </Typography>
+
+              {/* METADATOS */}
+              <Box sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  {/* Duración */}
+                  {durationFormatted && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      <AccessTime sx={{ fontSize: 10, color: 'text.disabled' }} />
+                      <Typography variant="caption" sx={{ fontSize: config.metadataSize, color: 'text.secondary' }}>
+                        {durationFormatted}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Género */}
+                  {config.showGenre && song?.genre && (
+                    <Chip
+                      label={song.genre}
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: '0.6rem',
+                        bgcolor: alpha(designTokens.colors.gray[500], 0.08),
+                        borderRadius: designTokens.borderRadius.chip,
+                      }}
+                    />
+                  )}
+
+                  {/* Tamaño de archivo */}
+                  {config.showFileSize && isDownloaded && downloadInfo?.fileSize && (
+                    <Tooltip title={`${(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB`}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                        <StorageIcon sx={{ fontSize: 10, color: designTokens.colors.success }} />
+                        <Typography variant="caption" sx={{ fontSize: config.metadataSize, color: designTokens.colors.success }}>
+                          {(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB
+                        </Typography>
+                      </Box>
+                    </Tooltip>
+                  )}
+                </Box>
+
+                {/* ACCIONES */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                  
+                  {/* 🎯 LIKE BUTTON COMPONENTE */}
+                  <LikeButton
+                    songId={song?.id}
+                    initialLikes={song?.likes_count}
+                    initialLiked={song?.is_liked}
+                    playsCount={song?.plays_count}
+                    size="small"
+                    showNumber={true}
+                    showPercentage={true}
+                    onLikeSuccess={handleLikeSuccess}
+                    onLikeError={handleLikeError}
+                  />
+
+                  {/* Botón de descarga con contador */}
+                  {isDownloaded ? (
+                    <Tooltip title="Descargada">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); setDownloadInfoDialog(true); }}
+                        sx={{
+                          color: designTokens.colors.success,
+                          bgcolor: alpha(designTokens.colors.success, 0.1),
+                          width: 28,
+                          height: 28,
+                          position: 'relative'
+                        }}
+                      >
+                        <CheckCircle sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
+                  ) : isDownloading ? (
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.3,
+                      bgcolor: alpha(designTokens.colors.success, 0.1),
+                      borderRadius: designTokens.borderRadius.chip,
+                      px: 0.8,
+                      py: 0.3
+                    }}>
+                      <CircularProgress size={12} value={downloadProgress} variant="determinate" />
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: designTokens.colors.success, fontSize: '0.6rem' }}>
+                        {downloadProgress}%
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Tooltip title={`${displayDownloads} descargas`} arrow>
+                      <IconButton
+                        size="small"
+                        onClick={handleDownload}
+                        sx={{
+                          color: designTokens.colors.primary,
+                          bgcolor: alpha(designTokens.colors.primary, 0.1),
+                          width: 32,
+                          height: 32,
+                          position: 'relative',
+                          '&:hover': {
+                            bgcolor: designTokens.colors.primary,
+                            color: 'white'
+                          }
+                        }}
+                      >
+                        <Download sx={{ fontSize: 14 }} />
+                        {hasDownloads && (
+                          <Typography
+                            component="span"
+                            sx={{
+                              position: 'absolute',
+                              bottom: -2,
+                              right: -2,
+                              fontSize: '0.5rem',
+                              fontWeight: 700,
+                              bgcolor: optimisticDownloads !== null ? designTokens.colors.primary : designTokens.colors.gray[600],
+                              color: 'white',
+                              borderRadius: '4px',
+                              px: 0.3,
+                              py: 0.1,
+                              lineHeight: 1.2,
+                              minWidth: 12,
+                              textAlign: 'center',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              zIndex: 2
+                            }}
+                          >
+                            {formatNumber(displayDownloads)}
+                          </Typography>
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                  )}
+
+                  {/* Menú de 3 puntos */}
+                  <IconButton
+                    size="small"
+                    onClick={handleMenuOpen}
+                    sx={{ width: 28, height: 28, color: 'text.secondary' }}
+                  >
+                    <MoreVert sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Menú */}
+      {renderMenu()}
+
+      {/* Diálogos */}
+      <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} maxWidth="xs">
+        <DialogTitle sx={{ pb: 1 }}>Eliminar canción</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Eliminar "{song?.title}" de tu dispositivo?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialogOpen(false)}>Cancelar</Button>
+          <Button onClick={handleRemoveDownload} color="error">Eliminar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={downloadInfoDialog} onClose={() => setDownloadInfoDialog(false)} maxWidth="xs">
+        <DialogTitle sx={{ pb: 1 }}>Información</DialogTitle>
+        <DialogContent>
+          <Box>
+            <Typography variant="body2" fontWeight={600}>{downloadInfo?.fileName || song?.title}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {(downloadInfo?.fileSize / 1024 / 1024).toFixed(1)} MB
+            </Typography>
+            
+            {/* Mostrar likes en el diálogo de información */}
+            {song?.likes_count > 0 && (
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Favorite sx={{ fontSize: 16, color: song?.is_liked ? designTokens.colors.error : 'text.secondary' }} />
+                <Typography variant="body2">
+                  {song?.likes_count} {song?.likes_count === 1 ? 'like' : 'likes'}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={5000}
+        autoHideDuration={snackbar.autoHideDuration || 3000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity={snackbar.severity} variant="filled">
-          {snackbar.message}
-        </Alert>
+        <Alert severity={snackbar.severity} sx={{ fontSize: '0.85rem' }}>{snackbar.message}</Alert>
       </Snackbar>
-
-      <CommentDialog
-        songId={song.id}
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-      />
-    </Card>
+    </>
   );
 };
 
