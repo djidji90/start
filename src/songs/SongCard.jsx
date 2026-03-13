@@ -1,11 +1,11 @@
 // ============================================
 // src/components/songs/SongCard.jsx
-// VERSIÓN FINAL - DISEÑO OPTIMIZADO
-// ✅ Contador de descargas sobre el botón de descarga
-// ✅ Duración SOLO cuando existe (sin placeholder)
-// ✅ Optimistic updates para feedback inmediato
-// ✅ Formato 1.2K / 1.5M
-// ✅ Tooltip con número exacto
+// VERSIÓN FINAL - CON LIKES MEJORADOS
+// ✅ Corazón con relleno según popularidad
+// ✅ Formato profesional de números (1.2K)
+// ✅ Número visible SOLO cuando > 0
+// ✅ Tooltips informativos
+// ✅ React Query + Optimistic updates
 // ============================================
 
 import React, { useState, useCallback, useEffect } from "react";
@@ -15,7 +15,7 @@ import {
   ListItemIcon, ListItemText, Divider, Snackbar, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText,
   DialogActions, CircularProgress, Button,
-  LinearProgress, Fade, Zoom, Badge
+  LinearProgress, Fade, Zoom
 } from "@mui/material";
 import {
   PlayArrow, Pause, Favorite, FavoriteBorder,
@@ -27,6 +27,7 @@ import {
 import { useTheme, alpha } from "@mui/material/styles";
 import { useAudioPlayer } from "../components/hook/services/usePlayer";
 import useDownload from "../components/hook/services/useDownload";
+import useLike from "../components/hook/services/useLike";
 import { useMediaQuery } from "@mui/material";
 
 // ============================================ //
@@ -62,7 +63,6 @@ const SongCard = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [liked, setLiked] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -73,14 +73,19 @@ const SongCard = ({
   // Optimistic update para contador de descargas
   const [optimisticDownloads, setOptimisticDownloads] = useState(null);
   
-  // Reset optimistic cuando cambia la canción o los datos reales
+  // Reset optimistic cuando cambia la canción
   useEffect(() => {
     setOptimisticDownloads(null);
-  }, [song?.id, song?.downloads_count]);
+  }, [song?.id]);
 
   // Hooks
   const player = useAudioPlayer();
   const download = useDownload();
+  const like = useLike(
+    song?.id, 
+    song?.likes_count,
+    song?.is_liked
+  );
 
   // ============================================ //
   // CONFIGURACIÓN DE VARIANTES
@@ -99,7 +104,8 @@ const SongCard = ({
       buttonSize: 44,
       spacing: 0.3,
       chipSize: 'small',
-      showDownloads: true
+      showDownloads: true,
+      showLikes: true
     },
     default: {
       imageHeight: isMobile ? 160 : 180,
@@ -114,7 +120,8 @@ const SongCard = ({
       buttonSize: 48,
       spacing: 0.4,
       chipSize: 'small',
-      showDownloads: true
+      showDownloads: true,
+      showLikes: true
     },
     detailed: {
       imageHeight: isMobile ? 200 : 220,
@@ -129,7 +136,8 @@ const SongCard = ({
       buttonSize: 52,
       spacing: 0.5,
       chipSize: 'small',
-      showDownloads: true
+      showDownloads: true,
+      showLikes: true
     }
   };
 
@@ -138,7 +146,7 @@ const SongCard = ({
   // ============================================ //
   // FUNCIÓN PARA FORMATEAR NÚMEROS DE DESCARGA
   // ============================================ //
-  const formatDownloadCount = (count) => {
+  const formatNumber = (count) => {
     if (!count && count !== 0) return '0';
     if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
     if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
@@ -146,7 +154,7 @@ const SongCard = ({
   };
 
   // ============================================ //
-  // FUNCIÓN PARA FORMATEAR DURACIÓN (solo si existe)
+  // FUNCIÓN PARA FORMATEAR DURACIÓN
   // ============================================ //
   const formatDuration = (seconds) => {
     if (!seconds || seconds <= 0) return null;
@@ -166,7 +174,7 @@ const SongCard = ({
   const downloadError = download.errors?.[songId];
   const songStatus = player.getSongStatus?.(song.id) || {};
 
-  // Determinar qué contador mostrar (optimistic vs real)
+  // Determinar qué contador de descargas mostrar (optimistic vs real)
   const realDownloads = song?.downloads_count || 0;
   const displayDownloads = optimisticDownloads !== null ? optimisticDownloads : realDownloads;
   const hasDownloads = displayDownloads > 0;
@@ -207,20 +215,32 @@ const SongCard = ({
     e?.stopPropagation();
     handleMenuClose();
     
-    // Optimistic update: +1 inmediato
     setOptimisticDownloads(realDownloads + 1);
-    
     setSnackbar({ open: true, message: `📥 Descargando ${song?.title}...`, severity: 'info' });
     
     try {
       await download.downloadSong?.(songId, song?.title, song?.artist);
       setSnackbar({ open: true, message: '✅ Canción descargada', severity: 'success' });
     } catch (error) {
-      // Error: revertir optimistic update
       setOptimisticDownloads(realDownloads);
       setSnackbar({ open: true, message: `❌ ${error.message}`, severity: 'error' });
     }
   }, [download, songId, song, realDownloads]);
+
+  // ============================================ //
+  // HANDLER DE LIKE
+  // ============================================ //
+  const handleLike = useCallback((e) => {
+    e?.stopPropagation();
+    like.handleLike();
+    
+    setSnackbar({ 
+      open: true, 
+      message: like.userLiked ? '❤️ Like agregado' : '💔 Like removido', 
+      severity: 'success',
+      autoHideDuration: 1500
+    });
+  }, [like]);
 
   const handleCancelDownload = useCallback((e) => {
     e?.stopPropagation();
@@ -241,13 +261,6 @@ const SongCard = ({
   };
 
   const handleMenuClose = () => setAnchorEl(null);
-
-  const handleLike = (e) => {
-    e.stopPropagation();
-    const newLikedState = !liked;
-    setLiked(newLikedState);
-    onLike?.(song?.id, newLikedState);
-  };
 
   const handlePlayPause = async (e) => {
     e.stopPropagation();
@@ -294,9 +307,19 @@ const SongCard = ({
       },
       (isDownloaded || isDownloading) && { divider: true },
       {
-        label: liked ? 'Quitar de favoritos' : 'Añadir a favoritos',
-        icon: liked ? <Favorite fontSize="small" color="error" /> : <FavoriteBorder fontSize="small" />,
-        onClick: handleLike
+        label: like.userLiked ? 'Quitar like' : 'Dar like',
+        icon: like.userLiked ? 
+          <Favorite fontSize="small" color="error" /> : 
+          <FavoriteBorder fontSize="small" />,
+        onClick: handleLike,
+        disabled: like.isToggling,
+        endIcon: like.isToggling && <CircularProgress size={12} />
+      },
+      { divider: true },
+      {
+        label: 'Compartir',
+        icon: <Info fontSize="small" />,
+        onClick: () => setSnackbar({ open: true, message: 'Compartir no implementado', severity: 'info' })
       }
     ].filter(Boolean);
 
@@ -363,7 +386,7 @@ const SongCard = ({
           }
         }}
       >
-        {/* Barra de progreso - visible durante carga/descarga */}
+        {/* Barra de progreso */}
         {(songStatus?.isLoading || isDownloading) && (
           <Fade in={true}>
             <Box sx={{
@@ -550,14 +573,14 @@ const SongCard = ({
                 {song?.artist}
               </Typography>
 
-              {/* METADATOS - Solo duración (si existe) y acciones */}
+              {/* METADATOS */}
               <Box sx={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
               }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  {/* 🆕 Duración - SOLO si existe */}
+                  {/* Duración */}
                   {durationFormatted && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                       <AccessTime sx={{ fontSize: 10, color: 'text.disabled' }} />
@@ -567,7 +590,7 @@ const SongCard = ({
                     </Box>
                   )}
 
-                  {/* Género - SOLO en modo detailed */}
+                  {/* Género */}
                   {config.showGenre && song?.genre && (
                     <Chip
                       label={song.genre}
@@ -581,7 +604,7 @@ const SongCard = ({
                     />
                   )}
 
-                  {/* Tamaño - SOLO en modo detailed y si está descargada */}
+                  {/* Tamaño de archivo */}
                   {config.showFileSize && isDownloaded && downloadInfo?.fileSize && (
                     <Tooltip title={`${(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB`}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
@@ -594,9 +617,93 @@ const SongCard = ({
                   )}
                 </Box>
 
-                {/* ACCIONES - Con contador integrado en botón de descarga */}
+                {/* ACCIONES */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                  {/* Botón de descarga CON contador */}
+                  
+                  {/* 🎯 SECCIÓN DE LIKES MEJORADA */}
+                  {(() => {
+                    // Calcular porcentaje de popularidad (si hay reproducciones)
+                    const likePercentage = song?.plays_count > 0 
+                      ? Math.min((like.likesCount / song.plays_count) * 100, 100) 
+                      : 0;
+                      
+                    const heartFill = like.userLiked ? 100 : Math.min(likePercentage, 100);
+                    const heartColor = like.userLiked 
+                      ? designTokens.colors.error 
+                      : heartFill >= 75 ? '#EF4444' 
+                      : heartFill >= 50 ? '#F59E0B' 
+                      : heartFill >= 25 ? '#10B981' 
+                      : 'text.secondary';
+                    
+                    const tooltipText = song?.plays_count > 0
+                      ? `${like.likesCount} likes • ${Math.round(likePercentage)}% popularidad`
+                      : `${like.likesCount} likes`;
+                    
+                    return (
+                      <Tooltip title={tooltipText} arrow>
+                        <IconButton
+                          size="small"
+                          onClick={handleLike}
+                          disabled={like.isLoading || like.isToggling}
+                          sx={{
+                            color: heartColor,
+                            transition: 'all 0.2s ease',
+                            p: 0.5,
+                            '&:hover': {
+                              transform: 'scale(1.1)'
+                            }
+                          }}
+                        >
+                          {like.isLoading || like.isToggling ? (
+                            <CircularProgress size={12} sx={{ color: heartColor }} />
+                          ) : (
+                            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                              {/* Corazón de fondo (vacío) */}
+                              <FavoriteBorder 
+                                sx={{ 
+                                  fontSize: 14, 
+                                  color: heartColor,
+                                  opacity: 0.3
+                                }} 
+                              />
+                              {/* Corazón relleno según porcentaje */}
+                              <Favorite 
+                                sx={{ 
+                                  fontSize: 14, 
+                                  color: heartColor,
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  clipPath: `inset(0 ${100 - heartFill}% 0 0)`
+                                }} 
+                              />
+                            </Box>
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    );
+                  })()}
+
+                  {/* ✅ Número SOLO si hay likes > 0 */}
+                  {like.likesCount > 0 && (
+                    <Tooltip title={`${like.likesCount} likes`} arrow>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: '0.6rem',
+                          color: like.userLiked ? designTokens.colors.error : 'text.secondary',
+                          fontWeight: like.userLiked ? 600 : 400,
+                          ml: 0.3,
+                          minWidth: '24px',
+                          textAlign: 'center'
+                        }}
+                      >
+                        {like.formatLikes(like.likesCount)}
+                      </Typography>
+                    </Tooltip>
+                  )}
+
+                  {/* Botón de descarga con contador */}
                   {isDownloaded ? (
                     <Tooltip title="Descargada">
                       <IconButton
@@ -646,7 +753,6 @@ const SongCard = ({
                         }}
                       >
                         <Download sx={{ fontSize: 14 }} />
-                        {/* 🆕 Contador sobre el botón */}
                         {hasDownloads && (
                           <Typography
                             component="span"
@@ -668,7 +774,7 @@ const SongCard = ({
                               zIndex: 2
                             }}
                           >
-                            {formatDownloadCount(displayDownloads)}
+                            {formatNumber(displayDownloads)}
                           </Typography>
                         )}
                       </IconButton>
@@ -715,6 +821,16 @@ const SongCard = ({
             <Typography variant="caption" color="text.secondary">
               {(downloadInfo?.fileSize / 1024 / 1024).toFixed(1)} MB
             </Typography>
+            
+            {/* Mostrar likes en el diálogo de información */}
+            {like.likesCount > 0 && (
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Favorite sx={{ fontSize: 16, color: like.userLiked ? designTokens.colors.error : 'text.secondary' }} />
+                <Typography variant="body2">
+                  {like.likesCount} {like.likesCount === 1 ? 'like' : 'likes'}
+                </Typography>
+              </Box>
+            )}
           </Box>
         </DialogContent>
       </Dialog>
@@ -722,7 +838,7 @@ const SongCard = ({
       {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={3000}
+        autoHideDuration={snackbar.autoHideDuration || 3000}
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >

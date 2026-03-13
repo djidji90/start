@@ -1,13 +1,11 @@
 // ============================================
-// hooks/useDownload.js - VERSIÓN CORREGIDA
-// ✅ Soporte para endpoint JSON (/download-url/)
+// hooks/useDownload.js - VERSIÓN SIMPLIFICADA
+// ✅ Usa endpoint simple /download-count/ en lugar de confirmación compleja
+// ✅ Mantiene toda la funcionalidad offline
+// ✅ Reintentos automáticos
 // ✅ Fetch en lugar de axios para evitar CORS
-// ✅ Sintaxis corregida de axios
-// ✅ Eliminado link.click() (no guarda en filesystem)
 // ✅ isDownloaded SÍNCRONO (para UI)
 // ✅ getOfflineAudioUrl - Para reproducir desde cache
-// ✅ getDownloadStatus - Estado completo con verificación
-// ✅ verifyDownload - Verifica integridad del archivo
 // ============================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -25,9 +23,10 @@ const DOWNLOAD_CONFIG = {
   REQUEST_TIMEOUT: 30000,
   SIGNED_URL_TIMEOUT: 5000,
   API_BASE_URL: 'https://api.djidjimusic.com/api2',
-  STORAGE_KEY: 'djidji_downloads',
-  CACHE_NAME: 'djidji-audio-v1',
-  ENABLE_LOGGING: true, // Cambiar a false en producción
+  STORAGE_KEY: 'djidji_downloads_v2',
+  CACHE_NAME: 'djidji-audio-v2',
+  PENDING_COUNTS_KEY: 'pending_counts', // 🔥 NUEVO - para contadores pendientes
+  ENABLE_LOGGING: true,
   MIN_FILE_SIZE: 1024,
   MOBILE_REGEX: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
 };
@@ -91,6 +90,56 @@ const useDownload = () => {
       window.removeEventListener('download-completed', handleUpdate);  
       window.removeEventListener('download-cancelled', handleUpdate);  
     };
+  }, [log]);
+
+  // ============================================
+  // 🔥 NUEVO: Reintentar contadores pendientes
+  // ============================================
+  useEffect(() => {
+    const retryPendingCounts = async () => {
+      try {
+        const pending = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.PENDING_COUNTS_KEY) || '[]');
+        if (pending.length === 0) return;
+
+        log('info', `Reintentando ${pending.length} contadores pendientes`);
+
+        const token = getAuthToken();
+        const now = Date.now();
+        const fresh = pending.filter(p => now - p.timestamp < 24 * 60 * 60 * 1000); // 24h
+
+        const newPending = [];
+        
+        for (const item of fresh) {
+          try {
+            await axios.post(
+              `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${item.songId}/download-count/`,
+              {},
+              {
+                headers: { 
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                timeout: 5000
+              }
+            );
+            log('info', '✅ Contador pendiente enviado', { songId: item.songId });
+          } catch (error) {
+            log('error', '❌ Error reintentando contador', { songId: item.songId, error: error.message });
+            newPending.push(item);
+          }
+        }
+
+        localStorage.setItem(DOWNLOAD_CONFIG.PENDING_COUNTS_KEY, JSON.stringify(newPending));
+      } catch (error) {
+        log('error', 'Error en reintentos', error);
+      }
+    };
+
+    // Reintentar cada 30 segundos
+    const interval = setInterval(retryPendingCounts, 30000);
+    retryPendingCounts(); // Intento inicial
+    
+    return () => clearInterval(interval);
   }, [log]);
 
   // ============================================
@@ -166,33 +215,33 @@ const useDownload = () => {
   const getOfflineAudioUrl = useCallback(async (songId) => {
     try {
       log('debug', 'Obteniendo URL offline', { songId });
-      
+
       const cache = await caches.open(DOWNLOAD_CONFIG.CACHE_NAME);
       const response = await cache.match(`/song/${songId}/audio`);
-      
+
       if (!response) {
         log('warn', 'No encontrado en cache', { songId });
         return null;
       }
-      
+
       const blob = await response.blob();
-      
+
       if (blob.size < DOWNLOAD_CONFIG.MIN_FILE_SIZE) {
         log('warn', 'Archivo corrupto', { songId, size: blob.size });
         return null;
       }
-      
+
       const url = URL.createObjectURL(blob);
-      
+
       setTimeout(() => {
         try {
           URL.revokeObjectURL(url);
         } catch (e) {}
       }, 60000);
-      
+
       log('info', 'URL offline generada', { songId });
       return url;
-      
+
     } catch (error) {
       log('error', 'Error obteniendo URL offline', { error: error.message, songId });
       return null;
@@ -216,7 +265,7 @@ const useDownload = () => {
       const isDownloading = downloading[songId] || false;
       const downloadProgress = progress[songId] || 0;
       const error = errors[songId] || null;
-      
+
       if (isDownloading) {
         return {
           isDownloaded: false,
@@ -276,7 +325,7 @@ const useDownload = () => {
   }, [downloading, progress, errors, getDownloadInfo, verifyDownload, getOfflineAudioUrl, log]);
 
   // ============================================
-  // ✅ FUNCIÓN: removeDownload (MEJORADA)
+  // ✅ FUNCIÓN: removeDownload
   // ============================================
   const removeDownload = useCallback(async (songId) => {
     try {
@@ -308,11 +357,12 @@ const useDownload = () => {
   }, [log]);
 
   // ============================================
-  // ✅ FUNCIÓN: clearAllDownloads (MEJORADA)
+  // ✅ FUNCIÓN: clearAllDownloads
   // ============================================
   const clearAllDownloads = useCallback(async () => {
     try {
       localStorage.removeItem(DOWNLOAD_CONFIG.STORAGE_KEY);
+      localStorage.removeItem(DOWNLOAD_CONFIG.PENDING_COUNTS_KEY);
       setDownloadsMap({});
 
       try {  
@@ -404,55 +454,71 @@ const useDownload = () => {
   }, [log]);
 
   // ============================================
-  // ✅ FUNCIÓN: getDownloadUrl (CORREGIDA - USA JSON ENDPOINT)
+  // 🔥 NUEVA FUNCIÓN: sendDownloadCount (simplificada)
+  // ============================================
+  const sendDownloadCount = useCallback(async (songId) => {
+    const token = getAuthToken();
+
+    try {
+      await axios.post(
+        `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download-count/`,
+        {},
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000,
+          keepalive: true
+        }
+      );
+
+      log('info', '✅ Contador enviado', { songId });
+      return true;
+    } catch (error) {
+      log('error', '❌ Error enviando contador', { 
+        songId, 
+        error: error.message,
+        status: error.response?.status 
+      });
+
+      // Guardar para reintentar después
+      try {
+        const pending = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.PENDING_COUNTS_KEY) || '[]');
+        pending.push({
+          songId,
+          timestamp: Date.now()
+        });
+        localStorage.setItem(DOWNLOAD_CONFIG.PENDING_COUNTS_KEY, JSON.stringify(pending));
+      } catch (storageError) {
+        log('error', 'Error guardando contador pendiente', storageError);
+      }
+      return false;
+    }
+  }, [log, getAuthToken]);
+
+  // ============================================
+  // 🆕 FUNCIÓN: getDownloadUrl (simplificada)
   // ============================================
   const getDownloadUrl = useCallback(async (songId, token) => {
     try {
-      // ✅ PRIMERO: Intentar con el endpoint JSON (nuevo, sin CORS)
-      try {
-        const response = await axios.get(
-          `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download-url/`,
-          {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            },
-            timeout: DOWNLOAD_CONFIG.SIGNED_URL_TIMEOUT
-          }
-        );
-
-        if (response.data?.download_url) {
-          log('info', 'URL de descarga obtenida vía JSON', { songId });
-          return response.data.download_url;
+      const response = await axios.get(
+        `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download-url/`,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          timeout: DOWNLOAD_CONFIG.SIGNED_URL_TIMEOUT
         }
-      } catch (jsonError) {
-        log('debug', 'Endpoint JSON no disponible, usando stream', { songId });
+      );
+
+      if (response.data?.download_url) {
+        log('info', 'URL obtenida', { songId });
+        return response.data.download_url;
       }
       
-      // ✅ SEGUNDO: Intentar con stream (para obtener URL firmada)
-      try {
-        const response = await axios.get(
-          `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/stream/`,
-          {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            },
-            timeout: DOWNLOAD_CONFIG.SIGNED_URL_TIMEOUT
-          }
-        );
-
-        if (response.data?.data?.stream_url) {  
-          log('debug', 'URL de streaming obtenida', { songId });  
-          return response.data.data.stream_url;  
-        }
-      } catch (streamError) {
-        log('debug', 'Stream endpoint falló', { songId });
-      }
-      
-      // ❌ FALLBACK: Endpoint de descarga directa (último recurso)
-      log('warn', 'Usando endpoint de descarga directa', { songId });
-      return `${DOWNLOAD_CONFIG.API_BASE_URL}/songs/${songId}/download/`;
+      throw new Error('No se recibió URL');
       
     } catch (error) {
       log('error', 'Error obteniendo URL', { 
@@ -506,25 +572,34 @@ const useDownload = () => {
   }, []);
 
   // ============================================
-  // ✅ EJECUTAR DESCARGA (CORREGIDA - USA FETCH)
+  // ✅ EJECUTAR DESCARGA (VERSIÓN SIMPLIFICADA)
   // ============================================
   const executeDownload = useCallback(async (songId, songTitle, artistName) => {
     const controller = new AbortController();
     abortControllers.current.set(songId, controller);
+    const startTime = Date.now();
 
     try {  
       setDownloading(prev => ({ ...prev, [songId]: true }));  
       setProgress(prev => ({ ...prev, [songId]: 0 }));  
       setErrors(prev => ({ ...prev, [songId]: null }));  
 
-      log('info', 'Iniciando descarga', { songId, songTitle });  
+      log('info', '🚀 Iniciando descarga', { songId, songTitle });  
 
       const token = await executeWithRetry(() => getAuthToken(), songId);  
-      const url = await executeWithRetry(() => getDownloadUrl(songId, token), songId);  
+      
+      // Obtener URL de descarga
+      const url = await executeWithRetry(
+        () => getDownloadUrl(songId, token), 
+        songId
+      );
 
-      log('info', 'URL obtenida, iniciando descarga', { songId, url: url.substring(0, 50) + '...' });
+      log('info', 'URL obtenida', { 
+        songId, 
+        url: url.substring(0, 50) + '...' 
+      });
 
-      // ✅ USAR FETCH EN LUGAR DE AXIOS PARA EVITAR CORS
+      // Descargar archivo
       const response = await fetch(url, {
         method: 'GET',
         signal: controller.signal
@@ -534,30 +609,27 @@ const useDownload = () => {
         throw new Error(`HTTP ${response.status}`);
       }
 
-      // Obtener el tamaño total si está disponible
+      // Leer stream con progreso
       const contentLength = response.headers.get('content-length');
       const totalSize = contentLength ? parseInt(contentLength, 10) : 0;
 
-      // Leer el stream para obtener progreso
       const reader = response.body.getReader();
       const chunks = [];
       let receivedSize = 0;
 
       while (true) {
         const { done, value } = await reader.read();
-        
         if (done) break;
-        
+
         chunks.push(value);
         receivedSize += value.length;
-        
+
         if (totalSize > 0) {
           const percent = Math.round((receivedSize * 100) / totalSize);
           setProgress(prev => ({ ...prev, [songId]: percent }));
         }
       }
 
-      // Combinar chunks en un solo blob
       const blob = new Blob(chunks, { type: 'audio/mpeg' });
 
       if (blob.size < DOWNLOAD_CONFIG.MIN_FILE_SIZE) {  
@@ -566,22 +638,14 @@ const useDownload = () => {
 
       const hash = await calculateSHA256(blob);  
 
-      // Guardar en cache (para móvil) o no hacer nada extra
+      // Guardar en cache
       const savedToStorage = await saveToCache(songId, blob, { 
         id: songId, 
         title: songTitle, 
         artist: artistName 
       });  
 
-      // ✅ ELIMINADO: Trigger download en navegador (no queremos guardar en filesystem)
-      // const blobUrl = URL.createObjectURL(blob);  
-      // const link = document.createElement('a');  
-      // link.href = blobUrl;  
-      // link.download = fileName;  
-      // link.click();  
-      // setTimeout(() => URL.revokeObjectURL(blobUrl), 100);  
-
-      // Guardar metadata  
+      // Guardar metadata local
       const downloadRecord = {  
         id: songId,  
         title: songTitle,  
@@ -589,7 +653,7 @@ const useDownload = () => {
         downloadedAt: new Date().toISOString(),  
         fileSize: blob.size,  
         hash: hash,  
-        storageType: savedToStorage ? 'cache' : 'none'  
+        storageType: savedToStorage ? 'cache' : 'none'
       };  
 
       const currentDownloads = JSON.parse(localStorage.getItem(DOWNLOAD_CONFIG.STORAGE_KEY) || '{}');  
@@ -597,6 +661,11 @@ const useDownload = () => {
       localStorage.setItem(DOWNLOAD_CONFIG.STORAGE_KEY, JSON.stringify(currentDownloads));  
 
       setDownloadsMap(prev => ({ ...prev, [songId]: downloadRecord }));  
+
+      // ========================================
+      // 🔥 PASO CLAVE: ENVIAR CONTADOR SIMPLE
+      // ========================================
+      sendDownloadCount(songId);
 
       const resolver = pendingResolvers.current.get(songId);  
       if (resolver) {  
@@ -609,11 +678,11 @@ const useDownload = () => {
 
       log('info', '✅ Descarga completada', { 
         songId, 
-        size: (blob.size / 1024 / 1024).toFixed(2) + 'MB' 
+        size: (blob.size / 1024 / 1024).toFixed(2) + 'MB'
       });
 
     } catch (error) {  
-      log('error', 'Error en descarga', { songId, error: error.message });  
+      log('error', '❌ Error en descarga', { songId, error: error.message });  
 
       let errorMessage = 'Error al descargar';  
       if (error.name === 'AbortError') errorMessage = 'Descarga cancelada';  
@@ -646,7 +715,7 @@ const useDownload = () => {
       activeDownloads.current = Math.max(0, activeDownloads.current - 1);  
       processQueue();  
     }
-  }, [getAuthToken, getDownloadUrl, saveToCache, executeWithRetry, processQueue, calculateSHA256, log]);
+  }, [getAuthToken, getDownloadUrl, saveToCache, executeWithRetry, processQueue, calculateSHA256, sendDownloadCount, log]);
 
   // ============================================
   // ✅ DOWNLOAD SONG
@@ -718,30 +787,25 @@ const useDownload = () => {
   // ✅ API PÚBLICA
   // ============================================
   return {
-    // ACCIONES
     downloadSong,
     cancelDownload,
     removeDownload,
     clearAllDownloads,
     clearError,
 
-    // ESTADOS UI  
     downloading,  
     progress,  
     errors,  
     queue: queueVisual,  
 
-    // CONSULTAS SÍNCRONAS  
     isDownloaded,        
     getDownloadInfo,     
     getAllDownloads,     
 
-    // FUNCIONES PARA REPRODUCCIÓN OFFLINE
     getOfflineAudioUrl,  
     getDownloadStatus,   
     verifyDownload,      
 
-    // UTILIDADES  
     getAuthToken
   };
 };
