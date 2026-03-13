@@ -1,11 +1,11 @@
 // ============================================
 // src/components/songs/SongCard.jsx
-// VERSIÓN FINAL - CON LIKES MEJORADOS
-// ✅ Corazón con relleno según popularidad
-// ✅ Formato profesional de números (1.2K)
-// ✅ Número visible SOLO cuando > 0
-// ✅ Tooltips informativos
+// VERSIÓN FINAL - ULTRA EFICIENTE
+// ✅ Likes simples y rápidos
+// ✅ Sin popularidad (solo corazón + número)
 // ✅ React Query + Optimistic updates
+// ✅ Número visible SOLO cuando > 0
+// ✅ Tooltips mínimos
 // ============================================
 
 import React, { useState, useCallback, useEffect } from "react";
@@ -228,18 +228,11 @@ const SongCard = ({
   }, [download, songId, song, realDownloads]);
 
   // ============================================ //
-  // HANDLER DE LIKE
+  // HANDLER DE LIKE (SIN SNACKBAR - FEEDBACK IMPLÍCITO)
   // ============================================ //
   const handleLike = useCallback((e) => {
     e?.stopPropagation();
-    like.handleLike();
-    
-    setSnackbar({ 
-      open: true, 
-      message: like.userLiked ? '❤️ Like agregado' : '💔 Like removido', 
-      severity: 'success',
-      autoHideDuration: 1500
-    });
+    like.handleLike(); // El corazón ya da feedback visual
   }, [like]);
 
   const handleCancelDownload = useCallback((e) => {
@@ -617,74 +610,38 @@ const SongCard = ({
                   )}
                 </Box>
 
-                {/* ACCIONES */}
+                {/* ACCIONES - VERSIÓN OPTIMIZADA */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                   
-                  {/* 🎯 SECCIÓN DE LIKES MEJORADA */}
-                  {(() => {
-                    // Calcular porcentaje de popularidad (si hay reproducciones)
-                    const likePercentage = song?.plays_count > 0 
-                      ? Math.min((like.likesCount / song.plays_count) * 100, 100) 
-                      : 0;
-                      
-                    const heartFill = like.userLiked ? 100 : Math.min(likePercentage, 100);
-                    const heartColor = like.userLiked 
-                      ? designTokens.colors.error 
-                      : heartFill >= 75 ? '#EF4444' 
-                      : heartFill >= 50 ? '#F59E0B' 
-                      : heartFill >= 25 ? '#10B981' 
-                      : 'text.secondary';
-                    
-                    const tooltipText = song?.plays_count > 0
-                      ? `${like.likesCount} likes • ${Math.round(likePercentage)}% popularidad`
-                      : `${like.likesCount} likes`;
-                    
-                    return (
-                      <Tooltip title={tooltipText} arrow>
-                        <IconButton
-                          size="small"
-                          onClick={handleLike}
-                          disabled={like.isLoading || like.isToggling}
-                          sx={{
-                            color: heartColor,
-                            transition: 'all 0.2s ease',
-                            p: 0.5,
-                            '&:hover': {
-                              transform: 'scale(1.1)'
-                            }
-                          }}
-                        >
-                          {like.isLoading || like.isToggling ? (
-                            <CircularProgress size={12} sx={{ color: heartColor }} />
-                          ) : (
-                            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-                              {/* Corazón de fondo (vacío) */}
-                              <FavoriteBorder 
-                                sx={{ 
-                                  fontSize: 14, 
-                                  color: heartColor,
-                                  opacity: 0.3
-                                }} 
-                              />
-                              {/* Corazón relleno según porcentaje */}
-                              <Favorite 
-                                sx={{ 
-                                  fontSize: 14, 
-                                  color: heartColor,
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  clipPath: `inset(0 ${100 - heartFill}% 0 0)`
-                                }} 
-                              />
-                            </Box>
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                    );
-                  })()}
+                  {/* 🎯 LIKE BUTTON - SIMPLE Y RÁPIDO */}
+                  <Tooltip 
+                    title={like.userLiked ? 'Quitar like' : 'Dar like'} 
+                    arrow
+                  >
+                    <IconButton
+                      size="small"
+                      onClick={handleLike}
+                      disabled={like.isLoading || like.isToggling}
+                      sx={{
+                        color: like.userLiked ? designTokens.colors.error : 'text.secondary',
+                        transition: 'color 0.2s ease',
+                        p: 0.5,
+                        '&:hover': {
+                          transform: 'scale(1.1)'
+                        }
+                      }}
+                    >
+                      {like.isLoading || like.isToggling ? (
+                        <CircularProgress size={12} sx={{ color: 'text.secondary' }} />
+                      ) : like.userLiked ? (
+                        <Favorite sx={{ fontSize: 14 }} />
+                      ) : (
+                        <FavoriteBorder sx={{ fontSize: 14 }} />
+                      )}
+                    </IconButton>
+                  </Tooltip>
 
-                  {/* ✅ Número SOLO si hay likes > 0 */}
+                  {/* Número de likes (solo si > 0) */}
                   {like.likesCount > 0 && (
                     <Tooltip title={`${like.likesCount} likes`} arrow>
                       <Typography
