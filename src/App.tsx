@@ -2,7 +2,7 @@
 import { useState, useEffect, lazy, Suspense } from "react";
 import "./styles.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { HelmetProvider } from 'react-helmet-async'; // 👈 IMPORTAR HELMET PROVIDER
+import { HelmetProvider } from 'react-helmet-async';
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import CartDrawer from "./components/CartDrawer";
@@ -15,8 +15,8 @@ import DownloadsPage from "./components/context/DownloadsPage";
 import { PlayerProvider } from "./components/PlayerContext";
 import PlayerBar from "./components/theme/musica/PlayerBar";
 
-// 🔥 IMPORTAR NUEVA PÁGINA DE PERFIL DE ARTISTA
-import ArtistProfile from "./components/profile/ArtistProfile";
+// 🔥 IMPORTAR NUEVA LANDING PAGE
+import LandingPage from "./components/landing/LandingPage";
 
 // Configuración React Query
 const queryClient = new QueryClient({
@@ -93,11 +93,10 @@ export default function App() {
   const toggleCart = () => setCartOpen(!isCartOpen);
 
   return (
-    <HelmetProvider> {/* 👈 ENVOLVER TODO CON HELMET PROVIDER */}
+    <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ThemeProviderWrapper>
-            {/* 🎵 PlayerProvider a nivel global */}
             <PlayerProvider>
               <BrowserRouter>
                 <CartDrawer cartItems={cartItems} isOpen={isCartOpen} toggleDrawer={toggleCart} />
@@ -105,7 +104,16 @@ export default function App() {
 
                 <Suspense fallback={<LoadingSpinner />}>
                   <Routes>
-                    <Route path="/" element={<Login />} />
+                    {/* 🏠 Landing Page con deferredPrompt */}
+                    <Route 
+                      path="/" 
+                      element={<LandingPage deferredPrompt={deferredPrompt} />} 
+                    />
+                    
+                    {/* 🔐 Login */}
+                    <Route path="/login" element={<Login />} />
+                    
+                    {/* 📦 RESTO DE RUTAS EXISTENTES */}
                     <Route path="/MainPage" element={<MainPage />} />
                     <Route path="/AboutUS" element={<AboutUs />} />
                     <Route path="/categoria/:id" element={<CategoriaProductos />} />
@@ -114,9 +122,6 @@ export default function App() {
                     <Route path="/Todo/*" element={<Todo />} />
                     <Route path="/TechStyleHub" element={<TechStyleHub />} />
                     <Route path="/downloads" element={<DownloadsPage />} />
-                    
-                    {/* 🔥 RUTA PARA PERFIL DE ARTISTA */}
-                    <Route path="/perfil/:username" element={<ArtistProfile />} />
                     
                     <Route
                       path="/song/:songId"
@@ -130,8 +135,6 @@ export default function App() {
                 </Suspense>
 
                 <Footer />
-
-                {/* 🎵 PlayerBar global fijo */}
                 <PlayerBar />
               </BrowserRouter>
             </PlayerProvider>

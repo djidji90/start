@@ -75,7 +75,7 @@ const RandomSongsDisplay = () => {
             {/* Botón que redirige directamente al login */}
             <Button
               variant="contained"
-              onClick={() => navigate("/")} // Redirige a la ruta principal (login)
+              onClick={() => navigate("/Login")} // Redirige a la ruta principal (login)
               startIcon={<LoginIcon />}
               sx={{
                 px: 4,

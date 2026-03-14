@@ -851,7 +851,7 @@ const Register = () => {
 
           {/* Botón volver al login */}
           <IconButton
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/Login")}
             sx={{
               position: 'absolute',
               top: '20px',
@@ -1419,7 +1419,7 @@ const Register = () => {
                   <Link 
                     component="button"
                     type="button"
-                    onClick={() => navigate("/")}
+                    onClick={() => navigate("/Login")}
                     sx={{
                       display: 'inline-flex',
                       alignItems: 'center',

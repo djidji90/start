@@ -1,5 +1,5 @@
 // ============================================
-// components/Navbar.jsx - VERSIÓN FINAL SIN DESCARGAS
+// components/Navbar.jsx - VERSIÓN CON LANDING PAGE
 // ============================================
 
 import React, { useState, useMemo } from "react";
@@ -31,6 +31,7 @@ import InfoIcon from "@mui/icons-material/Info";
 import StoreIcon from "@mui/icons-material/Store";
 import SearchIcon from "@mui/icons-material/Search";
 import ExploreIcon from "@mui/icons-material/Explore";
+import WelcomeIcon from "@mui/icons-material/EmojiEmotions"; // Icono para bienvenida
 
 // Paleta naranja consistente con Login
 const colors = {
@@ -60,11 +61,11 @@ const Navbar = () => {
     [darkMode]
   );
 
-  // Items de menú SIN DESCARGAS
+  // Items de menú - AHORA INCLUYE WELCOME/BIENVENIDA
   const menuItems = [
     { label: "Inicio", path: "/", icon: <HomeIcon /> },
-    { label: "Nosotros", path: "/AboutUs", icon: <InfoIcon /> },
-    { label: "Tienda", path: "/Todo", icon: <StoreIcon /> },
+
+    { label: "Nosotros", path: "/AboutUs", icon: <InfoIcon /> }, 
     { label: "Búsqueda", path: "/MainPage", icon: <SearchIcon /> },
     { label: "Descubre", path: "/TechStyleHub", icon: <ExploreIcon /> },
   ];
@@ -129,7 +130,7 @@ const Navbar = () => {
             </IconButton>  
           </Box>  
 
-          {/* Menú móvil con iconos - SIN DESCARGAS */}  
+          {/* Menú móvil con iconos - AHORA CON BIENVENIDA */}  
           <Menu  
             anchorEl={anchorEl}  
             open={Boolean(anchorEl)}  
@@ -165,7 +166,7 @@ const Navbar = () => {
             ))}  
           </Menu>  
 
-          {/* Links desktop - SIN DESCARGAS */}  
+          {/* Links desktop - AHORA CON BIENVENIDA */}  
           <NavButtonsContainer>  
             {menuItems.map((item) => (  
               <NavButton  
@@ -218,7 +219,7 @@ const Logo = styled("img", { shouldForwardProp: (prop) => prop !== 'darkmode' })
   },
 }));
 
-const Title = styled(Typography)(({ theme }) => ({
+const Title = styled(Typography, { shouldForwardProp: (prop) => prop !== 'darkmode' })(({ darkmode }) => ({
   fontWeight: 700,
   letterSpacing: "0.5px",
   cursor: "pointer",
@@ -229,7 +230,10 @@ const Title = styled(Typography)(({ theme }) => ({
   fontSize: "1.3rem",
   transition: "all 0.3s ease",
   "&:hover": {
-    background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)`
+    background: `linear-gradient(135deg, ${colors.primaryDark} 0%, ${colors.primary} 100%)`,
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
   },
 }));
 
