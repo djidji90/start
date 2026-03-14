@@ -26,6 +26,7 @@ import {
   Public,
   AddCircleOutline
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 interface Genre {
   id: string;
@@ -38,6 +39,7 @@ interface Genre {
 
 const FeaturedGenres = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const carouselRef = useRef<HTMLDivElement>(null);
   const [genres, setGenres] = useState<Genre[]>([]);
@@ -47,7 +49,6 @@ const FeaturedGenres = () => {
 
   const heroImage = '/mansa.jpg';
 
-  // Verificar capacidad de scroll
   const checkScroll = () => {
     if (carouselRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
@@ -57,8 +58,7 @@ const FeaturedGenres = () => {
   };
 
   useEffect(() => {
-    // Géneros musicales de Guinea Ecuatorial
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setGenres([
         {
           id: '1',
@@ -143,13 +143,15 @@ const FeaturedGenres = () => {
       ]);
       setLoading(false);
     }, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     checkScroll();
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
-  }, [genres]);
+  }, []);
 
   const scroll = (direction: 'left' | 'right') => {
     if (carouselRef.current) {
@@ -163,7 +165,6 @@ const FeaturedGenres = () => {
     }
   };
 
-  // Formatear número de canciones (ej: 3240 → 3.2K)
   const formatSongCount = (count: number) => {
     if (count >= 1000) {
       return (count / 1000).toFixed(1) + 'K';
@@ -182,6 +183,8 @@ const FeaturedGenres = () => {
     );
   }
 
+  if (!genres?.length) return null;
+
   return (
     <Box
       sx={{
@@ -190,6 +193,7 @@ const FeaturedGenres = () => {
         backgroundImage: `url(${heroImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+        backgroundColor: theme.palette.background.default, // fallback
       }}
     >
       {/* Overlay */}
@@ -215,7 +219,14 @@ const FeaturedGenres = () => {
               background: `linear-gradient(180deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.main, 0.3)})`,
               borderRadius: 2,
             }} />
-            <Typography variant="h4" sx={{ fontWeight: 800, color: '#fff' }}>
+            <Typography 
+              variant="h4" 
+              sx={{ 
+                fontWeight: 800, 
+                color: '#fff',
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              }}
+            >
               ABARCAMOS TODOS LOS GÉNEROS
             </Typography>
             <Box sx={{
@@ -235,6 +246,7 @@ const FeaturedGenres = () => {
               mx: 'auto',
               textAlign: 'center',
               mb: 3,
+              textShadow: '0 1px 2px rgba(0,0,0,0.2)',
             }}
           >
             Desde los ritmos tradicionales hasta los sonidos urbanos más actuales.
@@ -377,7 +389,6 @@ const FeaturedGenres = () => {
                   }}
                 >
                   <Stack spacing={2} alignItems="center">
-                    {/* Icono del género */}
                     <Box
                       sx={{
                         width: 70,
@@ -394,7 +405,6 @@ const FeaturedGenres = () => {
                       {genre.icon}
                     </Box>
 
-                    {/* Nombre del género */}
                     <Typography
                       variant="h5"
                       sx={{
@@ -406,7 +416,6 @@ const FeaturedGenres = () => {
                       {genre.name}
                     </Typography>
 
-                    {/* Descripción */}
                     <Typography
                       variant="body2"
                       sx={{
@@ -418,7 +427,6 @@ const FeaturedGenres = () => {
                       {genre.description}
                     </Typography>
 
-                    {/* Número de canciones */}
                     <Chip
                       label={`${formatSongCount(genre.songCount)} canciones`}
                       size="small"
@@ -458,7 +466,6 @@ const FeaturedGenres = () => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minHeight: 280,
                   transition: 'all 0.3s ease',
                   '&:hover': {
                     borderColor: theme.palette.primary.main,
@@ -595,7 +602,7 @@ const FeaturedGenres = () => {
           <Button
             variant="contained"
             endIcon={<ArrowForward />}
-            onClick={() => window.location.href = '/Login'}
+            onClick={() => navigate('/Login')}
             sx={{
               py: 1.5,
               px: 3,

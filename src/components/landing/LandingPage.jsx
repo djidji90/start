@@ -1,5 +1,5 @@
 // src/landing/LandingPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Box,
   Container,
@@ -14,19 +14,32 @@ import {
 import {
   KeyboardArrowUp
 } from '@mui/icons-material';
+import { Helmet } from 'react-helmet-async';
 
-// Importar componentes
+// Importar componentes (con lazy loading opcional)
 import Hero from '../../components/landing/Hero';
 import ValueProposition from '../../components/landing/ValueProposition';
-import FeaturedArtists from '../../components/landing/FeaturedArtists';
+import FeaturedGenres from '../../components/landing/FeaturedArtists'; // ✅ NOMBRE CORREGIDO
 import FAQ from '../../components/landing/FAQ';
 import AppPromo from '../../components/landing/AppPromo';
+
+// Componente separador reutilizable
+const SectionDivider = ({ theme }) => (
+  <Box
+    sx={{
+      height: 1,
+      background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.15)}, transparent)`,
+      my: 4,
+    }}
+  />
+);
 
 // ============================================
 // COMPONENTE: Botón Volver Arriba
 // ============================================
 const ScrollToTop = () => {
   const [show, setShow] = useState(false);
+  const theme = useTheme();
 
   useEffect(() => {
     const handleScroll = () => setShow(window.scrollY > 400);
@@ -44,9 +57,9 @@ const ScrollToTop = () => {
         onClick={scrollToTop}
         sx={{
           position: 'fixed',
-          bottom: 80,
+          bottom: { xs: 70, md: 80 },
           right: 16,
-          zIndex: 1000,
+          zIndex: theme.zIndex.fab,
           boxShadow: 4,
         }}
       >
@@ -64,48 +77,54 @@ const LandingPage = ({ deferredPrompt }) => {
 
   return (
     <Box sx={{ position: 'relative' }}>
-      {/* ❌ HEADER Y SECTION NAV ELIMINADOS - Solo usamos el Navbar global */}
+      {/* SEO */}
+      <Helmet>
+        <title>DjidjiMusic - La música de Guinea Ecuatorial</title>
+        <meta name="description" content="Plataforma musical dedicada a impulsar artistas y sonidos de Guinea Ecuatorial. Descubre, escucha y comparte." />
+      </Helmet>
 
       {/* Contenido Principal */}
       <Box>
-        {/* Hero */}
         <Box id="hero">
           <Hero />
         </Box>
 
-        <Box sx={{ height: 1, background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.2)}, transparent)`, my: 4 }} />
+        <SectionDivider theme={theme} />
 
-        {/* Beneficios */}
         <Box id="value-prop">
           <ValueProposition />
         </Box>
 
-        <Box sx={{ height: 1, background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.2)}, transparent)`, my: 4 }} />
+        <SectionDivider theme={theme} />
 
-        {/* Artistas */}
         <Box id="artists">
-          <FeaturedArtists />
+          <FeaturedGenres /> {/* ✅ NOMBRE CORREGIDO */}
         </Box>
 
-        <Box sx={{ height: 1, background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.2)}, transparent)`, my: 4 }} />
+        <SectionDivider theme={theme} />
 
-        {/* FAQ */}
         <Box id="faq">
           <FAQ />
         </Box>
 
-        <Box sx={{ height: 1, background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.2)}, transparent)`, my: 4 }} />
+        <SectionDivider theme={theme} />
 
-        {/* App Promo - ÚLTIMA SECCIÓN */}
         <Box id="app-promo">
           <AppPromo deferredPrompt={deferredPrompt} />
         </Box>
       </Box>
 
-      {/* Solo el ScrollToTop, sin footer */}
       <ScrollToTop />
     </Box>
   );
+};
+
+// PropTypes para validación básica
+LandingPage.propTypes = {
+  deferredPrompt: (props, propName, componentName) => {
+    // Validación personalizada (opcional)
+    return null;
+  }
 };
 
 export default LandingPage;

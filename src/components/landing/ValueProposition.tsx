@@ -1,5 +1,5 @@
 // src/landing/components/ValueProposition.tsx
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   Box,
   Container,
@@ -28,6 +28,8 @@ const ValueProposition = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
   const features = [
     { icon: <Headphones sx={{ fontSize: 32 }} />, title: "Sin anuncios", desc: "Escucha música sin interrupciones publicitarias", color: theme.palette.primary.main, badge: "Premium" },
@@ -39,6 +41,20 @@ const ValueProposition = () => {
     { icon: <MusicNote sx={{ fontSize: 32 }} />, title: "Sube tu música", desc: "Comparte tus canciones y llega a nuevos oyentes", color: theme.palette.primary.main, badge: "Artistas" }
   ];
 
+  const checkScroll = () => {
+    if (carouselRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, []);
+
   const scrollCarousel = (direction: "left" | "right") => {
     if (!carouselRef.current) return;
     const scrollAmount = isMobile ? 250 : 400;
@@ -46,7 +62,10 @@ const ValueProposition = () => {
       left: direction === "left" ? -scrollAmount : scrollAmount,
       behavior: "smooth"
     });
+    setTimeout(checkScroll, 300);
   };
+
+  if (!features?.length) return null;
 
   return (
     <Box
@@ -58,10 +77,11 @@ const ValueProposition = () => {
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         backgroundAttachment: { md: "fixed" },
+        backgroundColor: theme.palette.background.default, // fallback sólido
         color: theme.palette.common.white
       }}
     >
-      {/* Overlay más oscuro para mejor contraste */}
+      {/* Overlay */}
       <Box
         sx={{
           position: "absolute",
@@ -118,32 +138,35 @@ const ValueProposition = () => {
 
         {/* Carousel */}
         <Box sx={{ position: "relative" }}>
-          {/* Flecha izquierda */}
-          <IconButton
-            onClick={() => scrollCarousel("left")}
-            sx={{
-              position: "absolute",
-              left: { xs: -8, sm: -16 },
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 3,
-              color: "white",
-              bgcolor: alpha(theme.palette.primary.main, 0.7),
-              width: 48,
-              height: 48,
-              "&:hover": { 
-                bgcolor: theme.palette.primary.main,
-                transform: "translateY(-50%) scale(1.1)"
-              },
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-              backdropFilter: "blur(4px)"
-            }}
-          >
-            <ArrowBackIos />
-          </IconButton>
+          {/* Flecha izquierda - solo desktop */}
+          {!isMobile && canScrollLeft && (
+            <IconButton
+              onClick={() => scrollCarousel("left")}
+              sx={{
+                position: "absolute",
+                left: -16,
+                top: "50%",
+                transform: "translateY(-50%)",
+                zIndex: 3,
+                color: "white",
+                bgcolor: alpha(theme.palette.primary.main, 0.7),
+                width: 48,
+                height: 48,
+                "&:hover": { 
+                  bgcolor: theme.palette.primary.main,
+                  transform: "translateY(-50%) scale(1.1)"
+                },
+                boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                backdropFilter: "blur(4px)"
+              }}
+            >
+              <ArrowBackIos />
+            </IconButton>
+          )}
 
           <Box
             ref={carouselRef}
+            onScroll={checkScroll}
             sx={{
               display: "flex",
               gap: 3,
@@ -160,11 +183,11 @@ const ValueProposition = () => {
                 key={idx}
                 elevation={12}
                 sx={{
-                  minWidth: 300,
+                  minWidth: { xs: 260, sm: 300 },
                   flex: "0 0 auto",
                   p: 4,
                   borderRadius: 4,
-                  background: alpha('#f8f4f4', 0.95), // Fondo amarillo
+                  background: alpha('#f8f4f4', 0.95),
                   color: theme.palette.text.primary,
                   transition: "all 0.3s ease",
                   border: `1px solid ${alpha(feature.color, 0.3)}`,
@@ -173,11 +196,10 @@ const ValueProposition = () => {
                     transform: "translateY(-8px)",
                     boxShadow: `0 20px 40px ${alpha(feature.color, 0.4)}`,
                     borderColor: feature.color,
-                    background: alpha('#ff9100', 1), // Amarillo más intenso al hover
+                    background: alpha('#ff9100', 1),
                   }
                 }}
               >
-                {/* Badge */}
                 <Chip
                   label={feature.badge}
                   size="small"
@@ -190,59 +212,54 @@ const ValueProposition = () => {
                     border: `1px solid ${alpha(feature.color, 0.3)}`,
                   }}
                 />
-                
-                {/* Icono */}
                 <Box sx={{ color: feature.color, mb: 2, transform: "scale(1.2)" }}>
                   {feature.icon}
                 </Box>
-                
-                {/* Texto */}
-                <Typography 
-                  variant="h6" 
-                  fontWeight="700" 
-                  mb={1}
-                  sx={{ color: theme.palette.text.primary }}
-                >
+                <Typography variant="h6" fontWeight="700" mb={1}>
                   {feature.title}
                 </Typography>
-                
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    color: theme.palette.text.secondary,
-                    lineHeight: 1.6
-                  }}
-                >
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, lineHeight: 1.6 }}>
                   {feature.desc}
                 </Typography>
               </Paper>
             ))}
           </Box>
 
-          {/* Flecha derecha */}
-          <IconButton
-            onClick={() => scrollCarousel("right")}
-            sx={{
-              position: "absolute",
-              right: { xs: -8, sm: -16 },
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 3,
-              color: "white",
-              bgcolor: alpha(theme.palette.primary.main, 0.7),
-              width: 48,
-              height: 48,
-              "&:hover": { 
-                bgcolor: theme.palette.primary.main,
-                transform: "translateY(-50%) scale(1.1)"
-              },
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-              backdropFilter: "blur(4px)"
-            }}
-          >
-            <ArrowForwardIos />
-          </IconButton>
+          {/* Flecha derecha - solo desktop */}
+          {!isMobile && canScrollRight && (
+            <IconButton
+              onClick={() => scrollCarousel("right")}
+              sx={{
+                position: "absolute",
+                right: -16,
+                top: "50%",
+                transform: "translateY(-50%)",
+                zIndex: 3,
+                color: "white",
+                bgcolor: alpha(theme.palette.primary.main, 0.7),
+                width: 48,
+                height: 48,
+                "&:hover": { 
+                  bgcolor: theme.palette.primary.main,
+                  transform: "translateY(-50%) scale(1.1)"
+                },
+                boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                backdropFilter: "blur(4px)"
+              }}
+            >
+              <ArrowForwardIos />
+            </IconButton>
+          )}
         </Box>
+
+        {/* Indicador de scroll para móvil */}
+        {isMobile && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, gap: 0.5 }}>
+            <Box sx={{ width: 30, height: 3, bgcolor: alpha(theme.palette.primary.main, 0.5), borderRadius: 1 }} />
+            <Box sx={{ width: 15, height: 3, bgcolor: alpha('#fff', 0.2), borderRadius: 1 }} />
+            <Box sx={{ width: 15, height: 3, bgcolor: alpha('#fff', 0.2), borderRadius: 1 }} />
+          </Box>
+        )}
 
         {/* Closing message */}
         <Box
@@ -257,15 +274,7 @@ const ValueProposition = () => {
             color: "white"
           }}
         >
-          <Typography 
-            sx={{ 
-              maxWidth: 600, 
-              mx: "auto", 
-              lineHeight: 1.6,
-              fontSize: "1.1rem",
-              fontWeight: 400
-            }}
-          >
+          <Typography sx={{ maxWidth: 600, mx: "auto", lineHeight: 1.6, fontSize: "1.1rem" }}>
             DjidjiMusic está construido para impulsar la música de Guinea Ecuatorial y conectar artistas con nuevos oyentes cada día.
           </Typography>
         </Box>
@@ -274,4 +283,4 @@ const ValueProposition = () => {
   );
 };
 
-export default ValueProposition;
+export default ValueProposition;  
