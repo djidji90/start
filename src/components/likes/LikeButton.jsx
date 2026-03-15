@@ -1,12 +1,10 @@
 // ============================================
 // src/components/ui/LikeButton.jsx
-// COMPONENTE PROFESIONAL DE LIKES
-// ✅ Totalmente independiente
-// ✅ Corazón con relleno según popularidad
-// ✅ Formato de números (1.2K)
-// ✅ Tooltips informativos
-// ✅ Optimistic updates
-// ✅ Fácil de reutilizar
+// VERSIÓN MEJORADA
+// ✅ Botón más grande y visible
+// ✅ Número DENTRO del área del botón
+// ✅ Fondo gris suave para contraste
+// ✅ Tooltip informativo
 // ============================================
 
 import React from 'react';
@@ -19,35 +17,34 @@ import {
   alpha
 } from '@mui/material';
 import { Favorite, FavoriteBorder } from '@mui/icons-material';
-import useLike from '../../components/hook/services/useLike';
+import useLike from '../hooks/services/useLike';
 
 // ============================================ //
 // CONSTANTES DE DISEÑO
 // ============================================ //
 const COLORS = {
-  error: '#EF4444',
-  success: '#10B981',
-  warning: '#F59E0B',
-  gray: '#6B7280'
+  liked: '#EF4444',
+  gray: '#E5E7EB',        // Gris suave para fondo
+  darkGray: '#9CA3AF'      // Gris más oscuro para texto
 };
 
 const SIZE_MAP = {
   small: {
-    icon: 14,
-    number: '0.6rem',
-    button: 24,
-    progress: 12
-  },
-  medium: {
+    button: 36,
     icon: 18,
     number: '0.7rem',
-    button: 32,
     progress: 16
   },
-  large: {
-    icon: 22,
+  medium: {
+    button: 42,
+    icon: 20,
     number: '0.8rem',
-    button: 40,
+    progress: 18
+  },
+  large: {
+    button: 48,
+    icon: 22,
+    number: '0.9rem',
     progress: 20
   }
 };
@@ -56,27 +53,12 @@ const SIZE_MAP = {
 // COMPONENTE PRINCIPAL
 // ============================================ //
 
-/**
- * LikeButton - Componente profesional para gestión de likes
- * 
- * @param {Object} props
- * @param {string|number} props.songId - ID de la canción (obligatorio)
- * @param {number} props.initialLikes - Número inicial de likes (song.likes_count)
- * @param {boolean} props.initialLiked - Si el usuario ya dio like (song.is_liked)
- * @param {number} props.playsCount - Número de reproducciones (para calcular %)
- * @param {string} props.size - Tamaño del botón: 'small' | 'medium' | 'large'
- * @param {boolean} props.showNumber - Si debe mostrar el contador numérico
- * @param {boolean} props.showPercentage - Si debe mostrar % en tooltip
- * @param {function} props.onLikeSuccess - Callback cuando el like es exitoso
- * @param {function} props.onLikeError - Callback cuando hay error
- * @param {string} props.className - Clases CSS adicionales
- */
 const LikeButton = ({
   songId,
   initialLikes = 0,
   initialLiked = false,
   playsCount = 0,
-  size = 'small',
+  size = 'medium',
   showNumber = true,
   showPercentage = true,
   onLikeSuccess,
@@ -84,7 +66,7 @@ const LikeButton = ({
   className = '',
   ...rest
 }) => {
-  // Validación básica
+  // Validación
   if (!songId) {
     console.warn('LikeButton: songId es requerido');
     return null;
@@ -93,31 +75,22 @@ const LikeButton = ({
   // Hook de likes
   const like = useLike(songId, initialLikes, initialLiked);
 
-  // Obtener dimensiones según tamaño
-  const dimensions = SIZE_MAP[size] || SIZE_MAP.small;
+  // Dimensiones
+  const dimensions = SIZE_MAP[size] || SIZE_MAP.medium;
 
   // ========================================== //
-  // CÁLCULOS DE POPULARIDAD
+  // CÁLCULOS
   // ========================================== //
   
-  // Porcentaje de likes respecto a reproducciones
+  // Porcentaje de popularidad
   const likePercentage = playsCount > 0 
     ? Math.min((like.likesCount / playsCount) * 100, 100) 
     : 0;
-    
-  // Relleno del corazón (0-100%)
-  const heartFill = like.userLiked ? 100 : Math.min(likePercentage, 100);
-  
-  // Color según estado
-  const heartColor = (() => {
-    if (like.userLiked) return COLORS.error;
-    if (heartFill >= 75) return COLORS.error;
-    if (heartFill >= 50) return COLORS.warning;
-    if (heartFill >= 25) return COLORS.success;
-    return COLORS.gray;
-  })();
 
-  // Tooltip dinámico
+  // Color del corazón
+  const heartColor = like.userLiked ? COLORS.liked : COLORS.darkGray;
+
+  // Tooltip
   const tooltipText = (() => {
     if (like.isLoading || like.isToggling) return 'Procesando...';
     
@@ -130,17 +103,13 @@ const LikeButton = ({
     return `${likesFormatted} like${like.likesCount !== 1 ? 's' : ''}`;
   })();
 
-  // ========================================== //
-  // MANEJADOR DE CLICK
-  // ========================================== //
+  // Manejador
   const handleClick = (e) => {
     e?.stopPropagation();
     e?.preventDefault();
     
-    // Ejecutar el like (el hook maneja optimistic updates)
     like.handleLike();
     
-    // Callbacks (opcional)
     setTimeout(() => {
       if (like.error && onLikeError) {
         onLikeError(like.error);
@@ -153,106 +122,71 @@ const LikeButton = ({
     }, 500);
   };
 
-  // ========================================== //
-  // RENDERIZADO
-  // ========================================== //
   return (
     <Box
       className={`like-button-container ${className}`}
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 0.3,
+        position: 'relative',
         ...rest.sx
       }}
     >
-      {/* Botón de like animado */}
-      <Tooltip
-        title={tooltipText}
-        arrow
-        placement="top"
-        enterDelay={500}
-        leaveDelay={200}
-      >
+      <Tooltip title={tooltipText} arrow placement="top">
         <IconButton
-          size="small"
           onClick={handleClick}
           disabled={like.isLoading || like.isToggling}
           sx={{
-            color: heartColor,
-            transition: 'all 0.2s ease',
-            p: 0.5,
             width: dimensions.button,
             height: dimensions.button,
+            bgcolor: COLORS.gray,
+            color: heartColor,
+            borderRadius: '50%',
+            transition: 'all 0.2s ease',
             '&:hover': {
-              transform: 'scale(1.1)',
-              bgcolor: alpha(heartColor, 0.1)
+              bgcolor: alpha(COLORS.gray, 0.8),
+              transform: 'scale(1.05)'
             },
             '&.Mui-disabled': {
+              bgcolor: alpha(COLORS.gray, 0.5),
               opacity: 0.7
             }
           }}
         >
           {like.isLoading || like.isToggling ? (
-            <CircularProgress
-              size={dimensions.progress}
-              sx={{
-                color: heartColor,
-                animation: 'pulse 1.5s ease-in-out infinite',
-                '@keyframes pulse': {
-                  '0%': { opacity: 0.6 },
-                  '50%': { opacity: 1 },
-                  '100%': { opacity: 0.6 }
-                }
-              }}
+            <CircularProgress 
+              size={dimensions.progress} 
+              sx={{ color: heartColor }} 
             />
+          ) : like.userLiked ? (
+            <Favorite sx={{ fontSize: dimensions.icon }} />
           ) : (
-            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-              {/* Corazón de fondo (contorno) */}
-              <FavoriteBorder
-                sx={{
-                  fontSize: dimensions.icon,
-                  color: heartColor,
-                  opacity: 0.3
-                }}
-              />
-              
-              {/* Corazón relleno según porcentaje */}
-              <Favorite
-                sx={{
-                  fontSize: dimensions.icon,
-                  color: heartColor,
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  transition: 'clip-path 0.3s ease',
-                  clipPath: `inset(0 ${100 - heartFill}% 0 0)`
-                }}
-              />
-            </Box>
+            <FavoriteBorder sx={{ fontSize: dimensions.icon }} />
           )}
         </IconButton>
       </Tooltip>
 
-      {/* Contador numérico (opcional) */}
-      {showNumber && like.likesCount > 0 && (
-        <Tooltip
-          title={`${like.likesCount.toLocaleString()} likes`}
-          arrow
-          placement="top"
-          enterDelay={500}
-        >
+      {/* Número de likes - DENTRO del área del botón */}
+      {showNumber && like.likesCount > 0 && !like.isLoading && !like.error && (
+        <Tooltip title={`${like.likesCount} likes`} arrow placement="top">
           <Typography
             variant="caption"
             sx={{
+              position: 'absolute',
+              right: -8,
+              top: '50%',
+              transform: 'translateY(-50%)',
               fontSize: dimensions.number,
-              color: like.userLiked ? COLORS.error : 'text.secondary',
-              fontWeight: like.userLiked ? 600 : 400,
-              minWidth: like.likesCount > 999 ? '32px' : '24px',
+              fontWeight: 600,
+              color: COLORS.darkGray,
+              bgcolor: 'white',
+              borderRadius: '10px',
+              px: 0.5,
+              minWidth: 20,
               textAlign: 'center',
-              cursor: 'default',
-              transition: 'color 0.2s ease',
-              userSelect: 'none'
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              border: `1px solid ${alpha(COLORS.darkGray, 0.2)}`,
+              zIndex: 2
             }}
           >
             {like.formatLikes(like.likesCount)}

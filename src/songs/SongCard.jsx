@@ -613,52 +613,75 @@ const SongCard = ({
                 {/* ACCIONES - VERSIÓN OPTIMIZADA */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                   
-                  {/* 🎯 LIKE BUTTON - SIMPLE Y RÁPIDO */}
-                  <Tooltip 
-                    title={like.userLiked ? 'Quitar like' : 'Dar like'} 
-                    arrow
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={handleLike}
-                      disabled={like.isLoading || like.isToggling}
-                      sx={{
-                        color: like.userLiked ? designTokens.colors.error : 'text.secondary',
-                        transition: 'color 0.2s ease',
-                        p: 0.5,
-                        '&:hover': {
-                          transform: 'scale(1.1)'
-                        }
-                      }}
-                    >
-                      {like.isLoading || like.isToggling ? (
-                        <CircularProgress size={12} sx={{ color: 'text.secondary' }} />
-                      ) : like.userLiked ? (
-                        <Favorite sx={{ fontSize: 14 }} />
-                      ) : (
-                        <FavoriteBorder sx={{ fontSize: 14 }} />
-                      )}
-                    </IconButton>
-                  </Tooltip>
-
-                  {/* Número de likes (solo si > 0) */}
-                  {like.likesCount > 0 && (
-                    <Tooltip title={`${like.likesCount} likes`} arrow>
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          fontSize: '0.6rem',
-                          color: like.userLiked ? designTokens.colors.error : 'text.secondary',
-                          fontWeight: like.userLiked ? 600 : 400,
-                          ml: 0.3,
-                          minWidth: '24px',
-                          textAlign: 'center'
-                        }}
-                      >
-                        {like.formatLikes(like.likesCount)}
-                      </Typography>
-                    </Tooltip>
+                            {/* 🎯 LIKE BUTTON MEJORADO - MÁS GRANDE Y VISIBLE */}
+            <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <Tooltip 
+                title={like.userLiked ? 'Quitar like' : 'Dar like'} 
+                arrow
+              >
+                <IconButton
+                  size="small"
+                  onClick={handleLike}
+                  disabled={like.isLoading || like.isToggling}
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    bgcolor: '#E5E7EB',  // Gris suave para contraste
+                    color: like.userLiked ? designTokens.colors.error : '#6B7280',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: '#D1D5DB',  // Gris más oscuro al hover
+                      transform: 'scale(1.05)'
+                    },
+                    '&.Mui-disabled': {
+                      bgcolor: '#F3F4F6',
+                      opacity: 0.7
+                    }
+                  }}
+                >
+                  {like.isLoading || like.isToggling ? (
+                    <CircularProgress 
+                      size={18} 
+                      sx={{ 
+                        color: like.userLiked ? designTokens.colors.error : '#6B7280' 
+                      }} 
+                    />
+                  ) : like.userLiked ? (
+                    <Favorite sx={{ fontSize: 18 }} />
+                  ) : (
+                    <FavoriteBorder sx={{ fontSize: 18 }} />
                   )}
+                </IconButton>
+              </Tooltip>
+
+              {/* Número de likes - PEGADO al botón */}
+              {like.likesCount > 0 && (
+                <Tooltip title={`${like.likesCount} likes`} arrow>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      position: 'absolute',
+                      right: -8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      color: '#4B5563',
+                      bgcolor: 'white',
+                      borderRadius: '10px',
+                      px: 0.5,
+                      minWidth: 22,
+                      textAlign: 'center',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      border: '1px solid #E5E7EB',
+                      zIndex: 2
+                    }}
+                  >
+                    {like.formatLikes(like.likesCount)}
+                  </Typography>
+                </Tooltip>
+              )}
+            </Box>
 
                   {/* Botón de descarga con contador */}
                   {isDownloaded ? (
