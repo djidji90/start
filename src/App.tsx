@@ -33,7 +33,7 @@ const CategoriaProductos = lazy(() => import("./components/theme/musica/ventas/C
 const ProtectedRoute = lazy(() => import("./components/theme/musica/ProtectedRoute"));
 const TechStyleHub = lazy(() => import("./components/TechStyleHub"));
 const MainPage = lazy(() => import("./components/theme/musica/MainPage"));
-
+import ArtistProfile from "./components/profile/ArtistProfile";
 // Spinner global
 const LoadingSpinner = () => (
   <Box
@@ -104,16 +104,13 @@ export default function App() {
 
                 <Suspense fallback={<LoadingSpinner />}>
                   <Routes>
-                    {/* 🏠 Landing Page con deferredPrompt */}
-                    <Route 
-                      path="/" 
-                      element={<LandingPage deferredPrompt={deferredPrompt} />} 
-                    />
+                    {/* 🏠 CAMBIO SOLICITADO: / ahora apunta a LandingPage en lugar de Login */}
+                    <Route path="/" element={<LandingPage />} />
                     
-                    {/* 🔐 Login */}
+                    {/* 🔐 Login ahora disponible en /login (ruta nueva) */}
                     <Route path="/login" element={<Login />} />
                     
-                    {/* 📦 RESTO DE RUTAS EXISTENTES */}
+                    {/* 📦 RESTO DE RUTAS EXISTENTES - SIN CAMBIOS */}
                     <Route path="/MainPage" element={<MainPage />} />
                     <Route path="/AboutUS" element={<AboutUs />} />
                     <Route path="/categoria/:id" element={<CategoriaProductos />} />
@@ -122,6 +119,7 @@ export default function App() {
                     <Route path="/Todo/*" element={<Todo />} />
                     <Route path="/TechStyleHub" element={<TechStyleHub />} />
                     <Route path="/downloads" element={<DownloadsPage />} />
+                    <Route path="/perfil/:username" element={<ArtistProfile />} />
                     
                     <Route
                       path="/song/:songId"
