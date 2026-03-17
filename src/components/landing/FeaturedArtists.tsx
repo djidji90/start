@@ -47,7 +47,7 @@ const FeaturedGenres = () => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const heroImage = '/mansa.jpg';
+  const heroImage = '/12345.jpg';
 
   const checkScroll = () => {
     if (carouselRef.current) {

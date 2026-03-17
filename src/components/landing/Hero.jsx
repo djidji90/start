@@ -22,7 +22,7 @@ const Hero = () => {
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const heroImage = '/man123.jpg';
+  const heroImage = '/vvv21.jpg';
 
   const handleDownloadClick = () => {
     // Scroll suave a la sección de App Promo

@@ -70,7 +70,7 @@ const ArtistProfile = () => {
   const handleLoginRedirect = () => {
     // Guardar la URL actual para volver después del login
     sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
-    navigate('/'); // Ajusta la ruta de login según tu app
+    navigate('/Login'); // Ajusta la ruta de login según tu app
   };
 
   const handleDismissPrompt = () => {

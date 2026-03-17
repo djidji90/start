@@ -52,6 +52,7 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     // Verificar si la app ya está instalada
@@ -102,11 +103,29 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
       sx={{
         py: { xs: 8, md: 12 },
         position: 'relative',
-        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.95)} 0%, ${alpha(theme.palette.secondary.dark, 0.95)} 100%)`,
+        backgroundImage: `url(${imageError ? '' : '/djidji.png'})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: { md: 'fixed' },
+        backgroundColor: imageError ? theme.palette.primary.dark : 'transparent', // Fallback si la imagen no carga
         overflow: 'hidden',
       }}
     >
-      {/* Fondo decorativo */}
+      {/* Overlay oscuro para mejorar legibilidad */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.9)} 0%, ${alpha(theme.palette.secondary.dark, 0.9)} 100%)`,
+          zIndex: 1,
+        }}
+      />
+
+      {/* Fondo decorativo (mantenemos los círculos para dar profundidad) */}
       <Box
         sx={{
           position: 'absolute',
@@ -115,8 +134,9 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
           width: 400,
           height: 400,
           borderRadius: '50%',
-          background: alpha(theme.palette.primary.main, 0.1),
+          background: alpha(theme.palette.primary.main, 0.2),
           filter: 'blur(60px)',
+          zIndex: 1,
         }}
       />
       <Box
@@ -127,8 +147,9 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
           width: 400,
           height: 400,
           borderRadius: '50%',
-          background: alpha(theme.palette.secondary.main, 0.1),
+          background: alpha(theme.palette.secondary.main, 0.2),
           filter: 'blur(60px)',
+          zIndex: 1,
         }}
       />
 
@@ -228,7 +249,7 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                   fontWeight: 800,
                   lineHeight: 1.2,
                   color: '#fff',
-                  textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                  textShadow: '0 4px 20px rgba(0,0,0,0.5)',
                 }}
               >
                 Lleva la{' '}
@@ -238,6 +259,7 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                     color: theme.palette.primary.main,
                     position: 'relative',
                     display: 'inline-block',
+                    textShadow: '0 4px 20px rgba(0,0,0,0.5)',
                   }}
                 >
                   música
@@ -248,13 +270,14 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
               <Typography
                 variant="body1"
                 sx={{
-                  color: alpha('#fff', 0.9),
+                  color: '#fff',
                   fontSize: '1.2rem',
                   maxWidth: 500,
                   lineHeight: 1.7,
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)',
                 }}
               >
-                Instala DjidjiMusic como app en tu móvil. Sin tiendas, sin complicaciones.
+                Instala la app en tu móvil. Sin tiendas, sin complicaciones.
                 Ocupa menos de 1MB.
               </Typography>
 
@@ -265,8 +288,8 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                     <Paper
                       sx={{
                         p: 2,
-                        bgcolor: alpha('#fff', 0.05),
-                        backdropFilter: 'blur(5px)',
+                        bgcolor: alpha('#000', 0.3),
+                        backdropFilter: 'blur(10px)',
                         borderRadius: 2,
                         border: `1px solid ${alpha('#fff', 0.1)}`,
                       }}
@@ -279,7 +302,7 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                           <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 600 }}>
                             {benefit.title}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: alpha('#fff', 0.7) }}>
+                          <Typography variant="caption" sx={{ color: alpha('#fff', 0.8) }}>
                             {benefit.desc}
                           </Typography>
                         </Box>
@@ -309,8 +332,8 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                       boxShadow: `0 10px 30px ${alpha(theme.palette.primary.main, 0.4)}`,
                     },
                     '&:disabled': {
-                      background: alpha('#fff', 0.1),
-                      color: alpha('#fff', 0.3),
+                      background: alpha('#fff', 0.2),
+                      color: alpha('#fff', 0.5),
                     },
                   }}
                 >
@@ -320,15 +343,23 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
 
               {/* Compatibilidad */}
               <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
-                <PhoneIphone sx={{ color: alpha('#fff', 0.5) }} />
-                <Android sx={{ color: alpha('#fff', 0.5) }} />
-                <Typography variant="caption" sx={{ color: alpha('#fff', 0.5) }}>
+                <PhoneIphone sx={{ color: alpha('#fff', 0.7) }} />
+                <Android sx={{ color: alpha('#fff', 0.7) }} />
+                <Typography variant="caption" sx={{ color: alpha('#fff', 0.7) }}>
                   Compatible con iOS, Android y cualquier dispositivo
                 </Typography>
               </Stack>
             </Stack>
           </Grid>
         </Grid>
+
+        {/* Imagen oculta para detectar error de carga */}
+        <Box
+          component="img"
+          src="/Logo de Djidji Music.png"
+          onError={() => setImageError(true)}
+          sx={{ display: 'none' }}
+        />
 
         {/* Notificaciones */}
         <Snackbar open={showSuccess} autoHideDuration={3000}>
