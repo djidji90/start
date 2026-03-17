@@ -1457,7 +1457,7 @@ const Register = () => {
         open={openSuccessDialog}
         message={successMessage}
         onClose={() => setOpenSuccessDialog(false)}
-        onNavigate={() => navigate("/")}
+        onNavigate={() => navigate("/Login")}
       />
 
       {/* Diálogo de carga */}
