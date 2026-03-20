@@ -389,7 +389,7 @@ const RandomSongsDisplay = () => {
             }
           }} />
           <Typography variant="caption" color="text.secondary">
-            {songs.length} canciones disponibles
+            
           </Typography>
         </Box>
 

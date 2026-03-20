@@ -1,0 +1,175 @@
+<!-- public/offline.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sin conexión - djidjimusic</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 500px;
+      padding: 40px;
+
+      /* ✅ Fallback + compatibilidad Safari */
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    .dino {
+      font-size: 8rem;
+      line-height: 1;
+      margin-bottom: 20px;
+      animation: bounce 2s ease-in-out infinite;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    
+    .dino:hover {
+      transform: scale(1.1) rotate(5deg);
+    }
+    
+    .dino:active {
+      transform: scale(0.95);
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 15px;
+      font-weight: 700;
+    }
+    
+    p {
+      font-size: 1.2rem;
+      margin-bottom: 30px;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+    
+    .features {
+      margin-bottom: 30px;
+      background: rgba(255,255,255,0.15);
+      padding: 20px;
+      border-radius: 15px;
+    }
+    
+    .features ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .features li {
+      padding: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+    }
+    
+    .features li::before {
+      content: "✅";
+      margin-right: 10px;
+      font-size: 1.1rem;
+    }
+    
+    button {
+      background: white;
+      color: #764ba2;
+      border: none;
+      padding: 15px 40px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    }
+    
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="dino" title="¡Toca para recargar!">
+      🦖
+    </div>
+
+    <h1>¡Sin conexión!</h1>
+    <p>Parece que no tienes internet. No te preocupes, el dinosaurio está cuidando tu música.</p>
+    
+    <div class="features">
+      <ul>
+        <li>Tus canciones guardadas están disponibles</li>
+        <li>Puedes seguir navegando offline</li>
+        <li>Los datos se sincronizarán cuando vuelvas</li>
+      </ul>
+    </div>
+    
+    <button onclick="window.location.reload()">
+      🔄 Reintentar conexión
+    </button>
+    
+    <p style="margin-top: 20px; font-size: 0.9rem;">
+      * Toca el dinosaurio para jugar mientras esperas
+    </p>
+  </div>
+  
+  <script>
+    const dino = document.querySelector('.dino');
+
+    // ✅ Protección para evitar errores
+    if (dino) {
+      dino.addEventListener('click', function() {
+        this.style.animation = 'none';
+        setTimeout(() => {
+          this.style.animation = 'bounce 2s ease-in-out infinite';
+        }, 10);
+
+        // recargar
+        window.location.reload();
+      });
+    }
+
+    // 🚀 Auto-recarga cuando vuelve internet
+    window.addEventListener('online', () => {
+      console.log('🌐 Conexión restaurada');
+      setTimeout(() => window.location.reload(), 1000);
+    });
+  </script>
+</body>
+</html>

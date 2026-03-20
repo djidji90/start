@@ -11,6 +11,7 @@ import { AuthProvider } from "./components/hook/UseAut";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import DownloadsPage from "./components/context/DownloadsPage";
+import GenrePage from "./components/discovery/GenrePage";
 // 🎵 Import Player
 import { PlayerProvider } from "./components/PlayerContext";
 import PlayerBar from "./components/theme/musica/PlayerBar";
@@ -34,6 +35,7 @@ const ProtectedRoute = lazy(() => import("./components/theme/musica/ProtectedRou
 const TechStyleHub = lazy(() => import("./components/TechStyleHub"));
 const MainPage = lazy(() => import("./components/theme/musica/MainPage"));
 import ArtistProfile from "./components/profile/ArtistProfile";
+
 // Spinner global
 const LoadingSpinner = () => (
   <Box
@@ -74,6 +76,38 @@ export default function App() {
   const [isCartOpen, setCartOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
+  // ============================================
+  // ✅ IMPLEMENTACIÓN DEL SERVICE WORKER
+  // ============================================
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('✅ Service Worker registrado correctamente:', registration.scope);
+            
+            // Verificar actualizaciones
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              console.log('🔄 Nueva versión del Service Worker detectada');
+              
+              newWorker?.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('🎯 Nueva versión instalada y lista para activarse');
+                }
+              });
+            });
+          })
+          .catch(error => {
+            console.error('❌ Error registrando Service Worker:', error);
+          });
+      });
+    }
+  }, []);
+
+  // ============================================
+  // ✅ PWA INSTALL PROMPT (SIN CAMBIOS)
+  // ============================================
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();
@@ -119,6 +153,7 @@ export default function App() {
                     <Route path="/Todo/*" element={<Todo />} />
                     <Route path="/TechStyleHub" element={<TechStyleHub />} />
                     <Route path="/downloads" element={<DownloadsPage />} />
+                    <Route path="/genre/:genre" element={<GenrePage />} />
                     <Route path="/perfil/:username" element={<ArtistProfile />} />
                     
                     <Route

@@ -807,7 +807,7 @@ const Register = () => {
 
       setTimeout(() => {
         setOpenSuccessDialog(false);
-        navigate("/");
+        navigate("/Login");
       }, 5000);
     } catch (error) {
       const errorData = error.response?.data || {};

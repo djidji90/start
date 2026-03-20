@@ -69,6 +69,9 @@
     "use-sound": "^5.0.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/eslint-parser": "^7.28.6",
+    "@babel/preset-react": "^7.28.5",
     "@eslint/js": "^9.15.0",
     "@types/node": "^22.13.4",
     "@types/react": "^18.3.12",
@@ -76,7 +79,8 @@
     "@vite-pwa/assets-generator": "^1.0.2",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
-    "eslint": "^9.27.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
     "eslint-plugin-security": "^3.0.1",

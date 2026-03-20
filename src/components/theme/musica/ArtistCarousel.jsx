@@ -574,7 +574,7 @@ const ArtistCarousel = () => {
             color: alpha(theme.palette.text.secondary, 0.6),
           }}
         >
-          <span>↓</span> Desliza hacia abajo para ver más artistas ({artists.length} disponibles) <span>↓</span>
+          
         </Typography>
       </Fade>
 
@@ -588,7 +588,7 @@ const ArtistCarousel = () => {
           color: alpha(theme.palette.text.secondary, 0.4),
         }}
       >
-        Toca "Ver biografía completa" para leer la historia del artista
+       
       </Typography>
     </Box>
   );

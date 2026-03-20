@@ -2,8 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as serviceWorkerRegistration from './service-worker';
 import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+import App from '../ali-express-affiliate/ali-express-affiliate/src/App';
+import reportWebVitals from '../ali-express-affiliate/ali-express-affiliate/src/reportWebVitals';
 
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

@@ -20,6 +20,7 @@ import {
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import { TrendingUp, PlayCircle, AccessTime, Whatshot } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
@@ -30,9 +31,19 @@ import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
 import useDownload from "../../../components/hook/services/useDownload";
 
-// 🔥 Importar componentes
+// 🔥 IMPORTS PARA DESCUBRIMIENTO
+import {
+  useTrending,
+  useTopPlays,
+  useRecent,
+  useGenres,
+  useDiscoveryMainPage
+} from '../../../components/hook/services/useDiscovery';
+import DiscoverySection from '../../../components/discovery/DiscoverySection';
+import GenreCarousel from '../../../components/discovery/GenreCarousel';
+
+// 🔥 Importar componentes existentes
 import UploadModal from "../../../upload/UploadModal";
-import EventGridViewer from "../../../components/search/EventGridViewer";
 import ArtistCard from "../../../components/profile/ArtistCard";
 import useArtists from "../../../components/hook/services/useArtists";
 import ArtistCarouselHorizontal from "../../../components/profile/ArtistCarouselHorizontal";
@@ -273,11 +284,12 @@ const Hero = ({ onUploadClick }) => {
 };
 
 // ============================================
-// 🎵 MAIN PAGE CON FAB DE UPLOAD Y EVENTOS
+// 🎵 MAIN PAGE CON FAB DE UPLOAD
 // ============================================
 const MainPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const navigate = useNavigate();
 
   // 🔥 Estado para modal de upload
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -285,6 +297,9 @@ const MainPage = () => {
 
   // 🔥 Hook para obtener artistas
   const { artists, loading: artistsLoading } = useArtists();
+
+  // 🔥 HOOKS DE DESCUBRIMIENTO - Solo las secciones esenciales
+  const discovery = useDiscoveryMainPage(20);
 
   const {
     query,
@@ -455,6 +470,40 @@ const MainPage = () => {
     if (selectedSongs.length > 0 && window.confirm(`🗑️ Eliminar todas las ${selectedSongs.length} canciones?`)) {
       setSelectedSongs([]);
     }
+  };
+
+  // ============================================
+  // HANDLER PARA REPRODUCCIÓN
+  // ============================================
+  const handlePlaySong = (song) => {
+    console.log('🎵 Reproducir:', song.title);
+    // Aquí puedes conectar con tu player global
+  };
+
+  // ============================================
+  // HANDLER PARA MÁS OPCIONES
+  // ============================================
+  const handleMoreOptions = (song) => {
+    console.log('Más opciones para:', song.title);
+    // Aquí puedes abrir un menú contextual o modal
+    const action = window.confirm(
+      `¿Qué deseas hacer con "${song.title}"?\n\n` +
+      `• Ver detalles\n` +
+      `• Agregar a playlist\n` +
+      `• Compartir`
+    );
+    
+    if (action) {
+      navigate(`/song/${song.id}`);
+    }
+  };
+
+  // ============================================
+  // HANDLER PARA LIKES
+  // ============================================
+  const handleLike = (song) => {
+    console.log('❤️ Like:', song.title);
+    // Aquí conectar con tu sistema de likes
   };
 
   return (
@@ -706,30 +755,104 @@ const MainPage = () => {
           />
         )}
 
-        {/* SEPARADOR */}
+        {/* SEPARADOR MÍNIMO */}
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: 1.5,
-          my: 4
+          my: 3
         }}>
           <Box sx={{
-            width: '40px',
-            height: '2px',
-            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.main, 0.3)})`,
-            borderRadius: '2px'
+            width: '30px',
+            height: '1px',
+            background: alpha(theme.palette.primary.main, 0.2),
+            borderRadius: '1px'
           }} />
-          <Typography sx={{ color: alpha(theme.palette.primary.main, 0.5), fontSize: '1.1rem' }}>♫</Typography>
+          <Typography sx={{ color: alpha(theme.palette.primary.main, 0.3), fontSize: '0.9rem' }}>◈</Typography>
           <Box sx={{
-            width: '40px',
-            height: '2px',
-            background: `linear-gradient(90deg, ${alpha(theme.palette.primary.main, 0.3)}, ${theme.palette.primary.main})`,
-            borderRadius: '2px'
+            width: '30px',
+            height: '1px',
+            background: alpha(theme.palette.primary.main, 0.2),
+            borderRadius: '1px'
           }} />
         </Box>
 
-        {/* SECCIONES DE CONTENIDO */}
+        {/* ============================================ */}
+        {/* 🎯 SECCIONES DE DESCUBRIMIENTO - SOLO ESENCIALES */}
+        {/* ============================================ */}
+
+        {/* 🎸 CARRUSEL DE GÉNEROS - ESTILO SPOTIFY */}
+        {!discovery.genres.isLoading && discovery.genres.data?.data?.length > 0 && (
+          <Box sx={{ mb: 5 }}>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                mb: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                fontSize: { xs: '1.2rem', sm: '1.4rem' },
+                letterSpacing: '-0.01em'
+              }}
+            >
+              <MusicNoteIcon sx={{ color: theme.palette.primary.main, fontSize: '1.4rem' }} />
+              Explorar por Géneros
+            </Typography>
+
+            <GenreCarousel
+              genres={discovery.genres.data.data}
+              onGenreClick={(genre) => navigate(`/genre/${encodeURIComponent(genre.name)}`)}
+            />
+          </Box>
+        )}
+
+        {/* 🔥 SECCIÓN: Tendencias - Lo más popular */}
+        <DiscoverySection
+          title="Tendencias"
+          subtitle="Lo más popular ahora"
+          icon={<Whatshot />}
+          queryResult={discovery.trending}
+          limit={20}
+          showIndex={true}
+          onPlay={handlePlaySong}
+          onLike={handleLike}
+          onMore={handleMoreOptions}
+          onSongClick={(song) => navigate(`/song/${song.id}`)}
+        />
+
+        {/* ▶️ SECCIÓN: Más Escuchadas - En reproducción */}
+        <DiscoverySection
+          title="Más Escuchadas"
+          subtitle="En reproducción ahora"
+          icon={<PlayCircle />}
+          queryResult={discovery.plays}
+          limit={20}
+          onPlay={handlePlaySong}
+          onLike={handleLike}
+          onMore={handleMoreOptions}
+          onSongClick={(song) => navigate(`/song/${song.id}`)}
+        />
+
+        {/* ⏰ SECCIÓN: Novedades - Recién agregado */}
+        <DiscoverySection
+          title="Novedades"
+          subtitle="Recién agregado"
+          icon={<AccessTime />}
+          queryResult={discovery.recent}
+          limit={20}
+          showIndex={false}
+          onPlay={handlePlaySong}
+          onLike={handleLike}
+          onMore={handleMoreOptions}
+          onSongClick={(song) => navigate(`/song/${song.id}`)}
+        />
+
+        {/* ============================================ */}
+        {/* TU CÓDIGO EXISTENTE CONTINÚA AQUÍ */}
+        {/* ============================================ */}
+
         <Box sx={{ mb: 6 }}>
           <RandomSongsDisplay />
         </Box>
@@ -738,28 +861,20 @@ const MainPage = () => {
           <ArtistCarousel />
         </Box>
 
-        {/* SECCIÓN DE EVENTOS */}
-        <Box sx={{ mb: 6 }}>
-          <EventGridViewer />
-        </Box>
-
         <Box sx={{ mb: 6 }}>
           <PopularSongs />
         </Box>
 
-        {/* FOOTER */}
+        {/* FOOTER MÍNIMO */}
         <Box sx={{
-          mt: 6,
-          pt: 4,
+          mt: 5,
+          pt: 3,
           pb: 2,
           textAlign: 'center',
           borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
         }}>
-          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 400 }}>
+          <Typography variant="body2" sx={{ color: alpha(theme.palette.text.secondary, 0.8), fontWeight: 400, fontSize: '0.8rem' }}>
             EL SONIDO ES NUESTRO
-          </Typography>
-          <Typography variant="caption" sx={{ color: alpha(theme.palette.text.secondary, 0.6), display: 'block', mt: 1 }}>
-            {/* empty */}
           </Typography>
         </Box>
 
@@ -769,7 +884,8 @@ const MainPage = () => {
             severity="info" 
             sx={{ 
               bgcolor: alpha(theme.palette.primary.main, 0.08), 
-              color: theme.palette.primary.main 
+              color: theme.palette.primary.main,
+              fontSize: '0.8rem'
             }}
           >
             📦 Resultados desde caché • {searchMetrics?.time}ms
@@ -781,7 +897,8 @@ const MainPage = () => {
             severity="warning" 
             sx={{ 
               bgcolor: alpha(theme.palette.warning.main, 0.1), 
-              color: theme.palette.warning.dark 
+              color: theme.palette.warning.dark,
+              fontSize: '0.8rem'
             }}
           >
             🎵 Máximo {MAX_SELECTED_SONGS} canciones
@@ -796,7 +913,8 @@ const MainPage = () => {
               color: theme.palette.success.main,
               display: 'flex',
               alignItems: 'center',
-              gap: 1
+              gap: 1,
+              fontSize: '0.8rem'
             }}
           >
             {newlyAddedSong?.cover && (
@@ -804,14 +922,14 @@ const MainPage = () => {
                 component="img"
                 src={newlyAddedSong.cover}
                 sx={{
-                  width: 24,
-                  height: 24,
+                  width: 20,
+                  height: 20,
                   borderRadius: '4px',
                   objectFit: 'cover'
                 }}
               />
             )}
-            ✅ Añadido: {newlyAddedSong?.title}
+            ✅ {newlyAddedSong?.title}
           </Alert>
         </Snackbar>
       </Container>
@@ -826,9 +944,9 @@ const MainPage = () => {
               sx: {
                 bgcolor: theme.palette.mode === 'light' ? '#1a1a1a' : theme.palette.grey[800],
                 color: 'white',
-                fontSize: '0.85rem',
-                px: 2,
-                py: 1,
+                fontSize: '0.8rem',
+                px: 1.5,
+                py: 0.8,
                 borderRadius: 2,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
               }
@@ -839,25 +957,24 @@ const MainPage = () => {
             onClick={() => setUploadModalOpen(true)}
             sx={{
               position: 'fixed',
-              bottom: { xs: 20, md: 28 },
-              right: { xs: 20, md: 28 },
+              bottom: { xs: 16, md: 24 },
+              right: { xs: 16, md: 24 },
               background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
               color: 'white',
-              boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
-              width: { xs: 60, md: 70 },
-              height: { xs: 60, md: 70 },
+              boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+              width: { xs: 56, md: 64 },
+              height: { xs: 56, md: 64 },
               '&:hover': {
-                transform: 'scale(1.1) rotate(3deg)',
+                transform: 'scale(1.05)',
                 background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-                boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.5)}`
+                boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, 0.4)}`
               },
-              transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              transition: 'all 0.2s ease',
               zIndex: 1200,
-              border: '2px solid rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(4px)'
+              border: '1px solid rgba(255,255,255,0.2)'
             }}
           >
-            <CloudUploadIcon sx={{ fontSize: { xs: 30, md: 36 } }} />
+            <CloudUploadIcon sx={{ fontSize: { xs: 28, md: 32 } }} />
           </Fab>
         </Tooltip>
       </Fade>
