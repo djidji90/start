@@ -13,7 +13,14 @@ import {
   Chip,
   Zoom,
   Snackbar,
-  Alert
+  Alert,
+  CircularProgress,
+  Tooltip,
+  useMediaQuery,
+  IconButton,
+  Collapse,
+  Card,
+  CardContent
 } from '@mui/material';
 import {
   PhoneIphone,
@@ -22,15 +29,35 @@ import {
   WifiOff,
   Storage,
   Speed,
-  Verified
+  Verified,
+  QrCodeScanner,
+  Close,
+  Download,
+  CheckCircle,
+  Smartphone
 } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
 
-// Animación para el teléfono
+// 👇 Importación correcta para qrcode.react
+import QRCode from 'qrcode.react';
+
+// Animaciones
 const float = keyframes`
   0% { transform: translateY(0px) rotate(0deg); }
   50% { transform: translateY(-20px) rotate(2deg); }
   100% { transform: translateY(0px) rotate(0deg); }
+`;
+
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.7); }
+  70% { box-shadow: 0 0 0 15px rgba(255, 107, 53, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0); }
+`;
+
+const checkmark = keyframes`
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
 `;
 
 interface BeforeInstallPromptEvent extends Event {
@@ -48,17 +75,37 @@ interface AppPromoProps {
 
 const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [isInstallable, setIsInstallable] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [installProgressValue, setInstallProgressValue] = useState(0);
+  const [installStep, setInstallStep] = useState(0);
+  const [showMobileInfo, setShowMobileInfo] = useState(false);
+  const [hasBeenInstalled, setHasBeenInstalled] = useState(false);
 
   useEffect(() => {
-    // Verificar si la app ya está instalada
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     setIsInstallable(!!deferredPrompt && !isStandalone);
-  }, [deferredPrompt]);
+    
+    const qrShown = localStorage.getItem('pwa_qr_shown');
+    if (!qrShown && !isMobile && !isStandalone) {
+      setTimeout(() => setShowQR(true), 3000);
+    }
+  }, [deferredPrompt, isMobile]);
+
+  const simulateInstallAnimation = async () => {
+    const steps = [20, 45, 70, 90, 100];
+    for (let i = 0; i < steps.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 400));
+      setInstallProgressValue(steps[i]);
+      setInstallStep(i + 1);
+    }
+  };
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
@@ -68,16 +115,17 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
     }
 
     try {
-      // Mostrar el prompt de instalación
+      setIsInstalling(true);
+      await simulateInstallAnimation();
       await deferredPrompt.prompt();
-      
-      // Esperar la respuesta del usuario
       const choiceResult = await deferredPrompt.userChoice;
       
       if (choiceResult.outcome === 'accepted') {
         console.log('✅ Usuario instaló la PWA');
+        setHasBeenInstalled(true);
         setShowSuccess(true);
         setIsInstallable(false);
+        localStorage.setItem('pwa_installed', 'true');
         setTimeout(() => setShowSuccess(false), 3000);
       } else {
         console.log('❌ Usuario canceló la instalación');
@@ -88,7 +136,16 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
       console.error('Error en instalación:', error);
       setShowError(true);
       setTimeout(() => setShowError(false), 3000);
+    } finally {
+      setIsInstalling(false);
+      setInstallProgressValue(0);
+      setInstallStep(0);
     }
+  };
+
+  const handleQRClose = () => {
+    setShowQR(false);
+    localStorage.setItem('pwa_qr_shown', 'true');
   };
 
   const benefits = [
@@ -96,6 +153,12 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
     { icon: <Storage />, title: "Ocupa poco espacio", desc: "Menos de 1MB" },
     { icon: <Speed />, title: "Rápida", desc: "Carga instantánea" },
     { icon: <Verified />, title: "Actualizaciones", desc: "Automáticas" },
+  ];
+
+  const mobileInstructions = [
+    { step: 1, action: "Toca el menú (⋯)", icon: "⋯" },
+    { step: 2, action: "Selecciona 'Instalar app'", icon: "📱" },
+    { step: 3, action: "Confirma la instalación", icon: "✅" }
   ];
 
   return (
@@ -108,11 +171,11 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         backgroundAttachment: { md: 'fixed' },
-        backgroundColor: imageError ? theme.palette.primary.dark : 'transparent', // Fallback si la imagen no carga
+        backgroundColor: imageError ? theme.palette.primary.dark : 'transparent',
         overflow: 'hidden',
       }}
     >
-      {/* Overlay oscuro para mejorar legibilidad */}
+      {/* Overlay oscuro */}
       <Box
         sx={{
           position: 'absolute',
@@ -125,7 +188,7 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
         }}
       />
 
-      {/* Fondo decorativo (mantenemos los círculos para dar profundidad) */}
+      {/* Fondo decorativo */}
       <Box
         sx={{
           position: 'absolute',
@@ -179,7 +242,6 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                     boxShadow: `0 30px 60px ${alpha('#000', 0.5)}`,
                   }}
                 >
-                  {/* Notch */}
                   <Box
                     sx={{
                       position: 'absolute',
@@ -195,7 +257,6 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                     }}
                   />
 
-                  {/* Pantalla con logo de Djidji */}
                   <Box
                     sx={{
                       position: 'absolute',
@@ -206,31 +267,84 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                       borderRadius: 4,
                       background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Typography
-                      variant="h3"
-                      sx={{
-                        color: '#fff',
-                        fontWeight: 800,
-                        textShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                      }}
-                    >
-                      Djidji
-                    </Typography>
+                    {isInstalling ? (
+                      <Box sx={{ textAlign: 'center', px: 3 }}>
+                        <Typography variant="h6" sx={{ color: '#fff', mb: 2 }}>
+                          Instalando...
+                        </Typography>
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: 8,
+                            bgcolor: alpha('#fff', 0.3),
+                            borderRadius: 4,
+                            overflow: 'hidden',
+                            mb: 2,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: `${installProgressValue}%`,
+                              height: '100%',
+                              bgcolor: '#fff',
+                              borderRadius: 4,
+                              transition: 'width 0.4s ease',
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="caption" sx={{ color: alpha('#fff', 0.9) }}>
+                          {installStep === 1 && "📦 Descargando archivos..."}
+                          {installStep === 2 && "⚙️ Configurando app..."}
+                          {installStep === 3 && "🎵 Preparando tu música..."}
+                          {installStep === 4 && "✨ Finalizando..."}
+                          {installStep === 5 && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                              <Box component="span" sx={{ animation: `${checkmark} 0.5s ease-out` }}>
+                                ✅
+                              </Box>
+                              ¡Listo!
+                            </Box>
+                          )}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <>
+                        <Typography
+                          variant="h3"
+                          sx={{
+                            color: '#fff',
+                            fontWeight: 800,
+                            textShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                          }}
+                        >
+                          Djidji
+                        </Typography>
+                        {hasBeenInstalled && (
+                          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CheckCircle sx={{ color: '#4caf50' }} />
+                            <Typography variant="caption" sx={{ color: '#fff' }}>
+                              App instalada
+                            </Typography>
+                          </Box>
+                        )}
+                      </>
+                    )}
                   </Box>
                 </Paper>
               </Box>
             </Zoom>
           </Grid>
 
-          {/* Columna derecha - Contenido */}
+          {/* Columna derecha */}
           <Grid item xs={12} md={7}>
             <Stack spacing={4}>
               <Chip
-                label=""
+                label="✨ NUEVO ✨"
                 size="small"
                 sx={{
                   width: 'fit-content',
@@ -281,7 +395,6 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                 Ocupa menos de 1MB.
               </Typography>
 
-              {/* Beneficios */}
               <Grid container spacing={2}>
                 {benefits.map((benefit, idx) => (
                   <Grid item xs={6} key={idx}>
@@ -295,9 +408,7 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                       }}
                     >
                       <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Box sx={{ color: theme.palette.primary.main }}>
-                          {benefit.icon}
-                        </Box>
+                        <Box sx={{ color: theme.palette.primary.main }}>{benefit.icon}</Box>
                         <Box>
                           <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 600 }}>
                             {benefit.title}
@@ -312,14 +423,13 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                 ))}
               </Grid>
 
-              {/* Botón de instalación */}
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
                 <Button
                   variant="contained"
                   size="large"
-                  startIcon={<InstallMobile />}
+                  startIcon={isInstalling ? <CircularProgress size={20} color="inherit" /> : <InstallMobile />}
                   onClick={handleInstallClick}
-                  disabled={!isInstallable}
+                  disabled={!isInstallable || isInstalling}
                   sx={{
                     py: 2,
                     px: 4,
@@ -327,6 +437,7 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                     fontWeight: 600,
                     borderRadius: 3,
                     background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    animation: isInstallable && !isInstalling ? `${pulse} 2s infinite` : 'none',
                     '&:hover': {
                       transform: 'translateY(-2px)',
                       boxShadow: `0 10px 30px ${alpha(theme.palette.primary.main, 0.4)}`,
@@ -337,11 +448,85 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                     },
                   }}
                 >
-                  {isInstallable ? 'Instalar app' : 'App instalada ✓'}
+                  {isInstalling ? 'Instalando...' : (isInstallable ? 'Instalar app' : 'App instalada ✓')}
                 </Button>
+
+                {!isMobile && (
+                  <Tooltip title="Escanea con tu móvil">
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      startIcon={<QrCodeScanner />}
+                      onClick={() => setShowQR(!showQR)}
+                      sx={{
+                        py: 2,
+                        px: 4,
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                        borderRadius: 3,
+                        borderColor: alpha('#fff', 0.5),
+                        color: '#fff',
+                        '&:hover': {
+                          borderColor: theme.palette.primary.main,
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        },
+                      }}
+                    >
+                      Escanear QR
+                    </Button>
+                  </Tooltip>
+                )}
               </Stack>
 
-              {/* Compatibilidad */}
+              {isMobile && (
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="text"
+                    startIcon={<Smartphone />}
+                    onClick={() => setShowMobileInfo(!showMobileInfo)}
+                    sx={{ color: alpha('#fff', 0.8) }}
+                  >
+                    ¿Cómo instalar?
+                  </Button>
+                  <Collapse in={showMobileInfo}>
+                    <Card sx={{ mt: 2, bgcolor: alpha('#000', 0.5), backdropFilter: 'blur(10px)' }}>
+                      <CardContent>
+                        <Typography variant="subtitle2" sx={{ color: '#fff', mb: 2 }}>
+                          📱 Instalación paso a paso:
+                        </Typography>
+                        <Stack spacing={1.5}>
+                          {mobileInstructions.map((instruction) => (
+                            <Box key={instruction.step} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <Box
+                                sx={{
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: '50%',
+                                  bgcolor: theme.palette.primary.main,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#fff',
+                                  fontWeight: 'bold',
+                                }}
+                              >
+                                {instruction.step}
+                              </Box>
+                              <Typography variant="body2" sx={{ color: '#fff' }}>
+                                {instruction.action}
+                              </Typography>
+                              <Typography variant="h6" sx={{ color: alpha('#fff', 0.7) }}>
+                                {instruction.icon}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </Collapse>
+                </Box>
+              )}
+
               <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
                 <PhoneIphone sx={{ color: alpha('#fff', 0.7) }} />
                 <Android sx={{ color: alpha('#fff', 0.7) }} />
@@ -353,7 +538,56 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
           </Grid>
         </Grid>
 
-        {/* Imagen oculta para detectar error de carga */}
+        {/* QR Code flotante */}
+        {showQR && (
+          <Paper
+            sx={{
+              position: 'fixed',
+              bottom: 20,
+              right: 20,
+              zIndex: 1000,
+              p: 3,
+              borderRadius: 4,
+              bgcolor: '#fff',
+              textAlign: 'center',
+              maxWidth: 280,
+              boxShadow: `0 10px 40px ${alpha('#000', 0.2)}`,
+            }}
+          >
+            <IconButton
+              onClick={handleQRClose}
+              sx={{ position: 'absolute', top: 8, right: 8 }}
+              size="small"
+            >
+              <Close />
+            </IconButton>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+              Escanea con tu móvil
+            </Typography>
+            <QRCode
+              value={window.location.href}
+              size={200}
+              level="H"
+              includeMargin
+              style={{ margin: '0 auto', display: 'block' }}
+            />
+            <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.secondary' }}>
+              Abre la cámara y apunta al código QR
+            </Typography>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<Download />}
+              onClick={handleInstallClick}
+              disabled={!isInstallable}
+              sx={{ mt: 2, width: '100%' }}
+            >
+              Instalar ahora
+            </Button>
+          </Paper>
+        )}
+
+        {/* Imagen oculta para error */}
         <Box
           component="img"
           src="/Logo de Djidji Music.png"
