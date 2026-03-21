@@ -1,4 +1,4 @@
-// src/landing/LandingPage.jsx
+// src/components/landing/LandingPage.tsx
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Box,
@@ -6,7 +6,8 @@ import {
   alpha,
   Fab,
   Zoom,
-  CircularProgress
+  CircularProgress,
+  Theme
 } from '@mui/material';
 import {
   KeyboardArrowUp
@@ -20,13 +21,6 @@ const FeaturedGenres = lazy(() => import('./FeaturedArtists'));
 const FAQ = lazy(() => import('./FAQ'));
 const AppPromo = lazy(() => import('./AppPromo'));
 
-// Spinner de carga
-const SectionLoader = () => (
-  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-    <CircularProgress />
-  </Box>
-);
-
 // ============================================
 // TIPO PARA EL EVENTO DE INSTALACIÓN PWA
 // ============================================
@@ -38,6 +32,15 @@ interface BeforeInstallPromptEvent extends Event {
   }>;
   prompt(): Promise<void>;
 }
+
+// ============================================
+// SPINNER DE CARGA
+// ============================================
+const SectionLoader = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+    <CircularProgress />
+  </Box>
+);
 
 // ============================================
 // COMPONENTE: Botón Volver Arriba
@@ -75,9 +78,13 @@ const ScrollToTop = () => {
 };
 
 // ============================================
-// COMPONENTE SEPARADOR REUTILIZABLE
+// COMPONENTE SEPARADOR REUTILIZABLE (TIPADO CORRECTAMENTE)
 // ============================================
-const SectionDivider = ({ theme }) => (
+interface SectionDividerProps {
+  theme: Theme;
+}
+
+const SectionDivider = ({ theme }: SectionDividerProps) => (
   <Box
     sx={{
       height: 1,
@@ -127,6 +134,7 @@ const LandingPage = () => {
       <Helmet>
         <title>DjidjiMusic - La música de Guinea Ecuatorial</title>
         <meta name="description" content="Plataforma musical dedicada a impulsar artistas y sonidos de Guinea Ecuatorial. Descubre, escucha y comparte." />
+        {/* theme-color es soportado por Chrome, Edge, Safari, Opera. Firefox no lo soporta pero no afecta funcionalidad */}
         <meta name="theme-color" content="#FF6B35" />
       </Helmet>
 
