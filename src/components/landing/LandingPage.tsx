@@ -135,7 +135,7 @@ const LandingPage = () => {
         <title>DjidjiMusic - La música de Guinea Ecuatorial</title>
         <meta name="description" content="Plataforma musical dedicada a impulsar artistas y sonidos de Guinea Ecuatorial. Descubre, escucha y comparte." />
         {/* theme-color es soportado por Chrome, Edge, Safari, Opera. Firefox no lo soporta pero no afecta funcionalidad */}
-        <meta name="theme-color" content="#FF6B35" />
+        
       </Helmet>
 
       {/* Contenido Principal con Lazy Loading */}
