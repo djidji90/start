@@ -1,4 +1,5 @@
-// src/landing/components/FeaturedGenres.tsx
+// src/landing/components/FeaturedGenres.tsx - CORREGIDO
+
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Box,
@@ -193,7 +194,7 @@ const FeaturedGenres = () => {
         backgroundImage: `url(${heroImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundColor: theme.palette.background.default, // fallback
+        backgroundColor: theme.palette.background.default,
       }}
     >
       {/* Overlay */}

@@ -15,9 +15,7 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
-  Tooltip,
   useMediaQuery,
-  IconButton,
   Collapse,
   Card,
   CardContent
@@ -30,16 +28,10 @@ import {
   Storage,
   Speed,
   Verified,
-  QrCodeScanner,
-  Close,
-  Download,
   CheckCircle,
   Smartphone
 } from '@mui/icons-material';
 import { keyframes } from '@mui/system';
-
-// 👇 Importación correcta para qrcode.react
-import QRCode from 'qrcode.react';
 
 // Animaciones
 const float = keyframes`
@@ -82,7 +74,6 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
   const [showInfo, setShowInfo] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
-  const [showQR, setShowQR] = useState(false);
   const [installProgressValue, setInstallProgressValue] = useState(0);
   const [installStep, setInstallStep] = useState(0);
   const [showMobileInfo, setShowMobileInfo] = useState(false);
@@ -91,11 +82,6 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
   useEffect(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     setIsInstallable(!!deferredPrompt && !isStandalone);
-    
-    const qrShown = localStorage.getItem('pwa_qr_shown');
-    if (!qrShown && !isMobile && !isStandalone) {
-      setTimeout(() => setShowQR(true), 3000);
-    }
   }, [deferredPrompt, isMobile]);
 
   const simulateInstallAnimation = async () => {
@@ -141,11 +127,6 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
       setInstallProgressValue(0);
       setInstallStep(0);
     }
-  };
-
-  const handleQRClose = () => {
-    setShowQR(false);
-    localStorage.setItem('pwa_qr_shown', 'true');
   };
 
   const benefits = [
@@ -450,32 +431,6 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
                 >
                   {isInstalling ? 'Instalando...' : (isInstallable ? 'Instalar app' : 'App instalada ✓')}
                 </Button>
-
-                {!isMobile && (
-                  <Tooltip title="Escanea con tu móvil">
-                    <Button
-                      variant="outlined"
-                      size="large"
-                      startIcon={<QrCodeScanner />}
-                      onClick={() => setShowQR(!showQR)}
-                      sx={{
-                        py: 2,
-                        px: 4,
-                        fontSize: '1.1rem',
-                        fontWeight: 600,
-                        borderRadius: 3,
-                        borderColor: alpha('#fff', 0.5),
-                        color: '#fff',
-                        '&:hover': {
-                          borderColor: theme.palette.primary.main,
-                          bgcolor: alpha(theme.palette.primary.main, 0.1),
-                        },
-                      }}
-                    >
-                      Escanear QR
-                    </Button>
-                  </Tooltip>
-                )}
               </Stack>
 
               {isMobile && (
@@ -537,55 +492,6 @@ const AppPromo = ({ deferredPrompt }: AppPromoProps) => {
             </Stack>
           </Grid>
         </Grid>
-
-        {/* QR Code flotante */}
-        {showQR && (
-          <Paper
-            sx={{
-              position: 'fixed',
-              bottom: 20,
-              right: 20,
-              zIndex: 1000,
-              p: 3,
-              borderRadius: 4,
-              bgcolor: '#fff',
-              textAlign: 'center',
-              maxWidth: 280,
-              boxShadow: `0 10px 40px ${alpha('#000', 0.2)}`,
-            }}
-          >
-            <IconButton
-              onClick={handleQRClose}
-              sx={{ position: 'absolute', top: 8, right: 8 }}
-              size="small"
-            >
-              <Close />
-            </IconButton>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              Escanea con tu móvil
-            </Typography>
-            <QRCode
-              value={window.location.href}
-              size={200}
-              level="H"
-              includeMargin
-              style={{ margin: '0 auto', display: 'block' }}
-            />
-            <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.secondary' }}>
-              Abre la cámara y apunta al código QR
-            </Typography>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<Download />}
-              onClick={handleInstallClick}
-              disabled={!isInstallable}
-              sx={{ mt: 2, width: '100%' }}
-            >
-              Instalar ahora
-            </Button>
-          </Paper>
-        )}
 
         {/* Imagen oculta para error */}
         <Box

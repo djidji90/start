@@ -14,12 +14,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       const storedToken = localStorage.getItem("accessToken");
-      
+
       if (storedToken) {
         try {
           // Verificar token válido
           const decoded = jwtDecode(storedToken);
-          
+
           // Verificar expiración
           const currentTime = Date.now() / 1000;
           if (decoded.exp < currentTime) {
@@ -49,10 +49,10 @@ export const AuthProvider = ({ children }) => {
   const login = (newToken) => {
     try {
       const decoded = jwtDecode(newToken); // Usar jwtDecode (con D mayúscula)
-      
+
       // Guardar en localStorage
       localStorage.setItem("accessToken", newToken);
-      
+
       // Actualizar estado
       setAccessToken(newToken);
       setIsAuthenticated(true);
@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
         email: decoded.email,
         roles: decoded.roles || []
       });
-      
+
       return { success: true, user: decoded };
     } catch (error) {
       console.error("Error decodificando token:", error);
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
     setAccessToken(null);
     setUser(null);
     setIsAuthenticated(false);
-    
+
     // Opcional: Limpiar otros datos de usuario
     localStorage.removeItem("userData");
   };

@@ -1,8 +1,8 @@
 // ============================================
-// components/Navbar.jsx - VERSIÓN CON LANDING PAGE
+// components/Navbar.jsx - VERSIÓN CORREGIDA
 // ============================================
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -13,13 +13,11 @@ import {
   MenuItem,
   IconButton,
   styled,
-  CssBaseline,
   Switch,
-  createTheme,
-  ThemeProvider,
   ListItemIcon,
   ListItemText,
   alpha,
+  useTheme,
 } from "@mui/material";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -28,12 +26,10 @@ import NightlightRoundIcon from "@mui/icons-material/NightlightRound";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
 import HomeIcon from "@mui/icons-material/Home";
 import InfoIcon from "@mui/icons-material/Info";
-import StoreIcon from "@mui/icons-material/Store";
 import SearchIcon from "@mui/icons-material/Search";
 import ExploreIcon from "@mui/icons-material/Explore";
-import WelcomeIcon from "@mui/icons-material/EmojiEmotions"; // Icono para bienvenida
 
-// Paleta naranja consistente con Login
+// Paleta naranja consistente
 const colors = {
   primary: '#FF6B35',
   primaryLight: '#FF8B5C',
@@ -41,30 +37,18 @@ const colors = {
 };
 
 const Navbar = () => {
-  const [darkMode, setDarkMode] = useState(false);
+  // Usar el tema existente de MUI en lugar de crear uno nuevo
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  
+  const [darkMode, setDarkMode] = useState(isDarkMode);
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode: darkMode ? "dark" : "light",
-          primary: {
-            main: colors.primary,
-            light: colors.primaryLight,
-            dark: colors.primaryDark,
-          },
-        },
-      }),
-    [darkMode]
-  );
-
-  // Items de menú - AHORA INCLUYE WELCOME/BIENVENIDA
+  // Items de menú
   const menuItems = [
     { label: "Inicio", path: "/", icon: <HomeIcon /> },
-
     { label: "Nosotros", path: "/AboutUs", icon: <InfoIcon /> }, 
     { label: "Búsqueda", path: "/MainPage", icon: <SearchIcon /> },
     { label: "Descubre", path: "/TechStyleHub", icon: <ExploreIcon /> },
@@ -76,114 +60,116 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <StyledAppBar position="sticky" darkmode={darkMode ? "true" : "false"}>
-        <Toolbar sx={{ justifyContent: "space-between", py: 1 }}>
-          {/* Logo y título */}
-          <TitleContainer>
-            <Logo
-              src={djidji}
-              alt="Logo djidjimusic"
-              onClick={() => navigate("/")}
-              darkmode={darkMode ? "true" : "false"}
+    <StyledAppBar position="sticky" darkmode={darkMode ? "true" : "false"}>
+      <Toolbar sx={{ justifyContent: "space-between", py: 1 }}>
+        {/* Logo y título */}
+        <TitleContainer>
+          <Logo
+            src={djidji}
+            alt="Logo djidjimusic"
+            onClick={() => navigate("/")}
+            darkmode={darkMode ? "true" : "false"}
+          />
+          <Title
+            variant="h6"
+            onClick={() => navigate("/")}
+            darkmode={darkMode ? "true" : "false"}
+          >
+            djidjimusic
+          </Title>
+        </TitleContainer>
+
+        {/* Controles lado derecho */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {/* Switch dark mode */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            {darkMode ? (
+              <NightlightRoundIcon sx={{ color: alpha(colors.primary, 0.8) }} />
+            ) : (
+              <WbSunnyIcon sx={{ color: alpha(colors.primary, 0.8) }} />
+            )}
+            <Switch
+              checked={darkMode}
+              onChange={() => setDarkMode(!darkMode)}
+              size="small"
+              sx={{
+                "& .MuiSwitch-thumb": { backgroundColor: darkMode ? "#333" : "#FFF" },
+                "& .MuiSwitch-track": { backgroundColor: darkMode ? alpha(colors.primary, 0.3) : alpha(colors.primary, 0.2) },
+              }}
             />
-            <Title
-              variant="h6"
-              onClick={() => navigate("/")}
-              darkmode={darkMode ? "true" : "false"}
-            >
-              djidjimusic
-            </Title>
-          </TitleContainer>
+          </Box>
 
-          {/* Controles lado derecho */}  
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>  
+          {/* Menú móvil */}
+          <IconButton
+            edge="end"
+            color="inherit"
+            aria-label="menu"
+            onClick={handleMenuClick}
+            sx={{ display: { xs: "flex", md: "none" }, color: darkMode ? "#FFF" : colors.primary }}
+          >
+            <MenuIcon />
+          </IconButton>
+        </Box>
 
-            {/* Switch dark mode */}  
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>  
-              {darkMode ? (  
-                <NightlightRoundIcon sx={{ color: alpha(colors.primary, 0.8) }} />  
-              ) : (  
-                <WbSunnyIcon sx={{ color: alpha(colors.primary, 0.8) }} />  
-              )}  
-              <Switch  
-                checked={darkMode}  
-                onChange={() => setDarkMode(!darkMode)}  
-                size="small"  
-                sx={{  
-                  "& .MuiSwitch-thumb": { backgroundColor: darkMode ? "#333" : "#FFF" },  
-                  "& .MuiSwitch-track": { backgroundColor: darkMode ? alpha(colors.primary, 0.3) : alpha(colors.primary, 0.2) },  
-                }}  
-              />  
-            </Box>  
+        {/* Menú móvil con iconos - CORREGIDO */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+          PaperProps={{
+            sx: {
+              mt: 1,
+              minWidth: 200,
+              background: darkMode ? alpha("#1A1D29", 0.95) : alpha("#FFF", 0.95),
+              backdropFilter: "blur(10px)",
+              border: `1px solid ${alpha(colors.primary, 0.1)}`,
+            }
+          }}
+        >
+          {menuItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <MenuItem
+                key={item.label}
+                onClick={() => { navigate(item.path); handleMenuClose(); }}
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  color: active ? colors.primary : "inherit",
+                  fontWeight: active ? 600 : 400,
+                  background: active ? alpha(colors.primary, darkMode ? 0.15 : 0.08) : "transparent",
+                  borderLeft: active ? `3px solid ${colors.primary}` : "3px solid transparent",
+                }}
+              >
+                <ListItemIcon sx={{ color: active ? colors.primary : "inherit", minWidth: 36 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.label} />
+              </MenuItem>
+            );
+          })}
+        </Menu>
 
-            {/* Menú móvil */}  
-            <IconButton  
-              edge="end"  
-              color="inherit"  
-              aria-label="menu"  
-              onClick={handleMenuClick}  
-              sx={{ display: { xs: "flex", md: "none" }, color: darkMode ? "#FFF" : colors.primary }}  
-            >  
-              <MenuIcon />  
-            </IconButton>  
-          </Box>  
-
-          {/* Menú móvil con iconos - AHORA CON BIENVENIDA */}  
-          <Menu  
-            anchorEl={anchorEl}  
-            open={Boolean(anchorEl)}  
-            onClose={handleMenuClose}  
-            PaperProps={{  
-              sx: {  
-                mt: 1,  
-                minWidth: 200,  
-                background: darkMode ? alpha("#1A1D29", 0.95) : alpha("#FFF", 0.95),  
-                backdropFilter: "blur(10px)",  
-                border: `1px solid ${alpha(colors.primary, 0.1)}`,  
-              }  
-            }}  
-          >  
-            {menuItems.map((item) => (  
-              <MenuItem  
-                key={item.label}  
-                onClick={() => { navigate(item.path); handleMenuClose(); }}  
-                sx={{  
-                  py: 1.5,  
-                  px: 2,  
-                  color: isActive(item.path) ? colors.primary : "inherit",  
-                  fontWeight: isActive(item.path) ? 600 : 400,  
-                  background: isActive(item.path) ? alpha(colors.primary, darkMode ? 0.15 : 0.08) : "transparent",  
-                  borderLeft: isActive(item.path) ? `3px solid ${colors.primary}` : "3px solid transparent",  
-                }}  
-              >  
-                <ListItemIcon sx={{ color: isActive(item.path) ? colors.primary : "inherit", minWidth: 36 }}>  
-                  {item.icon}  
-                </ListItemIcon>  
-                <ListItemText primary={item.label} />  
-              </MenuItem>  
-            ))}  
-          </Menu>  
-
-          {/* Links desktop - AHORA CON BIENVENIDA */}  
-          <NavButtonsContainer>  
-            {menuItems.map((item) => (  
-              <NavButton  
-                key={item.label}  
-                component={Link}  
-                to={item.path}  
-                isactive={isActive(item.path) ? "true" : "false"}  
-                darkmode={darkMode ? "true" : "false"}  
-                startIcon={item.icon}  
-              >  
-                {item.label}  
-              </NavButton>  
-            ))}  
-          </NavButtonsContainer>  
-        </Toolbar>  
-      </StyledAppBar>  
-    </ThemeProvider>
+        {/* Links desktop */}
+        <NavButtonsContainer>
+          {menuItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <NavButton
+                key={item.label}
+                component={Link}
+                to={item.path}
+                isactive={active ? "true" : "false"}
+                darkmode={darkMode ? "true" : "false"}
+                startIcon={item.icon}
+              >
+                {item.label}
+              </NavButton>
+            );
+          })}
+        </NavButtonsContainer>
+      </Toolbar>
+    </StyledAppBar>
   );
 };
 

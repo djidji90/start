@@ -1,7 +1,7 @@
 // src/types/qrcode.react.d.ts
 declare module 'qrcode.react' {
   import { CSSProperties } from 'react';
-  
+  ;
   export interface QRCodeProps {
     /**
      * The value to encode in the QR code

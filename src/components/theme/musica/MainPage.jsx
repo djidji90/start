@@ -798,7 +798,7 @@
                 }}
               >
                 <MusicNoteIcon sx={{ color: theme.palette.primary.main, fontSize: '1.4rem' }} />
-                Explorar por Géneros
+                Explorar por Géros
               </Typography>
 
               <GenreCarousel
