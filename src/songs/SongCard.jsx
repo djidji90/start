@@ -1,8 +1,8 @@
 // ============================================
 // src/components/songs/SongCard.jsx
-// VERSIÓN FINAL - ULTRA EFICIENTE
+// VERSIÓN FINAL - CON COMENTARIOS INTEGRADOS
 // ✅ Likes simples y rápidos
-// ✅ Sin popularidad (solo corazón + número)
+// ✅ Comentarios con preview en card
 // ✅ React Query + Optimistic updates
 // ✅ Número visible SOLO cuando > 0
 // ✅ Tooltips mínimos
@@ -29,6 +29,9 @@ import { useAudioPlayer } from "../components/hook/services/usePlayer";
 import useDownload from "../components/hook/services/useDownload";
 import useLike from "../components/hook/services/useLike";
 import { useMediaQuery } from "@mui/material";
+// ========== NUEVAS IMPORTACIONES PARA COMENTARIOS ==========
+import MiniComments from "../components/comments/MiniComments";
+import { useSongComments } from "../components/hook/services/useSongComments";
 
 // ============================================ //
 // SISTEMA DE DISEÑO PROFESIONAL
@@ -87,6 +90,10 @@ const SongCard = ({
     song?.is_liked
   );
 
+// ========== HOOK PARA CONTADOR DE COMENTARIOS ==========
+const { totalCount: totalComments, isLoading: commentsLoading } = 
+  useSongComments(song?.id?.toString());
+
   // ============================================ //
   // CONFIGURACIÓN DE VARIANTES
   // ============================================ //
@@ -105,7 +112,8 @@ const SongCard = ({
       spacing: 0.3,
       chipSize: 'small',
       showDownloads: true,
-      showLikes: true
+      showLikes: true,
+      showComments: true // NUEVO
     },
     default: {
       imageHeight: isMobile ? 160 : 180,
@@ -121,7 +129,8 @@ const SongCard = ({
       spacing: 0.4,
       chipSize: 'small',
       showDownloads: true,
-      showLikes: true
+      showLikes: true,
+      showComments: true // NUEVO
     },
     detailed: {
       imageHeight: isMobile ? 200 : 220,
@@ -137,7 +146,8 @@ const SongCard = ({
       spacing: 0.5,
       chipSize: 'small',
       showDownloads: true,
-      showLikes: true
+      showLikes: true,
+      showComments: true // NUEVO
     }
   };
 
@@ -571,6 +581,8 @@ const SongCard = ({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 0.5
               }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   {/* Duración */}
@@ -613,75 +625,75 @@ const SongCard = ({
                 {/* ACCIONES - VERSIÓN OPTIMIZADA */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                   
-                            {/* 🎯 LIKE BUTTON MEJORADO - MÁS GRANDE Y VISIBLE */}
-            <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-              <Tooltip 
-                title={like.userLiked ? 'Quitar like' : 'Dar like'} 
-                arrow
-              >
-                <IconButton
-                  size="small"
-                  onClick={handleLike}
-                  disabled={like.isLoading || like.isToggling}
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: '#E5E7EB',  // Gris suave para contraste
-                    color: like.userLiked ? designTokens.colors.error : '#6B7280',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: '#D1D5DB',  // Gris más oscuro al hover
-                      transform: 'scale(1.05)'
-                    },
-                    '&.Mui-disabled': {
-                      bgcolor: '#F3F4F6',
-                      opacity: 0.7
-                    }
-                  }}
-                >
-                  {like.isLoading || like.isToggling ? (
-                    <CircularProgress 
-                      size={18} 
-                      sx={{ 
-                        color: like.userLiked ? designTokens.colors.error : '#6B7280' 
-                      }} 
-                    />
-                  ) : like.userLiked ? (
-                    <Favorite sx={{ fontSize: 18 }} />
-                  ) : (
-                    <FavoriteBorder sx={{ fontSize: 18 }} />
-                  )}
-                </IconButton>
-              </Tooltip>
+                  {/* 🎯 LIKE BUTTON MEJORADO - MÁS GRANDE Y VISIBLE */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                    <Tooltip 
+                      title={like.userLiked ? 'Quitar like' : 'Dar like'} 
+                      arrow
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={handleLike}
+                        disabled={like.isLoading || like.isToggling}
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          bgcolor: '#E5E7EB',
+                          color: like.userLiked ? designTokens.colors.error : '#6B7280',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            bgcolor: '#D1D5DB',
+                            transform: 'scale(1.05)'
+                          },
+                          '&.Mui-disabled': {
+                            bgcolor: '#F3F4F6',
+                            opacity: 0.7
+                          }
+                        }}
+                      >
+                        {like.isLoading || like.isToggling ? (
+                          <CircularProgress 
+                            size={18} 
+                            sx={{ 
+                              color: like.userLiked ? designTokens.colors.error : '#6B7280' 
+                            }} 
+                          />
+                        ) : like.userLiked ? (
+                          <Favorite sx={{ fontSize: 18 }} />
+                        ) : (
+                          <FavoriteBorder sx={{ fontSize: 18 }} />
+                        )}
+                      </IconButton>
+                    </Tooltip>
 
-              {/* Número de likes - PEGADO al botón */}
-              {like.likesCount > 0 && (
-                <Tooltip title={`${like.likesCount} likes`} arrow>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      position: 'absolute',
-                      right: -8,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: '#4B5563',
-                      bgcolor: 'white',
-                      borderRadius: '10px',
-                      px: 0.5,
-                      minWidth: 22,
-                      textAlign: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      border: '1px solid #E5E7EB',
-                      zIndex: 2
-                    }}
-                  >
-                    {like.formatLikes(like.likesCount)}
-                  </Typography>
-                </Tooltip>
-              )}
-            </Box>
+                    {/* Número de likes - PEGADO al botón */}
+                    {like.likesCount > 0 && (
+                      <Tooltip title={`${like.likesCount} likes`} arrow>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            position: 'absolute',
+                            right: -8,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: '#4B5563',
+                            bgcolor: 'white',
+                            borderRadius: '10px',
+                            px: 0.5,
+                            minWidth: 22,
+                            textAlign: 'center',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                            border: '1px solid #E5E7EB',
+                            zIndex: 2
+                          }}
+                        >
+                          {like.formatLikes(like.likesCount)}
+                        </Typography>
+                      </Tooltip>
+                    )}
+                  </Box>
 
                   {/* Botón de descarga con contador */}
                   {isDownloaded ? (
@@ -771,6 +783,16 @@ const SongCard = ({
                   </IconButton>
                 </Box>
               </Box>
+              {/* ========== SECCIÓN DE COMENTARIOS ========== */}
+              {config.showComments && !isDownloading && (
+                <Box sx={{ mt: config.spacing }}>
+                  <MiniComments
+                    songId={songId}
+                    totalCount={totalComments}
+                    isLoading={commentsLoading}
+                  />
+                </Box>
+              )}
             </Box>
           </Box>
         </CardContent>

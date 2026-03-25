@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useRef, useCallback } from "react";
 import {
   Box,
   TextField,
@@ -13,18 +13,36 @@ import {
   Link,
   alpha,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Collapse,
+  Snackbar,
 } from "@mui/material";
-import { Visibility, VisibilityOff, Login as LoginIcon, Person, Lock, Verified } from "@mui/icons-material";
+import {
+  Visibility,
+  VisibilityOff,
+  Login as LoginIcon,
+  Person,
+  Lock,
+  Verified,
+  WarningAmber,
+  CheckCircle,
+  WifiOff,
+} from "@mui/icons-material";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { keyframes } from "@emotion/react";
 import { useConfig } from "./hook/useConfig";
 import { AuthContext } from "./hook/UseAut";
 
-// Animación solo para desktop
+// Animaciones
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+`;
+
+const shake = keyframes`
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
 `;
 
 // Paleta de colores
@@ -40,6 +58,8 @@ const colors = {
   gray600: '#6B7280',
   gray800: '#374151',
   error: '#EF4444',
+  success: '#10B981',
+  warning: '#F59E0B',
 };
 
 // Container principal
@@ -68,7 +88,7 @@ const HeroSection = styled(Box)(({ theme }) => ({
   },
 }));
 
-// Login box - padding ultra responsive
+// Login box
 const LoginBox = styled(Box)(({ theme }) => ({
   background: 'white',
   borderRadius: '24px',
@@ -86,7 +106,7 @@ const LoginBox = styled(Box)(({ theme }) => ({
   },
 }));
 
-// Inputs
+// Inputs con efecto de error animado
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiOutlinedInput-root': {
     backgroundColor: colors.gray100,
@@ -99,14 +119,16 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
       backgroundColor: 'white',
       boxShadow: `0 0 0 2px ${colors.primary}`,
     },
+    '&.Mui-error': {
+      animation: `${shake} 0.3s ease-in-out`,
+    },
   },
-  // Asegurar que los placeholders sean legibles en pantallas pequeñas
   '& input': {
     fontSize: { xs: '0.9rem', sm: '1rem' },
   },
 }));
 
-// Botón con ancho mínimo fijo
+// Botón
 const StyledButton = styled(Button)(({ theme }) => ({
   background: colors.primary,
   color: 'white',
@@ -123,6 +145,9 @@ const StyledButton = styled(Button)(({ theme }) => ({
       transform: 'translateY(-1px)',
       boxShadow: `0 8px 20px ${alpha(colors.primary, 0.2)}`,
     }),
+  },
+  '&.Mui-disabled': {
+    background: alpha(colors.primary, 0.5),
   },
 }));
 
@@ -152,7 +177,7 @@ const OfficialBadge = ({ isMobile }) => (
 );
 
 // ============================================
-// HERO DESKTOP - Solo se renderiza en desktop
+// HERO DESKTOP
 // ============================================
 const DesktopHero = () => {
   return (
@@ -259,7 +284,46 @@ const MobileHero = () => (
 );
 
 // ============================================
-// LOGIN CONTENT
+// COMPONENTE DE ALERTA CON COLLAPSE
+// ============================================
+const AnimatedAlert = ({ error, severity = 'error', onClose }) => {
+  const [open, setOpen] = useState(true);
+
+  const handleClose = () => {
+    setOpen(false);
+    if (onClose) setTimeout(onClose, 300);
+  };
+
+  const getIcon = () => {
+    switch (severity) {
+      case 'error': return <WarningAmber />;
+      case 'warning': return <WifiOff />;
+      case 'success': return <CheckCircle />;
+      default: return <WarningAmber />;
+    }
+  };
+
+  return (
+    <Collapse in={open}>
+      <Alert
+        severity={severity}
+        icon={getIcon()}
+        onClose={handleClose}
+        sx={{
+          borderRadius: '12px',
+          fontSize: '0.85rem',
+          mb: 2,
+          '& .MuiAlert-message': { width: '100%' },
+        }}
+      >
+        {error}
+      </Alert>
+    </Collapse>
+  );
+};
+
+// ============================================
+// LOGIN CONTENT MEJORADO
 // ============================================
 const LoginContent = () => {
   const { api } = useConfig();
@@ -270,9 +334,27 @@ const LoginContent = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [generalError, setGeneralError] = useState(null);
+  const [timeoutError, setTimeoutError] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(null);
+
+  const abortControllerRef = useRef(null);
+  const timeoutRef = useRef(null);
+
+  // Limpiar timeouts al desmontar
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (generalError) setGeneralError(null);
+    if (timeoutError) setTimeoutError(false);
+    if (networkError) setNetworkError(false);
   };
 
   const validateForm = () => {
@@ -286,18 +368,65 @@ const LoginContent = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
+    setGeneralError(null);
+    setTimeoutError(false);
+    setNetworkError(false);
 
     if (!validateForm()) return;
 
+    // Verificar conexión a internet
+    if (!navigator.onLine) {
+      setNetworkError(true);
+      setGeneralError("No hay conexión a internet. Verifica tu red.");
+      return;
+    }
+
     setLoading(true);
 
+    // Crear AbortController para cancelar petición
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // Timeout de 15 segundos
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutRef.current = setTimeout(() => {
+        reject(new Error('timeout'));
+      }, 15000);
+    });
+
+    const loginPromise = api.post("/musica/api/token/", formData, {
+      signal: controller.signal,
+    });
+
     try {
-      const response = await api.post("/musica/api/token/", formData);
-      login(response.data.access);
-      navigate("/MainPage");
+      const response = await Promise.race([loginPromise, timeoutPromise]);
+      
+      clearTimeout(timeoutRef.current);
+      
+      setSuccessMessage("¡Inicio de sesión exitoso! Redirigiendo...");
+      
+      setTimeout(() => {
+        login(response.data.access);
+        navigate("/MainPage");
+      }, 500);
+      
     } catch (error) {
-      const errorMessage = error.response?.data?.detail || "Credenciales incorrectas";
-      setErrors({ general: errorMessage });
+      clearTimeout(timeoutRef.current);
+      
+      if (error?.message === 'timeout') {
+        setTimeoutError(true);
+        setGeneralError("El servidor no responde. Intenta de nuevo.");
+      } else if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
+        // Petición cancelada, no mostrar error
+        console.log('Request aborted');
+      } else if (error?.message === 'Network Error' || error?.code === 'ERR_NETWORK') {
+        setNetworkError(true);
+        setGeneralError("Error de conexión. Verifica tu internet.");
+      } else {
+        const errorMessage = error.response?.data?.detail || "Credenciales incorrectas";
+        setGeneralError(errorMessage);
+      }
+      
       setLoading(false);
     }
   };
@@ -327,6 +456,42 @@ const LoginContent = () => {
         Inicia sesión en tu cuenta
       </Typography>
 
+      {/* Alerta de éxito */}
+      {successMessage && (
+        <AnimatedAlert 
+          error={successMessage} 
+          severity="success"
+          onClose={() => setSuccessMessage(null)}
+        />
+      )}
+
+      {/* Alerta de error general */}
+      {generalError && !timeoutError && !networkError && (
+        <AnimatedAlert 
+          error={generalError} 
+          severity="error"
+          onClose={() => setGeneralError(null)}
+        />
+      )}
+
+      {/* Alerta específica de timeout */}
+      {timeoutError && (
+        <AnimatedAlert 
+          error="El servidor no responde. Verifica tu conexión e intenta de nuevo."
+          severity="warning"
+          onClose={() => setTimeoutError(false)}
+        />
+      )}
+
+      {/* Alerta específica de red */}
+      {networkError && (
+        <AnimatedAlert 
+          error="No hay conexión a internet. Verifica tu red y vuelve a intentar."
+          severity="warning"
+          onClose={() => setNetworkError(false)}
+        />
+      )}
+
       <form onSubmit={handleSubmit}>
         <Grid container spacing={{ xs: 1.5, sm: 2.5 }}>
           <Grid item xs={12}>
@@ -338,6 +503,7 @@ const LoginContent = () => {
               onChange={handleChange}
               error={!!errors.username}
               helperText={errors.username}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -358,6 +524,7 @@ const LoginContent = () => {
               onChange={handleChange}
               error={!!errors.password}
               helperText={errors.password}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -369,6 +536,7 @@ const LoginContent = () => {
                     <IconButton 
                       onClick={() => setShowPassword(!showPassword)} 
                       edge="end"
+                      disabled={loading}
                       sx={{ color: colors.gray600 }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
@@ -378,14 +546,6 @@ const LoginContent = () => {
               }}
             />
           </Grid>
-
-          {errors.general && (
-            <Grid item xs={12}>
-              <Alert severity="error" sx={{ borderRadius: '8px', fontSize: '0.9rem' }}>
-                {errors.general}
-              </Alert>
-            </Grid>
-          )}
 
           <Grid item xs={12} sx={{ mt: { xs: 0.5, sm: 1 } }}>
             <StyledButton
@@ -435,10 +595,8 @@ const Login = () => {
 
   return (
     <LoginContainer>
-      {/* Hero DESKTOP - NO se renderiza en móviles (desaparece del DOM) */}
       {!isMobile && <DesktopHero />}
       
-      {/* Lado derecho - siempre visible */}
       <Box sx={{
         flex: 1,
         display: 'flex',
@@ -450,7 +608,6 @@ const Login = () => {
         minHeight: { xs: '100vh', md: 'auto' },
       }}>
         <Box sx={{ width: '100%', maxWidth: 400 }}>
-          {/* Hero MÓVIL - solo se renderiza en móviles */}
           {isMobile && <MobileHero />}
           <LoginContent />
         </Box>
@@ -459,4 +616,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Login; 

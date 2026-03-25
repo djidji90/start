@@ -4,13 +4,14 @@ import {
   Grid,
   Box,
   Typography,
-  CircularProgress,
   Alert,
   Paper,
   useMediaQuery,
   useTheme,
   Button,
-  Fade
+  Fade,
+  Skeleton,
+  alpha
 } from "@mui/material";
 import {
   Refresh,
@@ -19,14 +20,218 @@ import {
   Login as LoginIcon,
   AutoAwesome
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom"; // AÑADIDO
+import { useNavigate } from "react-router-dom";
 import useRandomSongs from "../../components/hook/services/useRandomSongs";
 import SongCard from "../../songs/SongCard";
+
+// ============================================
+// SKELETON COMPONENT PARA RANDOM SONGS
+// ============================================
+
+/**
+ * SongCardSkeleton - Esqueleto para cada tarjeta de canción
+ */
+const SongCardSkeleton = () => {
+  const theme = useTheme();
+  
+  return (
+    <Box
+      sx={{
+        width: "100%",
+        height: "100%",
+        minHeight: { xs: 280, sm: 300, md: 320 },
+        borderRadius: 3,
+        overflow: "hidden",
+        bgcolor: alpha(theme.palette.background.paper, 0.6),
+        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+      }}
+    >
+      {/* Imagen/Arte de la canción */}
+      <Skeleton
+        variant="rectangular"
+        width="100%"
+        height={200}
+        sx={{
+          bgcolor: alpha(theme.palette.primary.main, 0.05),
+          transform: "none"
+        }}
+      />
+      
+      {/* Contenido de la tarjeta */}
+      <Box sx={{ p: 2 }}>
+        {/* Título de la canción */}
+        <Skeleton
+          variant="text"
+          width="85%"
+          height={24}
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            mb: 1,
+            borderRadius: 1
+          }}
+        />
+        
+        {/* Nombre del artista */}
+        <Skeleton
+          variant="text"
+          width="60%"
+          height={20}
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.05),
+            borderRadius: 1
+          }}
+        />
+        
+        {/* Metadata adicional (duración, género, etc) */}
+        <Box sx={{ display: "flex", gap: 1, mt: 1.5 }}>
+          <Skeleton
+            variant="rounded"
+            width={50}
+            height={24}
+            sx={{
+              bgcolor: alpha(theme.palette.primary.main, 0.05),
+              borderRadius: 1.5
+            }}
+          />
+          <Skeleton
+            variant="rounded"
+            width={70}
+            height={24}
+            sx={{
+              bgcolor: alpha(theme.palette.primary.main, 0.05),
+              borderRadius: 1.5
+            }}
+          />
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+/**
+ * RandomSongsSkeleton - Grid completo de skeletons
+ */
+const RandomSongsSkeleton = ({ cards = 8 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  
+  // Determinar cuántos skeletons mostrar según el dispositivo
+  const getCardsCount = () => {
+    if (isMobile) return Math.min(cards, 4);
+    if (theme.breakpoints.down("lg")) return Math.min(cards, 6);
+    return Math.min(cards, 8);
+  };
+  
+  const skeletonCount = getCardsCount();
+  
+  return (
+    <Container maxWidth="xl" sx={{ py: 2 }}>
+      {/* Header Skeleton */}
+      <Box sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 3,
+        flexWrap: "wrap",
+        gap: 2
+      }}>
+        <Box sx={{ flex: 1 }}>
+          <Skeleton
+            variant="text"
+            width={200}
+            height={40}
+            sx={{
+              bgcolor: alpha(theme.palette.primary.main, 0.08),
+              borderRadius: 1,
+              mb: 1
+            }}
+          />
+          <Skeleton
+            variant="text"
+            width={150}
+            height={20}
+            sx={{
+              bgcolor: alpha(theme.palette.primary.main, 0.05),
+              borderRadius: 1
+            }}
+          />
+        </Box>
+        
+        <Skeleton
+          variant="rounded"
+          width={120}
+          height={36}
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            borderRadius: 3
+          }}
+        />
+      </Box>
+      
+      {/* Grid de Skeletons */}
+      <Grid container spacing={isMobile ? 1.5 : 2}>
+        {Array.from({ length: skeletonCount }).map((_, index) => (
+          <Grid
+            item
+            key={`skeleton-${index}`}
+            xs={12}
+            sm={6}
+            md={4}
+            lg={3}
+            sx={{ display: "flex" }}
+          >
+            <Fade in={true} timeout={300 * (index * 0.1)}>
+              <Box sx={{ width: "100%" }}>
+                <SongCardSkeleton />
+              </Box>
+            </Fade>
+          </Grid>
+        ))}
+      </Grid>
+      
+      {/* Footer Skeleton */}
+      <Box sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mt: 3,
+        pt: 2,
+        borderTop: `2px solid ${alpha(theme.palette.divider, 0.5)}`,
+        flexWrap: "wrap",
+        gap: 1
+      }}>
+        <Skeleton
+          variant="text"
+          width={120}
+          height={20}
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.05),
+            borderRadius: 1
+          }}
+        />
+        
+        <Skeleton
+          variant="text"
+          width={150}
+          height={20}
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.05),
+            borderRadius: 1
+          }}
+        />
+      </Box>
+    </Container>
+  );
+};
+
+// ============================================
+// COMPONENTE PRINCIPAL MEJORADO
+// ============================================
 
 const RandomSongsDisplay = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const navigate = useNavigate(); // AÑADIDO
+  const navigate = useNavigate();
 
   // Usamos el hook completo
   const {
@@ -72,10 +277,9 @@ const RandomSongsDisplay = () => {
               {error || "Inicia sesión para descubrir nueva música"}
             </Typography>
 
-            {/* Botón que redirige directamente al login */}
             <Button
               variant="contained"
-              onClick={() => navigate("/Login")} // Redirige a la ruta principal (login)
+              onClick={() => navigate("/Login")}
               startIcon={<LoginIcon />}
               sx={{
                 px: 4,
@@ -100,36 +304,9 @@ const RandomSongsDisplay = () => {
     );
   }
 
+  // ✅ ESTADO DE CARGA MEJORADO CON SKELETON
   if (showLoading) {
-    return (
-      <Box sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        py: 6,
-        minHeight: "50vh"
-      }}>
-        <CircularProgress 
-          size={isMobile ? 40 : 60} 
-          thickness={4}
-          sx={{ 
-            color: theme.palette.primary.main,
-            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
-          }}
-        />
-        <Typography 
-          variant="body1" 
-          sx={{ 
-            mt: 2.5,
-            color: theme.palette.text.secondary,
-            fontWeight: 500
-          }}
-        >
-          Buscando las mejores canciones para ti...
-        </Typography>
-      </Box>
-    );
+    return <RandomSongsSkeleton cards={8} />;
   }
 
   if (showError) {
@@ -389,7 +566,7 @@ const RandomSongsDisplay = () => {
             }
           }} />
           <Typography variant="caption" color="text.secondary">
-            
+            {songs.length} canciones disponibles
           </Typography>
         </Box>
 
@@ -407,4 +584,4 @@ const RandomSongsDisplay = () => {
   );
 };
 
-export default RandomSongsDisplay; 
+export default RandomSongsDisplay;

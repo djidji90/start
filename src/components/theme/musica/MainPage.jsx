@@ -825,7 +825,7 @@
           {/* ▶️ SECCIÓN: Más Escuchadas - En reproducción */}
           <DiscoverySection
             title="Más Escuchadas"
-            subtitle="En reproducción ahora"
+            subtitle="lo que mas se escucha"
             icon={<PlayCircle />}
             queryResult={discovery.plays}
             limit={20}
@@ -838,7 +838,7 @@
           {/* ⏰ SECCIÓN: Novedades - Recién agregado */}
           <DiscoverySection
             title="Novedades"
-            subtitle="Recién agregado"
+            subtitle="las mas nuevas"
             icon={<AccessTime />}
             queryResult={discovery.recent}
             limit={20}

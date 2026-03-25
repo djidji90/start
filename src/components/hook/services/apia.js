@@ -1,4 +1,4 @@
-// src/services/apia.js
+// src/components/hook/services/apia.js
 import axios from "axios";
 
 export const api = axios.create({
@@ -10,7 +10,7 @@ export const api = axios.create({
 });
 
 // Función para obtener token
-const getAuthToken = () => {
+export const getAuthToken = () => {
   return localStorage.getItem("accessToken") ||
          localStorage.getItem("access_token") ||
          localStorage.getItem("token") ||
@@ -19,7 +19,7 @@ const getAuthToken = () => {
          localStorage.getItem("django_token");
 };
 
-// Interceptor de token (SOLO AÑADE, NO MODIFICA COMPORTAMIENTO EXISTENTE)
+// Interceptor de token
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
@@ -31,7 +31,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor de errores (MEJORA, NO ROMPE)
+// Interceptor de errores
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -45,13 +45,12 @@ api.interceptors.response.use(
       error.response?.data?.error ||
       "Error de conexión";
     
-    // Mantener compatibilidad: error.message sigue existiendo
     error.message = errorMessage;
     return Promise.reject(error);
   }
 );
 
-// Servicios de upload (OPCIONAL, no afecta código existente)
+// Servicios de upload
 export const uploadService = {
   async requestUploadUrl(fileData) {
     const response = await api.post('/api2/upload/direct/request/', fileData);
