@@ -1,15 +1,15 @@
-    // src/hooks/useSongComments.js
+// src/components/hook/services/useSongComments.js
 import { useState, useEffect, useCallback, useRef } from 'react';
 import commentService from '../../../components/hook/services/commentService';
 
-export const useSongComments = (songId, limit = 2) => {
+export const useSongComments = (songId) => {
   const [comments, setComments] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const cacheRef = useRef(new Map());
 
-  const loadPreviewComments = useCallback(async () => {
+  const loadComments = useCallback(async () => {
     if (!songId) return;
 
     const cacheKey = `preview:${songId}`;
@@ -26,7 +26,7 @@ export const useSongComments = (songId, limit = 2) => {
     try {
       const response = await commentService.getComments(songId, {
         page: 1,
-        pageSize: limit
+        pageSize: 2  // Solo 2 comentarios para preview
       });
 
       const previewComments = response.results || [];
@@ -42,16 +42,17 @@ export const useSongComments = (songId, limit = 2) => {
       });
       
     } catch (err) {
+      console.error('Error loading comments:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, [songId, limit]);
+  }, [songId]);
 
   useEffect(() => {
     const handleCommentChange = (event) => {
       if (event.detail?.songId === songId) {
-        loadPreviewComments();
+        loadComments();
       }
     };
 
@@ -62,17 +63,19 @@ export const useSongComments = (songId, limit = 2) => {
       window.removeEventListener('comment:created', handleCommentChange);
       window.removeEventListener('comment:deleted', handleCommentChange);
     };
-  }, [songId, loadPreviewComments]);
+  }, [songId, loadComments]);
 
   useEffect(() => {
-    loadPreviewComments();
-  }, [loadPreviewComments]);
+    loadComments();
+  }, [loadComments]);
 
   return {
     comments,
     totalCount,
     isLoading,
     error,
-    refresh: loadPreviewComments
+    refresh: loadComments
   };
 };
+
+export default useSongComments;

@@ -1,27 +1,35 @@
 // src/components/hook/services/commentService.js
 import api from '../../../components/hook/services/apia';
 
-/**
- * Servicio de comentarios
- * Utiliza el mismo cliente API que funciona para download y like
- */
 class CommentService {
   constructor() {
-    // Caché para optimizar lecturas
     this.cache = new Map();
     this.cacheTTL = 5 * 60 * 1000; // 5 minutos
-    this.pendingRequests = new Map(); // Para evitar requests duplicados
+    this.pendingRequests = new Map();
+    // 🔥 NUEVO: Versión de caché para invalidación atómica
+    this.cacheVersion = 1;
+    this.cacheVersionKey = 'comment_cache_version';
+    
+    // Cargar versión guardada
+    const savedVersion = localStorage.getItem(this.cacheVersionKey);
+    if (savedVersion) {
+      this.cacheVersion = parseInt(savedVersion, 10);
+    }
+  }
+
+  /**
+   * Obtener clave de caché con versión
+   */
+  _getCacheKey(songId, page, pageSize) {
+    return `comments:v${this.cacheVersion}:${songId}:${page}:${pageSize}`;
   }
 
   /**
    * Obtener comentarios con paginación
-   * @param {string|number} songId - ID de la canción
-   * @param {Object} params - Parámetros de paginación
-   * @returns {Promise} - Datos paginados de comentarios
    */
   async getComments(songId, params = {}) {
     const { page = 1, pageSize = 10, forceRefresh = false } = params;
-    const cacheKey = `comments:${songId}:${page}:${pageSize}`;
+    const cacheKey = this._getCacheKey(songId, page, pageSize);
 
     // Verificar caché
     if (!forceRefresh && this.cache.has(cacheKey)) {
@@ -31,7 +39,7 @@ class CommentService {
       }
     }
 
-    // Evitar requests duplicados en vuelo
+    // Evitar requests duplicados
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey);
     }
@@ -61,9 +69,6 @@ class CommentService {
 
   /**
    * Crear un nuevo comentario
-   * @param {string|number} songId - ID de la canción
-   * @param {string} content - Contenido del comentario
-   * @returns {Promise} - Comentario creado
    */
   async createComment(songId, content) {
     this._validateContent(content);
@@ -73,17 +78,14 @@ class CommentService {
       { content: content.trim() }
     );
     
-    // Invalidar caché de esta canción
-    this._invalidateSongCache(songId);
+    // 🔥 NUEVO: Incrementar versión de caché para invalidar todo
+    this._incrementCacheVersion();
     
     return this._normalizeComment(response.data);
   }
 
   /**
    * Actualizar un comentario existente
-   * @param {string|number} commentId - ID del comentario
-   * @param {string} content - Nuevo contenido
-   * @returns {Promise} - Comentario actualizado
    */
   async updateComment(commentId, content) {
     this._validateContent(content);
@@ -93,43 +95,46 @@ class CommentService {
       { content: content.trim() }
     );
     
-    // Limpiar toda la caché porque no sabemos a qué canción pertenece
-    this.cache.clear();
+    // 🔥 NUEVO: Incrementar versión de caché
+    this._incrementCacheVersion();
     
     return this._normalizeComment(response.data);
   }
 
   /**
    * Eliminar un comentario
-   * @param {string|number} commentId - ID del comentario
-   * @returns {Promise} - true si se eliminó correctamente
    */
   async deleteComment(commentId) {
     await api.delete(`/api2/songs/comments/${commentId}/`);
     
-    // Limpiar toda la caché
-    this.cache.clear();
+    // 🔥 NUEVO: Incrementar versión de caché
+    this._incrementCacheVersion();
     
     return true;
   }
 
   /**
-   * Obtener un comentario específico
-   * @param {string|number} commentId - ID del comentario
-   * @returns {Promise} - Comentario
+   * 🔥 NUEVO: Incrementar versión de caché
+   * Esto invalida toda la caché de comentarios atómicamente
    */
-  async getComment(commentId) {
-    const response = await api.get(`/api2/songs/comments/${commentId}/`);
-    return this._normalizeComment(response.data);
+  _incrementCacheVersion() {
+    this.cacheVersion++;
+    // Guardar en localStorage para persistir entre recargas
+    localStorage.setItem(this.cacheVersionKey, this.cacheVersion.toString());
+    
+    // Limpiar caché antigua
+    this.cache.clear();
+    this.pendingRequests.clear();
+    
+    console.log(`🔄 Cache version actualizada a v${this.cacheVersion}`);
   }
 
   /**
    * Invalidar caché de una canción específica
-   * @private
    */
   _invalidateSongCache(songId) {
     for (const key of this.cache.keys()) {
-      if (key.startsWith(`comments:${songId}:`)) {
+      if (key.includes(`:${songId}:`)) {
         this.cache.delete(key);
       }
     }
@@ -137,7 +142,6 @@ class CommentService {
 
   /**
    * Normalizar un comentario individual
-   * @private
    */
   _normalizeComment(comment) {
     return {
@@ -158,7 +162,6 @@ class CommentService {
 
   /**
    * Normalizar respuesta de lista
-   * @private
    */
   _normalizeResponse(data) {
     return {
@@ -173,7 +176,6 @@ class CommentService {
 
   /**
    * Validar contenido del comentario
-   * @private
    */
   _validateContent(content) {
     if (!content || typeof content !== 'string') {
@@ -195,8 +197,19 @@ class CommentService {
    */
   clearCache() {
     this.cache.clear();
+    this.pendingRequests.clear();
+  }
+  
+  /**
+   * 🔥 NUEVO: Resetear versión de caché (útil para debugging)
+   */
+  resetCacheVersion() {
+    this.cacheVersion = 1;
+    localStorage.setItem(this.cacheVersionKey, '1');
+    this.cache.clear();
+    this.pendingRequests.clear();
+    console.log('🔄 Cache version reset a v1');
   }
 }
 
-// Exportar una única instancia (Singleton)
 export default new CommentService();

@@ -784,15 +784,14 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                 </Box>
               </Box>
               {/* ========== SECCIÓN DE COMENTARIOS ========== */}
-              {config.showComments && !isDownloading && (
-                <Box sx={{ mt: config.spacing }}>
-                  <MiniComments
-                    songId={songId}
-                    totalCount={totalComments}
-                    isLoading={commentsLoading}
-                  />
-                </Box>
-              )}
+           
+
+            {/* SECCIÓN DE COMENTARIOS */}
+            {config.showComments && !isDownloading && (
+              <Box sx={{ mt: config.spacing }}>
+                <MiniComments songId={songId} />
+              </Box>
+            )}
             </Box>
           </Box>
         </CardContent>
