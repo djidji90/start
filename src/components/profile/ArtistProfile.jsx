@@ -11,11 +11,12 @@ import {
   Typography,
   alpha,
   Slide,
-  IconButton
+  IconButton,
+  useTheme
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LoginIcon from '@mui/icons-material/Login';
-import { AuthContext } from '../../components/hook/UseAut'; // 👈 IMPORTAR CONTEXTO
+import { AuthContext } from '../../components/hook/UseAut';
 import useProfileData from '../../components/hook/services/useProfileData';
 import ProfileHeader from '../../components/profile/ProfileHeader';
 import ProfileStats from '../../components/profile/ProfileStats';
@@ -24,13 +25,15 @@ import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
 import UserNotFound from '../../components/profile/UserNotFound';
 import MetaTags from '../../components/profile/MetaTags';
 
+const LOGIN_ROUTE = '/login';
+
 const ArtistProfile = () => {
   const { username } = useParams();
   const navigate = useNavigate();
-  
-  // 👈 USAR CONTEXTO DIRECTAMENTE
+  const theme = useTheme();
+
   const { isAuthenticated } = useContext(AuthContext);
-  
+
   const [sortBy, setSortBy] = useState('popular');
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [promptDismissed, setPromptDismissed] = useState(false);
@@ -47,57 +50,71 @@ const ArtistProfile = () => {
     sortSongs,
   } = useProfileData(username);
 
-  // Detectar si viene de enlace externo y no está autenticado
+  // 🔍 Detectar origen de usuario
+  const isExternalReferrer =
+    !document.referrer ||
+    (!document.referrer.includes(window.location.origin) &&
+      document.referrer !== '');
+
+  // 🔐 Control de prompt inteligente
   useEffect(() => {
-    // Verificar si el usuario llegó desde un enlace externo (WhatsApp, Telegram, etc.)
-    const isExternalReferrer = !document.referrer || 
-      (!document.referrer.includes(window.location.origin) && document.referrer !== '');
-    
-    // Mostrar prompt solo si:
-    // 1. No está autenticado
-    // 2. No ha sido dismissado antes en esta sesión
-    // 3. (Opcional) Viene de enlace externo o es su primera visita
-    if (!isAuthenticated && !promptDismissed && !loading && profile) {
-      // Pequeño delay para no interrumpir la carga inicial
+    const visited = sessionStorage.getItem('visitedProfile');
+
+    if (
+      !isAuthenticated &&
+      !promptDismissed &&
+      !loading &&
+      profile &&
+      (isExternalReferrer || !visited)
+    ) {
       const timer = setTimeout(() => {
         setShowLoginPrompt(true);
-      }, 2000);
-      
+
+        // 📊 (Opcional futuro) analytics
+        // trackEvent('login_prompt_shown');
+
+      }, 1800);
+
       return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, promptDismissed, loading, profile]);
+
+    sessionStorage.setItem('visitedProfile', 'true');
+  }, [isAuthenticated, promptDismissed, loading, profile, isExternalReferrer]);
+
+  // 🔐 Persistencia dismiss
+  useEffect(() => {
+    const lastDismissed = localStorage.getItem('loginPromptDismissed');
+
+    if (lastDismissed) {
+      const days =
+        (Date.now() - parseInt(lastDismissed)) / (1000 * 60 * 60 * 24);
+
+      if (days <= 7) {
+        setPromptDismissed(true);
+      } else {
+        localStorage.removeItem('loginPromptDismissed');
+      }
+    }
+  }, []);
 
   const handleLoginRedirect = () => {
-    // Guardar la URL actual para volver después del login
     sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
-    navigate('/Login'); // Ajusta la ruta de login según tu app
+    navigate(LOGIN_ROUTE);
   };
 
   const handleDismissPrompt = () => {
     setShowLoginPrompt(false);
     setPromptDismissed(true);
-    // Opcional: guardar en localStorage para no mostrar en mucho tiempo
     localStorage.setItem('loginPromptDismissed', Date.now().toString());
   };
 
-  // Verificar si ya dismissió antes (persistente)
-  useEffect(() => {
-    const lastDismissed = localStorage.getItem('loginPromptDismissed');
-    if (lastDismissed) {
-      const daysSinceDismissed = (Date.now() - parseInt(lastDismissed)) / (1000 * 60 * 60 * 24);
-      // Si han pasado más de 7 días, mostrar de nuevo
-      if (daysSinceDismissed > 7) {
-        localStorage.removeItem('loginPromptDismissed');
-      } else {
-        setPromptDismissed(true);
-      }
-    }
-  }, []);
-
-  const handleSortChange = useCallback((newSort) => {
-    setSortBy(newSort);
-    sortSongs(newSort);
-  }, [sortSongs]);
+  const handleSortChange = useCallback(
+    (newSort) => {
+      setSortBy(newSort);
+      sortSongs(newSort);
+    },
+    [sortSongs]
+  );
 
   const handleLoadMore = useCallback(() => {
     if (hasMore && !loadingMore) {
@@ -105,6 +122,7 @@ const ArtistProfile = () => {
     }
   }, [hasMore, loadingMore, loadMoreSongs]);
 
+  // ⏳ Loading
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -113,6 +131,7 @@ const ArtistProfile = () => {
     );
   }
 
+  // ❌ Error
   if (error) {
     return (
       <Container sx={{ py: 4 }}>
@@ -121,6 +140,7 @@ const ArtistProfile = () => {
     );
   }
 
+  // 👤 Usuario no encontrado
   if (!profile) {
     return <UserNotFound username={username} />;
   }
@@ -129,26 +149,29 @@ const ArtistProfile = () => {
     <>
       <MetaTags profile={profile} username={username} />
 
-      {/* Banner de autenticación - No intrusivo y elegante */}
+      {/* 🔥 LOGIN PROMPT PREMIUM */}
       <Slide direction="down" in={showLoginPrompt} mountOnEnter unmountOnExit>
         <Paper
-          elevation={3}
+          elevation={0}
           sx={{
             position: 'sticky',
             top: 0,
-            zIndex: 1100,
+            zIndex: 1200,
             mx: 'auto',
-            maxWidth: 600,
+            maxWidth: 680,
             mt: 1,
             mb: 2,
-            borderRadius: 3,
-            background: `linear-gradient(135deg, ${alpha('#3B82F6', 0.95)} 0%, ${alpha('#2563EB', 0.95)} 100%)`,
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            borderRadius: 4,
+            overflow: 'hidden',
+            backdropFilter: 'blur(12px)',
+            background: `linear-gradient(135deg, 
+              ${alpha(theme.palette.primary.main, 0.95)} 0%, 
+              ${alpha(theme.palette.primary.dark, 0.95)} 100%)`,
+            border: `1px solid ${alpha('#fff', 0.2)}`,
+            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
           }}
         >
-          <Box sx={{ p: 2, position: 'relative' }}>
+          <Box sx={{ p: 2.2, position: 'relative' }}>
             <IconButton
               size="small"
               onClick={handleDismissPrompt}
@@ -156,104 +179,114 @@ const ArtistProfile = () => {
                 position: 'absolute',
                 top: 8,
                 right: 8,
-                color: 'rgba(255,255,255,0.7)',
+                color: alpha('#fff', 0.7),
                 '&:hover': {
-                  color: 'white',
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                }
+                  color: '#fff',
+                  bgcolor: alpha('#fff', 0.1),
+                },
               }}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {/* Icono */}
               <Box
                 sx={{
-                  width: 40,
-                  height: 40,
+                  width: 44,
+                  height: 44,
                   borderRadius: '50%',
-                  bgcolor: 'rgba(255,255,255,0.2)',
+                  bgcolor: alpha('#fff', 0.2),
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <LoginIcon sx={{ color: 'white' }} />
+                <LoginIcon sx={{ color: '#fff' }} />
               </Box>
 
+              {/* Texto */}
               <Box sx={{ flex: 1 }}>
-                <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, mb: 0.5 }}>
-                  🎵 ¿Quieres escuchar música?
+                <Typography
+                  variant="body1"
+                  sx={{ color: '#fff', fontWeight: 700 }}
+                >
+                  🎧 Descubre el sonido de Guinea Ecuatorial
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block' }}>
-                  Inicia sesión para reproducir canciones y guardar tus favoritos
+                <Typography
+                  variant="caption"
+                  sx={{ color: alpha('#fff', 0.85) }}
+                >
+                  Escucha música, guarda favoritos y apoya a los artistas
                 </Typography>
               </Box>
 
+              {/* CTA */}
               <Button
                 variant="contained"
                 size="small"
                 onClick={handleLoginRedirect}
                 sx={{
-                  bgcolor: 'white',
-                  color: '#3B82F6',
-                  fontWeight: 600,
+                  bgcolor: '#fff',
+                  color: theme.palette.primary.main,
+                  fontWeight: 700,
+                  borderRadius: 3,
+                  px: 2.5,
                   textTransform: 'none',
-                  borderRadius: 2,
-                  px: 2,
+                  boxShadow: 'none',
                   '&:hover': {
-                    bgcolor: 'rgba(255,255,255,0.9)',
-                  }
+                    bgcolor: alpha('#fff', 0.9),
+                  },
                 }}
               >
-                Iniciar sesión
+                Entrar ahora
               </Button>
             </Box>
           </Box>
         </Paper>
       </Slide>
 
+      {/* CONTENIDO */}
       <Fade in timeout={500}>
         <Container maxWidth="lg" sx={{ py: 4 }}>
-          <ProfileHeader 
-            profile={profile}
-            isOwner={false}
-          />
+          <ProfileHeader profile={profile} isOwner={false} />
 
-          <ProfileStats 
-            stats={stats} 
-            genres={stats.genres}
-          />
+          <ProfileStats stats={stats} genres={stats.genres} />
 
-          {/* Mensaje contextual en las canciones si no está autenticado */}
+          {/* 🔒 Mensaje contextual mejorado */}
           {!isAuthenticated && songs.length > 0 && (
             <Box
               sx={{
-                mb: 2,
+                mb: 3,
                 p: 2,
-                borderRadius: 2,
-                bgcolor: alpha('#3B82F6', 0.05),
-                border: `1px solid ${alpha('#3B82F6', 0.2)}`,
+                borderRadius: 3,
+                background: alpha(theme.palette.primary.main, 0.05),
+                border: `1px solid ${alpha(
+                  theme.palette.primary.main,
+                  0.2
+                )}`,
                 display: 'flex',
-                alignItems: 'center',
                 justifyContent: 'space-between',
+                alignItems: 'center',
                 flexWrap: 'wrap',
                 gap: 1,
               }}
             >
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                🔒 Las canciones se mostrarán, pero necesitas iniciar sesión para reproducirlas
+              <Typography variant="body2" sx={{ color: '#555' }}>
+                🔒 Puedes explorar canciones, pero necesitas una cuenta para
+                escucharlas
               </Typography>
+
               <Button
                 size="small"
                 onClick={handleLoginRedirect}
                 sx={{
-                  color: '#3B82F6',
                   fontWeight: 600,
                   textTransform: 'none',
+                  color: theme.palette.primary.main,
                 }}
               >
-                Iniciar sesión
+                Crear cuenta
               </Button>
             </Box>
           )}
@@ -273,4 +306,4 @@ const ArtistProfile = () => {
   );
 };
 
-export default React.memo(ArtistProfile);
+export default ArtistProfile;
