@@ -3,14 +3,17 @@ import { useState, useEffect, useCallback } from 'react';
 
 const CACHE_KEY = 'djidji_artists_cache';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
-const MAX_PAGES = 3; // Límite de páginas para no saturar
+const MAX_PAGES = 5; // Aumentado para capturar más artistas
 const FETCH_TIMEOUT = 8000; // 8 segundos
+const MAX_ARTISTS = 24; // Máximo de artistas a mostrar (puedes ajustarlo)
+const VERIFIED_PREFERENCE = true; // Dar prioridad a verificados
 
 const useArtists = () => {
   const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [stats, setStats] = useState({ verified: 0, total: 0 }); // Estadísticas
 
   const fetchWithTimeout = async (url, timeout = FETCH_TIMEOUT) => {
     const controller = new AbortController();
@@ -35,10 +38,11 @@ const useArtists = () => {
       if (!ignoreCache) {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
-          const { data, timestamp } = JSON.parse(cached);
+          const { data, timestamp, stats: cachedStats } = JSON.parse(cached);
           if (Date.now() - timestamp < CACHE_DURATION) {
             console.log('📦 Artistas desde caché');
             setArtists(data);
+            setStats(cachedStats);
             setLoading(false);
             return;
           }
@@ -71,7 +75,8 @@ const useArtists = () => {
               songs_count: 1,
               bio: song.uploaded_by.profile?.bio || null,
               location: song.uploaded_by.profile?.location || null,
-              date_joined: song.uploaded_by.date_joined
+              date_joined: song.uploaded_by.date_joined,
+              is_verified: song.uploaded_by.is_verified || false,
             });
           } else {
             const existing = artistsMap.get(userId);
@@ -84,7 +89,7 @@ const useArtists = () => {
       // Procesar primera página
       data.results.forEach(processSong);
 
-      // Procesar páginas adicionales (limitado)
+      // Procesar páginas adicionales (hasta MAX_PAGES)
       let nextUrl = data.next;
       let pageCount = 1;
 
@@ -95,25 +100,71 @@ const useArtists = () => {
           nextData.results.forEach(processSong);
           nextUrl = nextData.next;
           pageCount++;
+          console.log(`📄 Página ${pageCount} procesada`);
         } catch (err) {
           console.warn(`Error en página ${pageCount + 1}:`, err);
           nextUrl = null; // Detener si falla una página
         }
       }
 
-      // 4. Convertir a array y ordenar
-      const artistsArray = Array.from(artistsMap.values())
-        .sort((a, b) => b.songs_count - a.songs_count)
-        .slice(0, 12);
+      // 4. Separar verificados y no verificados
+      const verifiedArtists = [];
+      const unverifiedArtists = [];
 
-      // 5. Guardar en caché
+      for (const artist of artistsMap.values()) {
+        if (artist.is_verified) {
+          verifiedArtists.push(artist);
+        } else {
+          unverifiedArtists.push(artist);
+        }
+      }
+
+      // 5. Ordenar dentro de cada grupo (por cantidad de canciones)
+      verifiedArtists.sort((a, b) => b.songs_count - a.songs_count);
+      unverifiedArtists.sort((a, b) => b.songs_count - a.songs_count);
+
+      // 6. Construir lista final con prioridad a verificados
+      let finalArtists = [];
+      
+      if (VERIFIED_PREFERENCE) {
+        // Primero todos los verificados (sin límite)
+        finalArtists.push(...verifiedArtists);
+        
+        // Luego completar con no verificados hasta MAX_ARTISTS
+        const remainingSlots = MAX_ARTISTS - verifiedArtists.length;
+        if (remainingSlots > 0) {
+          finalArtists.push(...unverifiedArtists.slice(0, remainingSlots));
+        }
+      } else {
+        // Mezclar pero dar más peso a verificados
+        // (Implementación alternativa)
+        const maxPerGroup = Math.floor(MAX_ARTISTS / 2);
+        finalArtists = [
+          ...verifiedArtists.slice(0, maxPerGroup),
+          ...unverifiedArtists.slice(0, maxPerGroup)
+        ];
+      }
+
+      // 7. Estadísticas
+      const statsData = {
+        verified: verifiedArtists.length,
+        total: artistsMap.size,
+        displayed: finalArtists.length
+      };
+
+      console.log('✅ Estadísticas:', statsData);
+      console.log(`🎤 Verificados: ${verifiedArtists.length}, No verificados: ${unverifiedArtists.length}`);
+      console.log(`📋 Mostrando: ${finalArtists.length} artistas`);
+
+      // 8. Guardar en caché
       localStorage.setItem(CACHE_KEY, JSON.stringify({
-        data: artistsArray,
+        data: finalArtists,
+        stats: statsData,
         timestamp: Date.now()
       }));
 
-      console.log('✅ Artistas cargados:', artistsArray.length);
-      setArtists(artistsArray);
+      setArtists(finalArtists);
+      setStats(statsData);
       setError(null);
       setRetryCount(0);
 
@@ -155,6 +206,7 @@ const useArtists = () => {
     artists, 
     loading, 
     error,
+    stats, // ✅ Nuevo: estadísticas de artistas
     refetch
   };
 };

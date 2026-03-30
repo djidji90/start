@@ -10,7 +10,7 @@ import {
   Tooltip,
   Fade
 } from '@mui/material';
-import { MusicNote } from '@mui/icons-material';
+import { MusicNote, Verified as VerifiedIcon } from '@mui/icons-material'; // ✅ AÑADIDO
 
 /**
  * Tarjeta circular para mostrar artista (estilo Spotify)
@@ -134,6 +134,36 @@ const ArtistCard = ({ artist, index = 0 }) => {
             </Box>
           )}
 
+          {/* ✅ BADGE DE VERIFICACIÓN EN EL CÍRCULO (esquina inferior derecha) */}
+          {artist.is_verified && (
+            <Tooltip title="Artista Verificado" arrow placement="top">
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 4,
+                  right: 4,
+                  bgcolor: 'white',
+                  borderRadius: '50%',
+                  width: 24,
+                  height: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  zIndex: 2,
+                }}
+              >
+                <VerifiedIcon 
+                  sx={{ 
+                    fontSize: 18, 
+                    color: '#3b82f6',
+                    '&:hover': { transform: 'scale(1.1)' }
+                  }} 
+                />
+              </Box>
+            </Tooltip>
+          )}
+
           {/* Overlay en hover - estilo Spotify */}
           {isHovered && (
             <Box
@@ -180,21 +210,40 @@ const ArtistCard = ({ artist, index = 0 }) => {
           width: '100%',
           px: 1
         }}>
-          {/* Nombre del artista */}
+          {/* ✅ Nombre del artista CON BADGE junto al nombre */}
           <Tooltip title={displayName} arrow placement="top">
-            <Typography
-              sx={{
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                color: isHovered ? artistColor : 'text.primary',
-                transition: 'color 0.2s ease',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {displayName}
-            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              gap: 0.5,
+              width: '100%'
+            }}>
+              <Typography
+                sx={{
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  color: isHovered ? artistColor : 'text.primary',
+                  transition: 'color 0.2s ease',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {displayName}
+              </Typography>
+              {artist.is_verified && (
+                <Tooltip title="Artista Verificado" arrow>
+                  <VerifiedIcon 
+                    sx={{ 
+                      fontSize: 16, 
+                      color: '#3b82f6',
+                      flexShrink: 0
+                    }} 
+                  />
+                </Tooltip>
+              )}
+            </Box>
           </Tooltip>
 
           {/* Badge de canciones */}
