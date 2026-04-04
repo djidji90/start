@@ -1,37 +1,40 @@
-// ============================================
 // src/components/songs/SongCard.jsx
-// VERSIÓN FINAL - CON COMENTARIOS INTEGRADOS
-// ✅ Likes simples y rápidos
-// ✅ Comentarios con preview en card
-// ✅ React Query + Optimistic updates
-// ✅ Número visible SOLO cuando > 0
-// ✅ Tooltips mínimos
+// VERSIÓN FINAL - CON WALLET INTEGRADO + REPEAT BUTTON
+// ✅ Compras con wallet integradas
+// ✅ Manejo de error 402 (saldo insuficiente)
+// ✅ Modal de recarga automático
+// ✅ Botón de repetir canción/playlist
+// ✅ Compatible con useDownload existente
 // ============================================
 
 import React, { useState, useCallback, useEffect } from "react";
+
 import {
   Card, CardContent, CardMedia, Typography,
   IconButton, Box, Chip, Tooltip, Menu, MenuItem,
   ListItemIcon, ListItemText, Divider, Snackbar, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText,
   DialogActions, CircularProgress, Button,
-  LinearProgress, Fade, Zoom
+  LinearProgress, Fade, Zoom,
 } from "@mui/material";
 import {
   PlayArrow, Pause, Favorite, FavoriteBorder,
   Download, CheckCircle, Delete, MoreVert,
-  Info, Storage as StorageIcon,
-  Warning as WarningIcon, AccessTime,
-  VolumeUp
-} from "@mui/icons-material";
+  Info, Storage, Warning, AccessTime,
+  Repeat, RepeatOne, VolumeUp
+} from '@mui/icons-material';
 import { useTheme, alpha } from "@mui/material/styles";
 import { useAudioPlayer } from "../components/hook/services/usePlayer";
 import useDownload from "../components/hook/services/useDownload";
 import useLike from "../components/hook/services/useLike";
 import { useMediaQuery } from "@mui/material";
-// ========== NUEVAS IMPORTACIONES PARA COMENTARIOS ==========
 import MiniComments from "../components/comments/MiniComments";
 import { useSongComments } from "../components/hook/services/useSongComments";
+
+// ========== IMPORTS DEL WALLET ==========
+import useWallet from "../components/hook/useWallet";
+import { usePurchase } from "../components/hook/usePurchase";
+import TopUpModal from "../components/wallet/TopUpModal";
 
 // ============================================ //
 // SISTEMA DE DISEÑO PROFESIONAL
@@ -62,7 +65,7 @@ const SongCard = ({
   showIndex = false, 
   onLike, 
   onMoreActions,
-  variant = 'compact' // 'compact' | 'default' | 'detailed'
+  variant = 'compact'
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -72,16 +75,16 @@ const SongCard = ({
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [downloadInfoDialog, setDownloadInfoDialog] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
   
   // Optimistic update para contador de descargas
   const [optimisticDownloads, setOptimisticDownloads] = useState(null);
   
-  // Reset optimistic cuando cambia la canción
   useEffect(() => {
     setOptimisticDownloads(null);
   }, [song?.id]);
 
-  // Hooks
+  // Hooks existentes
   const player = useAudioPlayer();
   const download = useDownload();
   const like = useLike(
@@ -89,10 +92,28 @@ const SongCard = ({
     song?.likes_count,
     song?.is_liked
   );
+  const { totalCount: totalComments, isLoading: commentsLoading } = 
+    useSongComments(song?.id?.toString());
 
-// ========== HOOK PARA CONTADOR DE COMENTARIOS ==========
-const { totalCount: totalComments, isLoading: commentsLoading } = 
-  useSongComments(song?.id?.toString());
+  // ========== WALLET HOOKS ==========
+  const { refresh: refreshBalance } = useWallet();
+  const { 
+    handleDownload: walletHandleDownload, 
+    isPurchasing, 
+    purchaseError,
+    isAlreadyDownloaded,
+    buttonText,
+    showTopUpRequired,
+    topUpInfo,
+    clearPurchaseError
+  } = usePurchase(song);
+
+  // Mostrar modal de recarga cuando hay error de saldo
+  useEffect(() => {
+    if (purchaseError?.type === 'insufficient_funds') {
+      setShowTopUpModal(true);
+    }
+  }, [purchaseError]);
 
   // ============================================ //
   // CONFIGURACIÓN DE VARIANTES
@@ -113,7 +134,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
       chipSize: 'small',
       showDownloads: true,
       showLikes: true,
-      showComments: true // NUEVO
+      showComments: true
     },
     default: {
       imageHeight: isMobile ? 160 : 180,
@@ -130,7 +151,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
       chipSize: 'small',
       showDownloads: true,
       showLikes: true,
-      showComments: true // NUEVO
+      showComments: true
     },
     detailed: {
       imageHeight: isMobile ? 200 : 220,
@@ -147,14 +168,14 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
       chipSize: 'small',
       showDownloads: true,
       showLikes: true,
-      showComments: true // NUEVO
+      showComments: true
     }
   };
 
   const config = variants[variant] || variants.default;
 
   // ============================================ //
-  // FUNCIÓN PARA FORMATEAR NÚMEROS DE DESCARGA
+  // UTILIDADES
   // ============================================ //
   const formatNumber = (count) => {
     if (!count && count !== 0) return '0';
@@ -163,9 +184,6 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
     return count.toString();
   };
 
-  // ============================================ //
-  // FUNCIÓN PARA FORMATEAR DURACIÓN
-  // ============================================ //
   const formatDuration = (seconds) => {
     if (!seconds || seconds <= 0) return null;
     const mins = Math.floor(seconds / 60);
@@ -174,7 +192,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
   };
 
   // ============================================ //
-  // ESTADO DE DESCARGA
+  // ESTADOS DE DESCARGA
   // ============================================ //
   const songId = song?.id?.toString();
   const isDownloaded = download.isDownloaded?.(songId) || false;
@@ -184,12 +202,9 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
   const downloadError = download.errors?.[songId];
   const songStatus = player.getSongStatus?.(song.id) || {};
 
-  // Determinar qué contador de descargas mostrar (optimistic vs real)
   const realDownloads = song?.downloads_count || 0;
   const displayDownloads = optimisticDownloads !== null ? optimisticDownloads : realDownloads;
   const hasDownloads = displayDownloads > 0;
-
-  // Duración real (solo si existe)
   const durationFormatted = formatDuration(song?.duration);
 
   // ============================================ //
@@ -197,12 +212,13 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
   // ============================================ //
   const getPrimaryState = useCallback(() => {
     if (songStatus?.isLoading) return 'loading';
+    if (isPurchasing) return 'purchasing';
     if (isDownloading) return 'downloading';
     if (downloadError) return 'error';
     if (isDownloaded) return 'downloaded';
     if (songStatus?.isCurrent) return songStatus?.isPlaying ? 'playing' : 'paused';
     return 'idle';
-  }, [songStatus, isDownloading, downloadError, isDownloaded]);
+  }, [songStatus, isPurchasing, isDownloading, downloadError, isDownloaded]);
 
   const primaryState = getPrimaryState();
   const isActive = primaryState !== 'idle' || isHovered;
@@ -212,6 +228,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
     playing: '#F50057',
     paused: '#00838F',
     loading: designTokens.colors.warning,
+    purchasing: designTokens.colors.primary,
     downloading: designTokens.colors.success,
     downloaded: designTokens.colors.success,
     error: designTokens.colors.error
@@ -219,30 +236,30 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
   const currentColor = stateColors[primaryState] || designTokens.colors.primary;
 
   // ============================================ //
-  // HANDLER DE DESCARGA CON OPTIMISTIC UPDATE
+  // HANDLERS
   // ============================================ //
-  const handleDownload = useCallback(async (e) => {
+  const handleLocalDownload = useCallback(async (e) => {
     e?.stopPropagation();
     handleMenuClose();
     
     setOptimisticDownloads(realDownloads + 1);
-    setSnackbar({ open: true, message: `📥 Descargando ${song?.title}...`, severity: 'info' });
+    setSnackbar({ open: true, message: `📥 Preparando descarga de ${song?.title}...`, severity: 'info' });
     
     try {
-      await download.downloadSong?.(songId, song?.title, song?.artist);
+      await walletHandleDownload();
       setSnackbar({ open: true, message: '✅ Canción descargada', severity: 'success' });
     } catch (error) {
       setOptimisticDownloads(realDownloads);
-      setSnackbar({ open: true, message: `❌ ${error.message}`, severity: 'error' });
+      // El error ya es manejado por usePurchase (modal de recarga si es 402)
+      if (error.response?.status !== 402) {
+        setSnackbar({ open: true, message: `❌ ${error.message}`, severity: 'error' });
+      }
     }
-  }, [download, songId, song, realDownloads]);
+  }, [walletHandleDownload, song, realDownloads]);
 
-  // ============================================ //
-  // HANDLER DE LIKE (SIN SNACKBAR - FEEDBACK IMPLÍCITO)
-  // ============================================ //
   const handleLike = useCallback((e) => {
     e?.stopPropagation();
-    like.handleLike(); // El corazón ya da feedback visual
+    like.handleLike();
   }, [like]);
 
   const handleCancelDownload = useCallback((e) => {
@@ -281,15 +298,30 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
     handlePlayPause(e);
   };
 
+  const handleTopUpSuccess = useCallback(async () => {
+    setShowTopUpModal(false);
+    clearPurchaseError();
+    await refreshBalance();
+    // Reintentar descarga después de recargar
+    setTimeout(() => {
+      walletHandleDownload();
+    }, 500);
+  }, [refreshBalance, clearPurchaseError, walletHandleDownload]);
+
   // ============================================ //
   // RENDER MENÚ
   // ============================================ //
   const renderMenu = () => {
     const menuItems = [
-      !isDownloaded && !isDownloading && {
+      !isDownloaded && !isDownloading && !isPurchasing && {
         label: 'Descargar',
         icon: <Download fontSize="small" />,
-        onClick: handleDownload
+        onClick: handleLocalDownload
+      },
+      isPurchasing && {
+        label: 'Procesando compra...',
+        icon: <CircularProgress size={16} />,
+        disabled: true
       },
       isDownloading && {
         label: 'Descargando...',
@@ -390,7 +422,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
         }}
       >
         {/* Barra de progreso */}
-        {(songStatus?.isLoading || isDownloading) && (
+        {(songStatus?.isLoading || isDownloading || isPurchasing) && (
           <Fade in={true}>
             <Box sx={{
               position: 'absolute',
@@ -401,7 +433,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
               zIndex: 20,
             }}>
               <LinearProgress
-                variant="determinate"
+                variant={isPurchasing ? "indeterminate" : "determinate"}
                 value={songStatus?.isLoading ? songStatus?.loadingProgress || 0 : downloadProgress}
                 sx={{
                   height: '100%',
@@ -436,12 +468,14 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
               boxShadow: `0 2px 8px ${alpha(currentColor, 0.3)}`,
             }}>
               {primaryState === 'loading' && <CircularProgress size={8} sx={{ color: 'white' }} />}
+              {primaryState === 'purchasing' && <Download sx={{ fontSize: 10 }} />}
               {primaryState === 'downloading' && <Download sx={{ fontSize: 10 }} />}
               {primaryState === 'playing' && <VolumeUp sx={{ fontSize: 10 }} />}
               {primaryState === 'paused' && <PlayArrow sx={{ fontSize: 10 }} />}
-              {primaryState === 'error' && <WarningIcon sx={{ fontSize: 10 }} />}
+              {primaryState === 'error' && <Warning sx={{ fontSize: 10 }} />}
               <span>
                 {primaryState === 'loading' && 'CARGANDO'}
+                {primaryState === 'purchasing' && 'COMPRANDO'}
                 {primaryState === 'downloading' && `${downloadProgress}%`}
                 {primaryState === 'playing' && 'REPRODUCIENDO'}
                 {primaryState === 'paused' && 'PAUSADA'}
@@ -461,7 +495,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
             onError={() => setImageError(true)}
             sx={{
               objectFit: "cover",
-              opacity: (songStatus?.isLoading || isDownloading) ? 0.6 : 1,
+              opacity: (songStatus?.isLoading || isDownloading || isPurchasing) ? 0.6 : 1,
               transition: 'opacity 0.2s ease',
             }}
           />
@@ -470,6 +504,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
           <Tooltip
             title={
               songStatus?.isLoading ? `Cargando ${songStatus?.loadingProgress}%` :
+              isPurchasing ? 'Procesando compra...' :
               isDownloading ? `Descargando ${downloadProgress}%` :
               songStatus?.isPlaying ? 'Pausar' : 'Reproducir'
             }
@@ -478,7 +513,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
             <Zoom in={isActive || primaryState !== 'idle'}>
               <IconButton
                 onClick={handlePlayPause}
-                disabled={songStatus?.isLoading}
+                disabled={songStatus?.isLoading || isPurchasing}
                 sx={{
                   position: 'absolute',
                   bottom: 12,
@@ -501,6 +536,8 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                 }}
               >
                 {songStatus?.isLoading ? (
+                  <CircularProgress size={20} sx={{ color: currentColor }} />
+                ) : isPurchasing ? (
                   <CircularProgress size={20} sx={{ color: currentColor }} />
                 ) : isDownloading ? (
                   <Box sx={{ position: 'relative', width: 20, height: 20 }}>
@@ -585,7 +622,6 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                 gap: 0.5
               }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  {/* Duración */}
                   {durationFormatted && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                       <AccessTime sx={{ fontSize: 10, color: 'text.disabled' }} />
@@ -595,7 +631,6 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                     </Box>
                   )}
 
-                  {/* Género */}
                   {config.showGenre && song?.genre && (
                     <Chip
                       label={song.genre}
@@ -609,11 +644,10 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                     />
                   )}
 
-                  {/* Tamaño de archivo */}
                   {config.showFileSize && isDownloaded && downloadInfo?.fileSize && (
                     <Tooltip title={`${(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB`}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                        <StorageIcon sx={{ fontSize: 10, color: designTokens.colors.success }} />
+                        <Storage sx={{ fontSize: 10, color: designTokens.colors.success }} />
                         <Typography variant="caption" sx={{ fontSize: config.metadataSize, color: designTokens.colors.success }}>
                           {(downloadInfo.fileSize / 1024 / 1024).toFixed(1)} MB
                         </Typography>
@@ -622,15 +656,44 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                   )}
                 </Box>
 
-                {/* ACCIONES - VERSIÓN OPTIMIZADA */}
+                {/* ACCIONES */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
                   
-                  {/* 🎯 LIKE BUTTON MEJORADO - MÁS GRANDE Y VISIBLE */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-                    <Tooltip 
-                      title={like.userLiked ? 'Quitar like' : 'Dar like'} 
-                      arrow
+                  {/* 🆕 BOTÓN DE REPETIR CANCIÓN/PLAYLIST */}
+                  <Tooltip title={
+                    player.repeatMode === 'one' ? 'Repetir canción activado' :
+                    player.repeatMode === 'all' ? 'Repetir playlist activado' :
+                    'Sin repetición'
+                  } arrow>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        player.toggleRepeat?.();
+                      }}
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        bgcolor: player.repeatMode ? alpha(designTokens.colors.primary, 0.15) : '#E5E7EB',
+                        color: player.repeatMode ? designTokens.colors.primary : '#6B7280',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: player.repeatMode ? alpha(designTokens.colors.primary, 0.25) : '#D1D5DB',
+                          transform: 'scale(1.05)'
+                        }
+                      }}
                     >
+                      {player.repeatMode === 'one' ? (
+                        <RepeatOne sx={{ fontSize: 16 }} />
+                      ) : (
+                        <Repeat sx={{ fontSize: 16 }} />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                  
+                  {/* LIKE BUTTON */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                    <Tooltip title={like.userLiked ? 'Quitar like' : 'Dar like'} arrow>
                       <IconButton
                         size="small"
                         onClick={handleLike}
@@ -652,12 +715,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                         }}
                       >
                         {like.isLoading || like.isToggling ? (
-                          <CircularProgress 
-                            size={18} 
-                            sx={{ 
-                              color: like.userLiked ? designTokens.colors.error : '#6B7280' 
-                            }} 
-                          />
+                          <CircularProgress size={18} sx={{ color: like.userLiked ? designTokens.colors.error : '#6B7280' }} />
                         ) : like.userLiked ? (
                           <Favorite sx={{ fontSize: 18 }} />
                         ) : (
@@ -666,7 +724,6 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                       </IconButton>
                     </Tooltip>
 
-                    {/* Número de likes - PEGADO al botón */}
                     {like.likesCount > 0 && (
                       <Tooltip title={`${like.likesCount} likes`} arrow>
                         <Typography
@@ -695,7 +752,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                     )}
                   </Box>
 
-                  {/* Botón de descarga con contador */}
+                  {/* BOTÓN DE DESCARGA/COMPRA */}
                   {isDownloaded ? (
                     <Tooltip title="Descargada">
                       <IconButton
@@ -704,14 +761,29 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                         sx={{
                           color: designTokens.colors.success,
                           bgcolor: alpha(designTokens.colors.success, 0.1),
-                          width: 28,
-                          height: 28,
+                          width: 32,
+                          height: 32,
                           position: 'relative'
                         }}
                       >
                         <CheckCircle sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
+                  ) : isPurchasing ? (
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.3,
+                      bgcolor: alpha(designTokens.colors.primary, 0.1),
+                      borderRadius: designTokens.borderRadius.chip,
+                      px: 0.8,
+                      py: 0.3
+                    }}>
+                      <CircularProgress size={12} />
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: designTokens.colors.primary, fontSize: '0.6rem' }}>
+                        Comprando...
+                      </Typography>
+                    </Box>
                   ) : isDownloading ? (
                     <Box sx={{
                       display: 'flex',
@@ -728,10 +800,10 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                       </Typography>
                     </Box>
                   ) : (
-                    <Tooltip title={`${displayDownloads} descargas`} arrow>
+                    <Tooltip title={buttonText} arrow>
                       <IconButton
                         size="small"
-                        onClick={handleDownload}
+                        onClick={handleLocalDownload}
                         sx={{
                           color: designTokens.colors.primary,
                           bgcolor: alpha(designTokens.colors.primary, 0.1),
@@ -783,15 +855,13 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
                   </IconButton>
                 </Box>
               </Box>
-              {/* ========== SECCIÓN DE COMENTARIOS ========== */}
-           
 
-            {/* SECCIÓN DE COMENTARIOS */}
-            {config.showComments && !isDownloading && (
-              <Box sx={{ mt: config.spacing }}>
-                <MiniComments songId={songId} />
-              </Box>
-            )}
+              {/* SECCIÓN DE COMENTARIOS */}
+              {config.showComments && !isDownloading && !isPurchasing && (
+                <Box sx={{ mt: config.spacing }}>
+                  <MiniComments songId={songId} />
+                </Box>
+              )}
             </Box>
           </Box>
         </CardContent>
@@ -800,7 +870,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
       {/* Menú */}
       {renderMenu()}
 
-      {/* Diálogos */}
+      {/* Diálogo de confirmación de eliminación */}
       <Dialog open={confirmDialogOpen} onClose={() => setConfirmDialogOpen(false)} maxWidth="xs">
         <DialogTitle sx={{ pb: 1 }}>Eliminar canción</DialogTitle>
         <DialogContent>
@@ -814,6 +884,7 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
         </DialogActions>
       </Dialog>
 
+      {/* Diálogo de información de descarga */}
       <Dialog open={downloadInfoDialog} onClose={() => setDownloadInfoDialog(false)} maxWidth="xs">
         <DialogTitle sx={{ pb: 1 }}>Información</DialogTitle>
         <DialogContent>
@@ -823,7 +894,6 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
               {(downloadInfo?.fileSize / 1024 / 1024).toFixed(1)} MB
             </Typography>
             
-            {/* Mostrar likes en el diálogo de información */}
             {like.likesCount > 0 && (
               <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Favorite sx={{ fontSize: 16, color: like.userLiked ? designTokens.colors.error : 'text.secondary' }} />
@@ -836,7 +906,18 @@ const { totalCount: totalComments, isLoading: commentsLoading } =
         </DialogContent>
       </Dialog>
 
-      {/* Snackbar */}
+      {/* MODAL DE RECARGA - Para error 402 (saldo insuficiente) */}
+      <TopUpModal
+        isOpen={showTopUpModal}
+        onClose={() => {
+          setShowTopUpModal(false);
+          clearPurchaseError();
+        }}
+        onSuccess={handleTopUpSuccess}
+        presetAmount={topUpInfo?.required}
+      />
+
+      {/* Snackbar para notificaciones */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={snackbar.autoHideDuration || 3000}

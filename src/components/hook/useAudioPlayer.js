@@ -1,364 +1,258 @@
-// src/hooks/useAudioPlayer.js
+// src/hooks/useAudioPlayer.js - VERSIÓN CORREGIDA CON REPEAT
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Howl } from 'howler';
-import { useAudioCache } from '../../components/hook/services/useAudioCache';
-import { useNetworkStatus } from '../../components/hook/services/useNetworkStatus';
 
 export const useAudioPlayer = () => {
-  // Estado principal
-  const [playerState, setPlayerState] = useState({
-    currentSong: null,
-    isPlaying: false,
-    isBuffering: false,
-    volume: 0.7,
-    progress: 0,
-    duration: 0,
-    error: null,
-    playlist: [],
-    currentIndex: -1,
-    playbackRate: 1.0,
-    isMuted: false,
-    loop: false,
-    shuffle: false,
-    seekPosition: 0,
-    networkStatus: 'online', // 'online', 'slow', 'offline'
-    cacheStatus: 'idle', // 'idle', 'caching', 'cached', 'error'
-  });
-
-  // Referencias y hooks
+  const [currentSong, setCurrentSong] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [volume, setVolumeState] = useState(0.7);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [error, setError] = useState(null);
+  const [playlist, setPlaylist] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
+  const [repeatMode, setRepeatMode] = useState(false); // false, 'one', 'all'
+  const [shuffle, setShuffle] = useState(false);
+  
   const howlRef = useRef(null);
   const progressInterval = useRef(null);
-  const preloadTimeout = useRef(null);
-  const cache = useAudioCache();
-  const network = useNetworkStatus();
   
-  // ==================== CACHING DE AUDIO ====================
-  
-  const cacheCurrentSong = useCallback(async () => {
-    if (!playerState.currentSong || !cache.isSupported()) return;
-    
-    try {
-      setPlayerState(prev => ({ ...prev, cacheStatus: 'caching' }));
-      
-      const song = playerState.currentSong;
-      const cacheKey = `audio_${song.id}_${song.title}`;
-      
-      // Intentar obtener del cache primero
-      const cachedAudio = await cache.getAudio(cacheKey);
-      
-      if (cachedAudio) {
-        console.log(`🎵 Audio en cache encontrado: ${song.title}`);
-        setPlayerState(prev => ({ ...prev, cacheStatus: 'cached' }));
-        return cachedAudio;
+  // ==================== REPEAT CONTROL ====================
+  const toggleRepeat = useCallback(() => {
+    if (repeatMode === false) {
+      setRepeatMode('one');
+      if (howlRef.current) {
+        howlRef.current.loop(true);
       }
-      
-      // Si no está en cache, descargar y cachear
-      console.log(`📥 Cacheando audio: ${song.title}`);
-      
-      const audioBlob = await fetchAudioWithProgress(
-        `${process.env.REACT_APP_API_URL}/api2/songs/${song.id}/stream/`,
-        (progress) => {
-          console.log(`Cache progress: ${progress}%`);
-        }
-      );
-      
-      await cache.setAudio(cacheKey, audioBlob, {
-        title: song.title,
-        artist: song.artist,
-        duration: song.duration
-      });
-      
-      setPlayerState(prev => ({ ...prev, cacheStatus: 'cached' }));
-      return audioBlob;
-      
-    } catch (error) {
-      console.error('Error caching audio:', error);
-      setPlayerState(prev => ({ ...prev, cacheStatus: 'error' }));
-      return null;
+    } else if (repeatMode === 'one') {
+      setRepeatMode('all');
+      if (howlRef.current) {
+        howlRef.current.loop(false);
+      }
+    } else {
+      setRepeatMode(false);
+      if (howlRef.current) {
+        howlRef.current.loop(false);
+      }
     }
-  }, [playerState.currentSong, cache]);
-
-  // ==================== PRELOADING DE SIGUIENTE CANCIÓN ====================
+  }, [repeatMode]);
   
-  const preloadNextSong = useCallback(async () => {
-    if (playerState.playlist.length === 0 || playerState.currentIndex === -1) return;
+  // ==================== PLAYBACK CONTROL ====================
+  const togglePlay = useCallback(() => {
+    if (!howlRef.current) return;
     
-    const nextIndex = (playerState.currentIndex + 1) % playerState.playlist.length;
-    const nextSong = playerState.playlist[nextIndex];
-    
-    if (!nextSong || !cache.isSupported()) return;
-    
-    try {
-      const cacheKey = `audio_${nextSong.id}_${nextSong.title}`;
-      
-      // Verificar si ya está cacheado
-      const isCached = await cache.hasAudio(cacheKey);
-      if (isCached) return;
-      
-      // Preload en segundo plano
-      preloadTimeout.current = setTimeout(async () => {
-        console.log(`⏭️  Preloading next song: ${nextSong.title}`);
-        
-        const response = await fetch(
-          `${process.env.REACT_APP_API_URL}/api2/songs/${nextSong.id}/stream/`,
-          {
-            headers: { 'Range': 'bytes=0-1048576' } // Solo primeros 1MB para preview
-          }
-        );
-        
-        if (response.ok) {
-          const audioBlob = await response.blob();
-          await cache.setAudio(cacheKey, audioBlob, {
-            title: nextSong.title,
-            artist: nextSong.artist,
-            duration: nextSong.duration,
-            isPreview: true // Marcar como preview
-          });
-          
-          console.log(`✅ Preload completado: ${nextSong.title}`);
-        }
-      }, 3000); // Esperar 3 segundos después de empezar a reproducir
-      
-    } catch (error) {
-      console.error('Error preloading song:', error);
+    if (isPlaying) {
+      howlRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      howlRef.current.play();
+      setIsPlaying(true);
     }
-  }, [playerState.playlist, playerState.currentIndex, cache]);
-
-  // ==================== STREAMING CON RANGE HEADERS ====================
+  }, [isPlaying]);
   
-  const createHowlWithRangeSupport = useCallback((song, startPosition = 0) => {
-    if (!song) return null;
+  const setVolume = useCallback((value) => {
+    const newVolume = Math.max(0, Math.min(1, value));
+    setVolumeState(newVolume);
+    if (howlRef.current) {
+      howlRef.current.volume(newVolume);
+    }
+    localStorage.setItem('player_volume', newVolume);
+  }, []);
+  
+  const seek = useCallback((percent) => {
+    if (!howlRef.current || !duration) return;
+    
+    const newTime = (percent / 100) * duration;
+    howlRef.current.seek(newTime);
+    setProgress(percent);
+  }, [duration]);
+  
+  // ==================== PLAYLIST CONTROL ====================
+  const playNext = useCallback(() => {
+    if (playlist.length === 0) return;
+    
+    let nextIdx;
+    if (shuffle) {
+      nextIdx = Math.floor(Math.random() * playlist.length);
+    } else {
+      nextIdx = (currentIndex + 1) % playlist.length;
+    }
+    
+    setCurrentIndex(nextIdx);
+    playSong(playlist[nextIdx]);
+  }, [playlist, currentIndex, shuffle]);
+  
+  const playPrevious = useCallback(() => {
+    if (playlist.length === 0) return;
+    
+    let prevIdx;
+    if (shuffle) {
+      prevIdx = Math.floor(Math.random() * playlist.length);
+    } else {
+      prevIdx = currentIndex - 1;
+      if (prevIdx < 0) prevIdx = playlist.length - 1;
+    }
+    
+    setCurrentIndex(prevIdx);
+    playSong(playlist[prevIdx]);
+  }, [playlist, currentIndex, shuffle]);
+  
+  // ==================== CORE: PLAY SONG ====================
+  const playSong = useCallback(async (song, startPosition = 0) => {
+    if (!song?.id) return;
+    
+    // Limpiar Howl anterior
+    if (howlRef.current) {
+      howlRef.current.stop();
+      howlRef.current.unload();
+      clearInterval(progressInterval.current);
+    }
+    
+    setError(null);
+    setIsBuffering(true);
     
     const streamUrl = `${process.env.REACT_APP_API_URL}/api2/songs/${song.id}/stream/`;
-    
-    // Verificar cache primero si estamos offline
-    if (network.status === 'offline') {
-      const cacheKey = `audio_${song.id}_${song.title}`;
-      cache.getAudio(cacheKey).then(cachedAudio => {
-        if (cachedAudio) {
-          console.log('📦 Reproduciendo desde cache offline');
-          // Crear URL local del blob cacheado
-          const localUrl = URL.createObjectURL(cachedAudio);
-          playFromUrl(localUrl, song);
-        }
-      });
-      return null;
-    }
     
     const howl = new Howl({
       src: [streamUrl],
       html5: true,
       format: ['mp3', 'aac', 'webm', 'ogg'],
       autoplay: true,
-      volume: playerState.volume,
-      mute: playerState.isMuted,
-      rate: playerState.playbackRate,
-      loop: playerState.loop,
+      volume: volume,
+      rate: 1.0,
+      loop: repeatMode === 'one', // ← REPEAT UNA CANCIÓN
       
-      // Soporte para Range headers (seek inicial)
-      onload: function() {
-        if (startPosition > 0 && this.seek() !== undefined) {
-          this.seek(startPosition);
+      onload: () => {
+        setIsBuffering(false);
+        setDuration(howl.duration());
+        setCurrentSong(song);
+        
+        if (startPosition > 0) {
+          howl.seek(startPosition);
         }
+        
+        // Iniciar tracking de progreso
+        if (progressInterval.current) clearInterval(progressInterval.current);
+        progressInterval.current = setInterval(() => {
+          if (howl.playing()) {
+            const current = howl.seek();
+            const total = howl.duration();
+            if (total > 0) {
+              setProgress((current / total) * 100);
+            }
+          }
+        }, 100);
       },
       
       onplay: () => {
-        setPlayerState(prev => ({ 
-          ...prev, 
-          isPlaying: true,
-          isBuffering: false 
-        }));
-        
-        // Iniciar seguimiento de progreso
-        startProgressTracking();
-        
-        // Iniciar cache y preload en segundo plano
-        cacheCurrentSong();
-        preloadNextSong();
+        setIsPlaying(true);
+        setIsBuffering(false);
       },
       
-      // ... resto de event listeners
+      onpause: () => {
+        setIsPlaying(false);
+      },
+      
+      onend: () => {
+        setIsPlaying(false);
+        setProgress(0);
+        
+        // 🔥 LÓGICA DE REPETICIÓN MEJORADA
+        if (repeatMode === 'one') {
+          // Repetir misma canción (ya lo maneja loop=true)
+          playSong(song);
+        } else if (repeatMode === 'all' && playlist.length > 0) {
+          // Siguiente canción de la playlist
+          playNext();
+        } else if (playlist.length > 0) {
+          // Sin repeat, pero con playlist: siguiente canción
+          playNext();
+        } else {
+          // Sin playlist: solo terminar
+          setCurrentSong(null);
+        }
+      },
+      
+      onloaderror: (_, err) => {
+        console.error('Error loading audio:', err);
+        setError('Error al cargar el audio');
+        setIsBuffering(false);
+      },
+      
+      onplayerror: (_, err) => {
+        console.error('Error playing audio:', err);
+        setError('Error al reproducir');
+        setIsBuffering(false);
+      },
     });
     
-    return howl;
-  }, [network.status, cache, playerState.volume, playerState.isMuted, playerState.playbackRate, playerState.loop]);
-
-  // ==================== SEEK CON RANGE HEADERS ====================
+    howlRef.current = howl;
+  }, [volume, repeatMode, playlist, playNext]);
   
-  const seekWithRange = useCallback(async (percent) => {
-    if (!howlRef.current || !playerState.currentSong) return;
-    
-    const newTime = (percent / 100) * playerState.duration;
-    
-    // Si la diferencia es grande (>30 segundos), reiniciar stream con Range
-    if (Math.abs(newTime - playerState.seekPosition) > 30) {
-      console.log(`⏩ Seek grande detectado: ${Math.round(newTime)}s`);
-      
-      // Detener reproducción actual
+  // ==================== STOP ====================
+  const stop = useCallback(() => {
+    if (howlRef.current) {
       howlRef.current.stop();
-      
-      // Crear nuevo stream con Range header
-      const rangeHeader = `bytes=${Math.floor(newTime * 16000)}-`; // Aproximación: 16kbps
-      
-      const newHowl = new Howl({
-        src: [
-          `${process.env.REACT_APP_API_URL}/api2/songs/${playerState.currentSong.id}/stream/`
-        ],
-        html5: true,
-        headers: { 'Range': rangeHeader },
-        autoplay: true,
-        volume: playerState.volume,
-        onload: function() {
-          // Ajustar tiempo exacto
-          if (this.seek() !== undefined) {
-            const adjustedTime = newTime - 2; // Ajuste de 2 segundos
-            this.seek(Math.max(0, adjustedTime));
-          }
-        }
-      });
-      
-      howlRef.current = newHowl;
-      
-      setPlayerState(prev => ({
-        ...prev,
-        seekPosition: newTime,
-        progress: percent
-      }));
-    } else {
-      // Seek normal para cambios pequeños
-      howlRef.current.seek(newTime);
-      setPlayerState(prev => ({
-        ...prev,
-        seekPosition: newTime,
-        progress: percent
-      }));
-    }
-  }, [playerState.currentSong, playerState.duration, playerState.seekPosition, playerState.volume]);
-
-  // ==================== MANEJO DE ERRORES Y RECONEXIÓN ====================
-  
-  const handleNetworkError = useCallback((error) => {
-    console.error('Network error:', error);
-    
-    setPlayerState(prev => ({
-      ...prev,
-      error: 'Error de conexión. Intentando reconectar...',
-      isBuffering: true
-    }));
-    
-    // Intentar reconectar después de 3 segundos
-    setTimeout(() => {
-      if (playerState.currentSong && !playerState.isPlaying) {
-        console.log('🔄 Intentando reconexión...');
-        playSong(playerState.currentSong, playerState.seekPosition);
-      }
-    }, 3000);
-  }, [playerState.currentSong, playerState.isPlaying, playerState.seekPosition]);
-
-  // ==================== SERVICE WORKER INTEGRATION ====================
-  
-  const registerServiceWorker = useCallback(async () => {
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
-      try {
-        const registration = await navigator.serviceWorker.register('/workers/audio-cache-worker.js', {
-          scope: '/',
-        });
-        
-        console.log('✅ Service Worker registrado:', registration);
-        
-        // Escuchar mensajes del Service Worker
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data.type === 'AUDIO_CACHED') {
-            console.log('🎵 Audio cacheado en SW:', event.data.key);
-          }
-          
-          if (event.data.type === 'CACHE_STATUS') {
-            setPlayerState(prev => ({
-              ...prev,
-              cacheStatus: event.data.status
-            }));
-          }
-        });
-        
-      } catch (error) {
-        console.error('Error registrando Service Worker:', error);
-      }
+      setIsPlaying(false);
+      setProgress(0);
     }
   }, []);
-
-  // ==================== EFECTOS PRINCIPALES ====================
   
+  // ==================== LIMPIEZA ====================
   useEffect(() => {
-    registerServiceWorker();
-    
-    // Monitorear estado de red
-    const updateNetworkStatus = (status) => {
-      setPlayerState(prev => ({ ...prev, networkStatus: status }));
-    };
-    
-    network.onStatusChange(updateNetworkStatus);
+    const savedVolume = localStorage.getItem('player_volume');
+    if (savedVolume) {
+      setVolumeState(parseFloat(savedVolume));
+    }
     
     return () => {
       if (howlRef.current) {
         howlRef.current.stop();
         howlRef.current.unload();
       }
-      clearInterval(progressInterval.current);
-      clearTimeout(preloadTimeout.current);
-      network.offStatusChange(updateNetworkStatus);
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
     };
-  }, [registerServiceWorker, network]);
-
-  // ==================== API PÚBLICA ====================
+  }, []);
   
+  // ==================== API PÚBLICA ====================
   return {
     // Estado
-    ...playerState,
+    currentSong,
+    isPlaying,
+    isBuffering,
+    volume,
+    progress,
+    duration,
+    error,
+    playlist,
+    currentIndex,
+    repeatMode,      // ← PARA SONGCARD
+    shuffle,
     
-    // Métodos de control
-    playSong: (song, startPosition = 0) => {
-      const newHowl = createHowlWithRangeSupport(song, startPosition);
-      if (newHowl) {
-        howlRef.current = newHowl;
-        setPlayerState(prev => ({
-          ...prev,
-          currentSong: song,
-          isBuffering: true,
-          seekPosition: startPosition
-        }));
-      }
-    },
-    
-    seek: seekWithRange,
+    // Control básico
+    playSong,
     togglePlay,
     setVolume,
-    toggleMute,
-    setPlaybackRate,
-    toggleLoop,
-    toggleShuffle,
-    playNext,
-    playPrev,
+    seek,
     stop,
-    clearError,
-    formatTime,
     
-    // Métodos avanzados
-    cacheCurrentSong,
-    preloadNextSong,
-    getCacheInfo: () => cache.getInfo(),
-    clearCache: () => cache.clear(),
-    retryConnection: () => {
-      if (playerState.currentSong) {
-        playSong(playerState.currentSong, playerState.seekPosition);
-      }
+    // Playlist
+    setPlaylist,
+    playNext,
+    playPrevious,
+    toggleRepeat,    // ← PARA SONGCARD
+    toggleShuffle: () => setShuffle(prev => !prev),
+    
+    // Utilidades
+    clearError: () => setError(null),
+    formatTime: (seconds) => {
+      if (!seconds || isNaN(seconds)) return '0:00';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
     },
-    
-    // Network
-    networkStatus: network.status,
-    isOnline: network.isOnline,
-    
-    // Cache
-    isCacheSupported: cache.isSupported(),
-    cacheSize: cache.getSize(),
   };
 };

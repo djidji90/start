@@ -1,0 +1,182 @@
+/* src/components/wallet/WalletBalance.css */
+.wallet-balance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f5f5f5;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+.wallet-balance.compact {
+  background: transparent;
+  padding: 0;
+}
+
+.wallet-icon {
+  font-size: 16px;
+}
+
+.wallet-amount {
+  font-weight: 600;
+  color: #333;
+}
+
+.wallet-topup-btn {
+  background: #4CAF50;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-topup-btn:hover {
+  background: #45a049;
+}
+
+.wallet-balance.loading {
+  opacity: 0.6;
+}
+
+.wallet-balance.error {
+  color: #f44336;
+}
+
+.wallet-retry {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* Modal de recarga */
+.topup-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.topup-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.topup-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.topup-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.topup-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+}
+
+.topup-modal-body {
+  padding: 20px;
+}
+
+.topup-code-input {
+  margin-bottom: 20px;
+}
+
+.topup-code-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.topup-code-input input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.topup-hint {
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+}
+
+.topup-error {
+  background: #ffebee;
+  color: #c62828;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.topup-success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.topup-submit {
+  width: 100%;
+  padding: 12px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.topup-submit:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.topup-methods {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.topup-methods-title {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.topup-methods-text {
+  font-size: 13px;
+  color: #666;
+}

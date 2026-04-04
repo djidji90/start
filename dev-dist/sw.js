@@ -4688,7 +4688,7 @@ define([],(function () { 'use strict';
      */
     precacheAndRoute([{
       "url": "index.html",
-      "revision": "0.8i0su7pmh5g"
+      "revision": "0.os5j167p8b4"
     }], {});
     cleanupOutdatedCaches();
     registerRoute(new NavigationRoute(createHandlerBoundToURL("index.html"), {
