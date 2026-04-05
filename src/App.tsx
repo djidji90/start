@@ -21,8 +21,11 @@ import { WifiOff, Wifi } from "@mui/icons-material";
 import DownloadsPage from "./components/context/DownloadsPage";
 import GenrePage from "./components/discovery/GenrePage";
 import { PlayerProvider } from "./components/PlayerContext";
-import PlayerBar from "./components/theme/musica/PlayerBar";
+
 import LandingPage from "./components/landing/LandingPage";
+
+// 🆕 IMPORT DEL MINI PLAYER GLOBAL
+import GlobalMiniPlayer from "./components/discovery/GlobalMiniPlayer";
 
 // Importar el hook y componente de actualización
 import { useServiceWorker } from './components/hook/services/useServiceWorker';
@@ -149,7 +152,9 @@ export default function App() {
                 </Suspense>
 
                 <Footer />
-                <PlayerBar />
+                
+                {/* 🆕 MINI PLAYER GLOBAL - Aparece en TODAS las páginas */}
+                <GlobalMiniPlayer />
 
                 {/* 🔔 NOTIFICACIÓN DE ACTUALIZACIÓN */}
                 <UpdateNotification
@@ -158,7 +163,7 @@ export default function App() {
                   onDismiss={dismissUpdate}
                 />
 
-                {/* 🔔 NOTIFICACIONES DE RED - CORREGIDAS */}
+                {/* 🔔 NOTIFICACIONES DE RED */}
                 <Snackbar
                   open={showOfflineNotification}
                   anchorOrigin={{ vertical: 'top', horizontal: 'center' }}

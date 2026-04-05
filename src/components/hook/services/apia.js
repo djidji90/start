@@ -1,6 +1,4 @@
-// src/components/hook/services/apia.js
-// ✅ MODIFICADO: Añadir idempotency headers automáticos
-// ✅ Listo para producción
+// src/components/hook/services/apia.js - INTERCEPTOR CORREGIDO
 
 import axios from "axios";
 import { generateIdempotencyKey, markKeyAsUsed } from "../../../utils/idempotency";
@@ -13,7 +11,21 @@ export const api = axios.create({
   },
 });
 
-// Función para obtener token (soporta múltiples nombres)
+// Variable para evitar múltiples renovaciones simultáneas
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 export const getAuthToken = () => {
   return localStorage.getItem("accessToken") ||
          localStorage.getItem("access_token") ||
@@ -23,8 +35,27 @@ export const getAuthToken = () => {
          localStorage.getItem("django_token");
 };
 
+// Obtener refresh token
+const getRefreshToken = () => {
+  return localStorage.getItem("refreshToken");
+};
+
+// Función para renovar token (necesita importación dinámica para evitar circular)
+const refreshToken = async () => {
+  const refresh = getRefreshToken();
+  if (!refresh) throw new Error('No refresh token available');
+  
+  const response = await axios.post('https://api.djidjimusic.com/musica/api/token/refresh/', {
+    refresh
+  });
+  
+  const { access } = response.data;
+  localStorage.setItem('accessToken', access);
+  return access;
+};
+
 // ============================================
-// 🆕 INTERCEPTOR: Añadir idempotency key automáticamente
+// INTERCEPTOR DE REQUEST
 // ============================================
 api.interceptors.request.use(
   (config) => {
@@ -33,15 +64,11 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // ✅ NUEVO: Añadir idempotency key a operaciones mutantes (POST, PUT, PATCH)
     const method = config.method?.toLowerCase();
     if (['post', 'put', 'patch'].includes(method)) {
-      // No sobrescribir si ya existe
       if (!config.headers['X-Idempotency-Key']) {
         const idempotencyKey = generateIdempotencyKey();
         config.headers['X-Idempotency-Key'] = idempotencyKey;
-        
-        // Guardar en metadata para marcar como usado después
         config.metadata = { ...config.metadata, idempotencyKey };
       }
     }
@@ -52,23 +79,49 @@ api.interceptors.request.use(
 );
 
 // ============================================
-// 🆕 INTERCEPTOR: Marcar idempotency key como usada en respuestas exitosas
+// INTERCEPTOR DE RESPONSE - CON REFRESH TOKEN
 // ============================================
 api.interceptors.response.use(
   (response) => {
-    // Marcar la clave como usada si existe en metadata
     if (response.config?.metadata?.idempotencyKey) {
       markKeyAsUsed(response.config.metadata.idempotencyKey);
     }
     return response;
   },
-  (error) => {
-    // Manejo de errores
-    if (error.response?.status === 401) {
-      window.dispatchEvent(new CustomEvent('auth:expired'));
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Si es error 401 y no es un intento de refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      if (isRefreshing) {
+        // Si ya hay una renovación en curso, esperar
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }).catch(err => Promise.reject(err));
+      }
+      
+      isRefreshing = true;
+      
+      try {
+        const newToken = await refreshToken();
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        processQueue(null, newToken);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        window.dispatchEvent(new CustomEvent('auth:expired'));
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
     
-    // ✅ NUEVO: Manejo específico de errores del wallet
+    // Manejo de otros errores
     if (error.response?.status === 402) {
       window.dispatchEvent(new CustomEvent('wallet:insufficient_funds', {
         detail: error.response?.data
@@ -94,7 +147,6 @@ api.interceptors.response.use(
   }
 );
 
-// Servicios de upload (mantener existentes)
 export const uploadService = {
   async requestUploadUrl(fileData) {
     const response = await api.post('/api2/upload/direct/request/', fileData);

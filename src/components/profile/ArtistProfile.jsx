@@ -1,4 +1,10 @@
 // src/components/profile/ArtistProfile.jsx
+// VERSIÓN LIMPIA - PLAYLIST AUTOMÁTICA POR DEFECTO
+// ✅ Sin botones redundantes
+// ✅ Al hacer click en una canción → playlist con todas las canciones del artista
+// ✅ SongCard mantiene toda su funcionalidad original
+// ============================================
+
 import React, { useState, useCallback, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -12,7 +18,8 @@ import {
   alpha,
   Slide,
   IconButton,
-  useTheme
+  useTheme,
+  Snackbar
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import LoginIcon from '@mui/icons-material/Login';
@@ -25,6 +32,9 @@ import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
 import UserNotFound from '../../components/profile/UserNotFound';
 import MetaTags from '../../components/profile/MetaTags';
 
+// 🆕 Import del sistema de reproducción
+import { usePlayer } from '../../components/PlayerContext';
+
 const LOGIN_ROUTE = '/login';
 
 const ArtistProfile = () => {
@@ -33,10 +43,14 @@ const ArtistProfile = () => {
   const theme = useTheme();
 
   const { isAuthenticated } = useContext(AuthContext);
+  
+  // Hook del reproductor
+  const player = usePlayer();
 
   const [sortBy, setSortBy] = useState('popular');
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [promptDismissed, setPromptDismissed] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '' });
 
   const {
     profile,
@@ -69,10 +83,6 @@ const ArtistProfile = () => {
     ) {
       const timer = setTimeout(() => {
         setShowLoginPrompt(true);
-
-        // 📊 (Opcional futuro) analytics
-        // trackEvent('login_prompt_shown');
-
       }, 1800);
 
       return () => clearTimeout(timer);
@@ -121,6 +131,49 @@ const ArtistProfile = () => {
       loadMoreSongs();
     }
   }, [hasMore, loadingMore, loadMoreSongs]);
+
+  // ============================================
+  // 🎯 REPRODUCCIÓN CON PLAYLIST AUTOMÁTICA (POR DEFECTO)
+  // ============================================
+
+  /**
+   * Al hacer click en una canción:
+   * 1. Crea playlist con TODAS las canciones del artista
+   * 2. Comienza reproduciendo desde la canción seleccionada
+   * 3. El usuario puede navegar siguiente/anterior automáticamente
+   */
+const handlePlaySong = useCallback((song) => {
+  console.log('🎵 [ArtistProfile] handlePlaySong llamado con:', song?.title);
+  console.log('🎵 [ArtistProfile] songs disponibles:', songs.length);
+  
+  if (!song?.id) {
+    console.log('❌ [ArtistProfile] No hay song.id');
+    return;
+  }
+
+  if (!isAuthenticated) {
+    console.log('🔒 [ArtistProfile] Usuario no autenticado');
+    setSnackbar({
+      open: true,
+      message: '🔒 Inicia sesión para escuchar música'
+    });
+    return;
+  }
+
+  const songIndex = songs.findIndex(s => s.id === song.id);
+  console.log('🎵 [ArtistProfile] songIndex:', songIndex);
+  
+  if (songIndex !== -1 && songs.length > 0) {
+    const playlistSongs = songs.slice(songIndex);
+    console.log('🎵 [ArtistProfile] Creando playlist con', playlistSongs.length, 'canciones');
+    console.log('🎵 [ArtistProfile] Playlist:', playlistSongs.map(s => s.title));
+    
+    player.setPlaylistAndPlay(playlistSongs, 0, true);
+  } else {
+    console.log('🎵 [ArtistProfile] Reproduciendo solo:', song.title);
+    player.playSong(song);
+  }
+}, [songs, player, isAuthenticated]);
 
   // ⏳ Loading
   if (loading) {
@@ -190,7 +243,6 @@ const ArtistProfile = () => {
             </IconButton>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {/* Icono */}
               <Box
                 sx={{
                   width: 44,
@@ -205,7 +257,6 @@ const ArtistProfile = () => {
                 <LoginIcon sx={{ color: '#fff' }} />
               </Box>
 
-              {/* Texto */}
               <Box sx={{ flex: 1 }}>
                 <Typography
                   variant="body1"
@@ -221,7 +272,6 @@ const ArtistProfile = () => {
                 </Typography>
               </Box>
 
-              {/* CTA */}
               <Button
                 variant="contained"
                 size="small"
@@ -253,7 +303,7 @@ const ArtistProfile = () => {
 
           <ProfileStats stats={stats} genres={stats.genres} />
 
-          {/* 🔒 Mensaje contextual mejorado */}
+          {/* 🔒 Mensaje contextual para no autenticados */}
           {!isAuthenticated && songs.length > 0 && (
             <Box
               sx={{
@@ -273,8 +323,7 @@ const ArtistProfile = () => {
               }}
             >
               <Typography variant="body2" sx={{ color: '#555' }}>
-                🔒 Puedes explorar canciones, pero necesitas una cuenta para
-                escucharlas
+                🔒 Inicia sesión para escuchar música completa
               </Typography>
 
               <Button
@@ -286,11 +335,17 @@ const ArtistProfile = () => {
                   color: theme.palette.primary.main,
                 }}
               >
-                Crear cuenta
+                Iniciar sesión
               </Button>
             </Box>
           )}
 
+          {/* 
+            ✅ ProfileSongs - Internamente usa SongCard
+            ✅ Le pasamos onPlaySong para que al hacer click en una canción
+               se active la playlist automática
+            ✅ SongCard mantiene toda su funcionalidad original
+          */}
           <ProfileSongs
             songs={songs}
             currentSort={sortBy}
@@ -299,9 +354,22 @@ const ArtistProfile = () => {
             onLoadMore={handleLoadMore}
             loading={loading}
             loadingMore={loadingMore}
+            onPlaySong={handlePlaySong}
           />
         </Container>
       </Fade>
+
+      {/* Notificaciones */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="info" sx={{ fontSize: '0.8rem' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 };

@@ -1,11 +1,8 @@
 // src/components/theme/musica/MainPage.jsx
-// VERSIÓN COMPLETA - COMPATIBLE CON PLAYERCONTEXT Y PLAYLISTS
-// ✅ Integración completa con PlayerContext
-// ✅ Reproducción de secciones completas como playlist
-// ✅ Controles de navegación (siguiente/anterior)
-// ✅ Mini player flotante
-// ✅ Soporte para repeat y shuffle
-// ✅ Compatible con useDiscovery y SongCard
+// VERSIÓN PREMIUM - CON SongCarousel mejorado
+// ✅ Playlist automática al hacer click en cualquier canción
+// ✅ Siguiente/Anterior funcionan correctamente
+// ✅ UI Premium con SongCarousel mejorado
 // ============================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -46,14 +43,9 @@ import { useNavigate } from 'react-router-dom';
 
 // Imports del sistema de reproducción
 import { usePlayer } from '../../../components/PlayerContext';
-import { useAudioPlayer } from '../../../components/hook/useAudioPlayer';
 
 // Imports de descubrimiento
 import {
-  useTrending,
-  useTopPlays,
-  useRecent,
-  useGenres,
   useDiscoveryMainPage
 } from '../../../components/hook/services/useDiscovery';
 
@@ -61,7 +53,7 @@ import {
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
 import { useSearch } from "../../../components/hook/services/useSearch";
-import SongCarousel from "../../../songs/SongCarousel";
+import SongCarousel from "../../../songs/SongCarousel"; // Versión premium
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
@@ -77,7 +69,6 @@ import ArtistCarouselHorizontal from "../../../components/profile/ArtistCarousel
 // ============================================
 const FloatingMiniPlayer = ({ player, onClose, theme }) => {
   const [localVolume, setLocalVolume] = useState(player.volume || 0.7);
-  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
   const handleVolumeChange = (_, newValue) => {
     setLocalVolume(newValue);
@@ -102,10 +93,8 @@ const FloatingMiniPlayer = ({ player, onClose, theme }) => {
           border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
           minWidth: 260,
           maxWidth: 300,
-          transition: 'all 0.3s ease'
         }}
       >
-        {/* Barra de progreso */}
         <LinearProgress
           variant="determinate"
           value={player.progressPercentage || 0}
@@ -117,86 +106,45 @@ const FloatingMiniPlayer = ({ player, onClose, theme }) => {
             height: 3,
             borderRadius: '3px 3px 0 0',
             bgcolor: alpha(theme.palette.primary.main, 0.2),
-            '& .MuiLinearProgress-bar': {
-              bgcolor: theme.palette.primary.main
-            }
+            '& .MuiLinearProgress-bar': { bgcolor: theme.palette.primary.main }
           }}
         />
 
-        {/* Botón cerrar */}
         <IconButton
           size="small"
           onClick={onClose}
-          sx={{
-            position: 'absolute',
-            top: 4,
-            right: 4,
-            color: theme.palette.text.secondary,
-            '&:hover': { color: theme.palette.error.main }
-          }}
+          sx={{ position: 'absolute', top: 4, right: 4, color: theme.palette.text.secondary }}
         >
           <CloseIcon sx={{ fontSize: 14 }} />
         </IconButton>
 
-        {/* Información de la canción */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
-          {/* Miniatura */}
           <Box
             component="img"
             src={player.currentSong?.cover || player.currentSong?.image_url || '/default-album.jpg'}
             alt={player.currentSong?.title}
-            sx={{
-              width: 45,
-              height: 45,
-              borderRadius: 2,
-              objectFit: 'cover',
-              boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.2)}`
-            }}
+            sx={{ width: 45, height: 45, borderRadius: 2, objectFit: 'cover' }}
             onError={(e) => { e.target.src = '/default-album.jpg'; }}
           />
-
-          {/* Título y artista */}
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="body2"
-              fontWeight={700}
-              noWrap
-              sx={{ fontSize: '0.85rem' }}
-            >
+            <Typography variant="body2" fontWeight={700} noWrap sx={{ fontSize: '0.85rem' }}>
               {player.currentSong?.title}
             </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              noWrap
-              sx={{ fontSize: '0.7rem' }}
-            >
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.7rem' }}>
               {player.currentSong?.artist}
             </Typography>
           </Box>
         </Box>
 
-        {/* Controles de reproducción */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 1 }}>
           <Tooltip title="Aleatorio" arrow>
-            <IconButton
-              size="small"
-              onClick={player.toggleShuffle}
-              sx={{
-                color: player.shuffle ? theme.palette.primary.main : theme.palette.text.secondary,
-                '&:hover': { color: theme.palette.primary.main }
-              }}
-            >
+            <IconButton size="small" onClick={player.toggleShuffle} sx={{ color: player.shuffle ? theme.palette.primary.main : theme.palette.text.secondary }}>
               <ShuffleIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Anterior" arrow>
-            <IconButton
-              size="small"
-              onClick={player.playPrevious}
-              sx={{ color: theme.palette.text.primary }}
-            >
+            <IconButton size="small" onClick={player.playPrevious}>
               <SkipPreviousIcon sx={{ fontSize: 20 }} />
             </IconButton>
           </Tooltip>
@@ -209,98 +157,37 @@ const FloatingMiniPlayer = ({ player, onClose, theme }) => {
                 color: 'white',
                 width: 36,
                 height: 36,
-                '&:hover': {
-                  bgcolor: theme.palette.primary.dark,
-                  transform: 'scale(1.05)'
-                }
+                '&:hover': { bgcolor: theme.palette.primary.dark, transform: 'scale(1.05)' }
               }}
             >
-              {player.isPlaying ? (
-                <PauseIcon sx={{ fontSize: 18 }} />
-              ) : (
-                <PlayArrowIcon sx={{ fontSize: 18 }} />
-              )}
+              {player.isPlaying ? <PauseIcon sx={{ fontSize: 18 }} /> : <PlayArrowIcon sx={{ fontSize: 18 }} />}
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Siguiente" arrow>
-            <IconButton
-              size="small"
-              onClick={player.playNext}
-              sx={{ color: theme.palette.text.primary }}
-            >
+            <IconButton size="small" onClick={player.playNext}>
               <SkipNextIcon sx={{ fontSize: 20 }} />
             </IconButton>
           </Tooltip>
 
-          <Tooltip
-            title={
-              player.repeatMode === 'one' ? "Repetir canción" :
-              player.repeatMode === 'all' ? "Repetir playlist" :
-              "Sin repetición"
-            }
-            arrow
-          >
-            <IconButton
-              size="small"
-              onClick={player.toggleRepeat}
-              sx={{
-                color: player.repeatMode ? theme.palette.primary.main : theme.palette.text.secondary,
-                position: 'relative'
-              }}
-            >
-              {player.repeatMode === 'one' ? (
-                <RepeatOneIcon sx={{ fontSize: 16 }} />
-              ) : (
-                <RepeatIcon sx={{ fontSize: 16 }} />
-              )}
+          <Tooltip title={player.repeatMode === 'one' ? "Repetir canción" : player.repeatMode === 'all' ? "Repetir playlist" : "Sin repetición"} arrow>
+            <IconButton size="small" onClick={player.toggleRepeat} sx={{ color: player.repeatMode ? theme.palette.primary.main : theme.palette.text.secondary }}>
+              {player.repeatMode === 'one' ? <RepeatOneIcon sx={{ fontSize: 16 }} /> : <RepeatIcon sx={{ fontSize: 16 }} />}
             </IconButton>
           </Tooltip>
         </Box>
 
-        {/* Información de playlist */}
         {player.playlist.length > 1 && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: 'block', textAlign: 'center', mt: 0.5, fontSize: '0.65rem' }}
-          >
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.5, fontSize: '0.65rem' }}>
             {player.playlistIndex + 1} / {player.playlist.length}
           </Typography>
         )}
 
-        {/* Control de volumen */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 1,
-            mt: 0.5,
-            pt: 0.5,
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`
-          }}
-        >
-          <IconButton
-            size="small"
-            onClick={() => player.changeVolume(localVolume === 0 ? 0.7 : 0)}
-            sx={{ color: theme.palette.text.secondary }}
-          >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 0.5, pt: 0.5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}` }}>
+          <IconButton size="small" onClick={() => player.changeVolume(localVolume === 0 ? 0.7 : 0)}>
             {localVolume === 0 ? <VolumeOffIcon sx={{ fontSize: 14 }} /> : <VolumeUpIcon sx={{ fontSize: 14 }} />}
           </IconButton>
-          <Slider
-            size="small"
-            value={localVolume}
-            onChange={handleVolumeChange}
-            min={0}
-            max={1}
-            step={0.01}
-            sx={{
-              width: 80,
-              '& .MuiSlider-track': { bgcolor: theme.palette.primary.main },
-              '& .MuiSlider-thumb': { width: 10, height: 10 }
-            }}
-          />
+          <Slider size="small" value={localVolume} onChange={handleVolumeChange} min={0} max={1} step={0.01} sx={{ width: 80 }} />
         </Box>
       </Paper>
     </Fade>
@@ -308,7 +195,7 @@ const FloatingMiniPlayer = ({ player, onClose, theme }) => {
 };
 
 // ============================================
-// 🎵 HERO SECTION CON UPLOAD
+// 🎵 HERO SECTION
 // ============================================
 const Hero = ({ onUploadClick }) => {
   const theme = useTheme();
@@ -316,143 +203,22 @@ const Hero = ({ onUploadClick }) => {
   const [imageError, setImageError] = useState(false);
 
   return (
-    <Box
-      component="section"
-      sx={{
-        position: "relative",
-        width: "100%",
-        height: "90vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        overflow: "hidden",
-        mb: 4
-      }}
-    >
+    <Box component="section" sx={{ position: "relative", width: "100%", height: "90vh", display: "flex", alignItems: "center", justifyContent: "center", color: "white", overflow: "hidden", mb: 4 }}>
       <Box sx={{ position: "absolute", inset: 0 }}>
         {!imageError ? (
-          <Box
-            component="img"
-            src="/igor.jpg"
-            alt="Igor - Artista destacado"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-            sx={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              opacity: imageLoaded ? 1 : 0,
-              transition: 'opacity 0.5s ease-in-out, transform 8s ease',
-              transform: 'scale(1.02)',
-              '&:hover': { transform: 'scale(1.05)' }
-            }}
-          />
+          <Box component="img" src="/igor.jpg" alt="Igor" onLoad={() => setImageLoaded(true)} onError={() => setImageError(true)} sx={{ width: "100%", height: "100%", objectFit: "cover", opacity: imageLoaded ? 1 : 0, transition: 'opacity 0.5s ease-in-out, transform 8s ease', transform: 'scale(1.02)' }} />
         ) : (
-          <Box sx={{
-            width: "100%",
-            height: "100%",
-            background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 50%, ${alpha(theme.palette.primary.light, 0.8)} 100%)`
-          }} />
+          <Box sx={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 50%, ${alpha(theme.palette.primary.light, 0.8)} 100%)` }} />
         )}
-        <Box sx={{
-          position: "absolute",
-          inset: 0,
-          background: `
-            linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%),
-            linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.2) 100%),
-            radial-gradient(circle at 30% 50%, transparent 0%, rgba(0,0,0,0.2) 100%)
-          `
-        }} />
+        <Box sx={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%), linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.2) 100%)` }} />
       </Box>
-
       <Box sx={{ position: "relative", zIndex: 10, maxWidth: "800px", textAlign: "center", px: 3 }}>
-        <Typography
-          variant="h1"
-          sx={{
-            fontSize: { xs: "2.5rem", md: "4rem" },
-            fontWeight: 800,
-            lineHeight: 1.2,
-            mb: 3,
-            color: "white",
-            textShadow: '2px 2px 4px rgba(0,0,0,0.3), 4px 4px 8px rgba(0,0,0,0.2)'
-          }}
-        >
-          La casa digital de los amantes del EcuaBeats.
-        </Typography>
-        <Typography
-          variant="body1"
-          sx={{
-            fontSize: { xs: "1.1rem", md: "1.3rem" },
-            color: "rgba(255,255,255,0.95)",
-            mb: 5,
-            maxWidth: "600px",
-            mx: "auto",
-            textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
-          }}
-        >
-          Escucha, descubre y apoya a los artistas que estan marcando la diferencia.
-          Sube tu música, construye tu audiencia y forma parte del movimiento.
-        </Typography>
-        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: "center", justifyContent: "center", gap: 2 }}>
-          <Box
-            component="button"
-            onClick={() => {
-              const discoverySection = document.getElementById('discovery-sections');
-              if (discoverySection) discoverySection.scrollIntoView({ behavior: 'smooth' });
-            }}
-            sx={{
-              bgcolor: theme.palette.primary.main,
-              color: "white",
-              border: "none",
-              px: 5,
-              py: 2,
-              borderRadius: "16px",
-              fontSize: "1.1rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
-              backdropFilter: "blur(4px)",
-              "&:hover": {
-                bgcolor: theme.palette.primary.dark,
-                transform: "translateY(-2px)",
-                boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.4)}`
-              }
-            }}
-          >
-            🎧 Explorar música
-          </Box>
-          <Box
-            component="button"
-            onClick={onUploadClick}
-            sx={{
-              bgcolor: "rgba(255,255,255,0.15)",
-              color: "white",
-              border: "2px solid rgba(255,255,255,0.3)",
-              px: 5,
-              py: 2,
-              borderRadius: "16px",
-              fontSize: "1.1rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              backdropFilter: "blur(4px)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              "&:hover": {
-                bgcolor: "rgba(255,255,255,0.25)",
-                transform: "translateY(-2px)",
-                borderColor: "white",
-                boxShadow: "0 8px 20px rgba(0,0,0,0.15)"
-              }
-            }}
-          >
-            🎤 Subir mi música
-          </Box>
+        <Typography variant="h1" sx={{ fontSize: { xs: "2.5rem", md: "4rem" }, fontWeight: 800, lineHeight: 1.2, mb: 3 }}>La casa digital de los amantes del EcuaBeats.</Typography>
+        <Typography variant="body1" sx={{ fontSize: { xs: "1.1rem", md: "1.3rem" }, mb: 5, maxWidth: "600px", mx: "auto" }}>Escucha, descubre y apoya a los artistas que estan marcando la diferencia.</Typography>
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "center", gap: 2 }}>
+          <Box component="button" onClick={() => document.getElementById('discovery-sections')?.scrollIntoView({ behavior: 'smooth' })} sx={{ bgcolor: theme.palette.primary.main, color: "white", border: "none", px: 5, py: 2, borderRadius: "16px", fontSize: "1.1rem", fontWeight: 600, cursor: "pointer", transition: "all 0.2s ease", '&:hover': { bgcolor: theme.palette.primary.dark, transform: "translateY(-2px)" } }}>🎧 Explorar música</Box>
+          <Box component="button" onClick={onUploadClick} sx={{ bgcolor: "rgba(255,255,255,0.15)", color: "white", border: "2px solid rgba(255,255,255,0.3)", px: 5, py: 2, borderRadius: "16px", fontSize: "1.1rem", fontWeight: 600, cursor: "pointer", transition: "all 0.2s ease", '&:hover': { bgcolor: "rgba(255,255,255,0.25)", transform: "translateY(-2px)" } }}>🎤 Subir mi música</Box>
         </Box>
-        <Typography sx={{ mt: 8, fontSize: "0.8rem", color: "rgba(255,255,255,0.6)", letterSpacing: "2px", textShadow: '1px 1px 2px rgba(0,0,0,0.3)' }}>
-          TODO LO QUE SUENA EN LAS CALLES
-        </Typography>
       </Box>
     </Box>
   );
@@ -466,19 +232,12 @@ const MainPage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const navigate = useNavigate();
 
-  // Hooks del reproductor
   const player = usePlayer();
-  const audioPlayer = useAudioPlayer();
-
-  // Estado para modal de upload
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [showFab, setShowFab] = useState(false);
   const [showMiniPlayer, setShowMiniPlayer] = useState(true);
 
-  // Hook para obtener artistas
   const { artists, loading: artistsLoading } = useArtists();
-
-  // HOOKS DE DESCUBRIMIENTO
   const discovery = useDiscoveryMainPage(20);
 
   const {
@@ -561,7 +320,7 @@ const MainPage = () => {
   }, [showResults, closeResults]);
 
   // ============================================
-  // 🎯 HANDLERS DE REPRODUCCIÓN CON PLAYLIST
+  // 🎯 HANDLER DE REPRODUCCIÓN CON PLAYLIST AUTOMÁTICA
   // ============================================
 
   const handlePlaySong = (song) => {
@@ -627,8 +386,21 @@ const MainPage = () => {
     });
   };
 
+  const handleShuffleSelectedSongs = () => {
+    if (selectedSongs.length === 0) return;
+    
+    const shuffled = [...selectedSongs].sort(() => Math.random() - 0.5);
+    console.log(`🎲 Reproduciendo Tus Beats en modo aleatorio (${shuffled.length} canciones)`);
+    player.setPlaylistAndPlay(shuffled, 0, true);
+    
+    setSnackbar({
+      open: true,
+      message: `🎲 Reproduciendo: Tus Beats (Aleatorio) • ${shuffled.length} canciones`
+    });
+  };
+
   // ============================================
-  // HANDLERS EXISTENTES
+  // HANDLERS DE SELECCIÓN
   // ============================================
 
   const handleSelectResult = (item, type) => {
@@ -638,9 +410,7 @@ const MainPage = () => {
       return;
     }
 
-    const songId = String(item.id);
-
-    if (selectedSongs.some(song => String(song.id) === songId)) {
+    if (selectedSongs.some(song => String(song.id) === String(item.id))) {
       setShowResults(false);
       closeResults?.();
       return;
@@ -654,39 +424,29 @@ const MainPage = () => {
       return;
     }
 
-    const imageUrl = item.image_url || item.cover || item.album_cover || item.thumbnail || null;
-    const finalImageUrl = imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=3B82F6&color=fff&size=200&bold=true&length=2&font-size=0.50`;
-
+    const imageUrl = item.image_url || item.cover || item.album_cover || null;
     const newSong = {
-      id: songId,
+      id: String(item.id),
       title: item.title || "Sin título",
       artist: item.artist || "Artista desconocido",
-      artist_id: item.artist_id || item.artistId || null,
       genre: item.genre || "Desconocido",
       duration: item.duration,
-      cover: finalImageUrl,
-      image_url: finalImageUrl,
-      image: finalImageUrl,
-      addedAt: new Date().toISOString(),
+      cover: imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Song')}&background=3B82F6&color=fff&size=200&bold=true&length=2`,
+      image_url: imageUrl,
       downloads_count: item.downloads_count || 0,
       likes_count: item.likes_count || 0,
       plays_count: item.plays_count || 0,
-      file_key: item.file_key,
-      is_public: item.is_public,
-      uploaded_by: item.uploaded_by
+      addedAt: new Date().toISOString()
     };
 
     setSelectedSongs(prev => [newSong, ...prev]);
     setNewlyAddedSong(newSong);
-
-    setTimeout(() => {
-      if (selectedSongsRef.current) {
-        selectedSongsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
-
     setShowResults(false);
     closeResults?.();
+    
+    setTimeout(() => {
+      selectedSongsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const handleRemoveSong = (songId) => {
@@ -694,13 +454,13 @@ const MainPage = () => {
   };
 
   const handleClearAllSongs = () => {
-    if (selectedSongs.length > 0 && window.confirm(`🗑️ Eliminar todas las ${selectedSongs.length} canciones?`)) {
+    if (selectedSongs.length > 0 && window.confirm(`Eliminar todas las ${selectedSongs.length} canciones?`)) {
       setSelectedSongs([]);
     }
   };
 
   const handleMoreOptions = (song) => {
-    const action = window.confirm(`¿Qué deseas hacer con "${song.title}"?\n\n• Ver detalles\n• Agregar a playlist\n• Compartir`);
+    const action = window.confirm(`¿Qué deseas hacer con "${song.title}"?\n\n• Ver detalles\n• Compartir`);
     if (action) navigate(`/song/${song.id}`);
   };
 
@@ -713,147 +473,67 @@ const MainPage = () => {
   // ============================================
 
   return (
-    <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: "100vh", position: "relative" }}>
+    <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: "100vh" }}>
       <Hero onUploadClick={() => setUploadModalOpen(true)} />
-
-      {/* Mini player flotante */}
       {showMiniPlayer && <FloatingMiniPlayer player={player} onClose={() => setShowMiniPlayer(false)} theme={theme} />}
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
-        {/* Contador flotante de Tus Beats */}
         {selectedSongs.length > 0 && (
-          <Badge
-            badgeContent={selectedSongs.length}
-            color="primary"
-            sx={{
-              position: 'fixed',
-              top: 60,
-              right: 16,
-              zIndex: 1300,
-              cursor: 'pointer',
-              '& .MuiBadge-badge': {
-                fontSize: '0.7rem',
-                height: 20,
-                minWidth: 20,
-                borderRadius: '10px'
-              }
-            }}
-            onClick={() => selectedSongsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          >
+          <Badge badgeContent={selectedSongs.length} color="primary" sx={{ position: 'fixed', top: 60, right: 16, zIndex: 1300, cursor: 'pointer' }} onClick={() => selectedSongsRef.current?.scrollIntoView({ behavior: 'smooth' })}>
             <MusicNoteIcon sx={{ color: theme.palette.primary.main, fontSize: 32 }} />
           </Badge>
         )}
 
-        {/* Barra de búsqueda */}
         <Box ref={searchBarRef} sx={{ maxWidth: 600, mx: "auto", mb: 4, position: "relative" }}>
-          <Paper elevation={0} sx={{
-            borderRadius: "12px",
-            bgcolor: theme.palette.mode === 'light' ? theme.palette.grey[100] : theme.palette.grey[900],
-            border: `1px solid ${theme.palette.divider}`,
-            '&:focus-within': {
-              borderColor: theme.palette.primary.main,
-              boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`
-            }
-          }}>
-            <SearchBar
-              query={query}
-              onQueryChange={setQuery}
-              loading={loading}
-              autoFocus={!isMobile}
-              placeholder="Buscar canciones, artistas..."
-            />
+          <Paper elevation={0} sx={{ borderRadius: "12px", bgcolor: theme.palette.mode === 'light' ? theme.palette.grey[100] : theme.palette.grey[900], border: `1px solid ${theme.palette.divider}` }}>
+            <SearchBar query={query} onQueryChange={setQuery} loading={loading} autoFocus={!isMobile} placeholder="Buscar canciones, artistas..." />
           </Paper>
           {showResults && (
             <Fade in timeout={200}>
               <Box ref={resultsRef} sx={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1400, mt: 1 }}>
-                <SearchResults
-                  results={structuredResults}
-                  loading={loading}
-                  error={error?.message}
-                  isOpen={showResults}
-                  onClose={() => setShowResults(false)}
-                  onSelect={handleSelectResult}
-                />
+                <SearchResults results={structuredResults} loading={loading} error={error?.message} isOpen={showResults} onClose={() => setShowResults(false)} onSelect={handleSelectResult} />
               </Box>
             </Fade>
           )}
-          {!query && (
-            <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1.5, color: theme.palette.text.secondary, fontStyle: 'italic' }}>
-              🎧 busca descubre y disfruta
-            </Typography>
-          )}
         </Box>
 
-        {/* SECCIÓN TUS BEATS */}
+        {/* Tus Beats - VERSIÓN PREMIUM CON SongCarousel MEJORADO */}
         {selectedSongs.length > 0 && (
           <Box ref={selectedSongsRef} sx={{ mb: 6 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <MusicNoteIcon sx={{ color: theme.palette.primary.main, fontSize: 32 }} />
-                <Box>
-                  <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.5rem', sm: '2rem' }, background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`, backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent' }}>
-                    TUS BEATS
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: alpha(theme.palette.primary.main, 0.6) }}>
-                    {selectedSongs.length} {selectedSongs.length === 1 ? 'canción seleccionada' : 'canciones seleccionadas'}
-                  </Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Tooltip title={`Reproducir ${selectedSongs.length} canciones`} arrow>
-                  <IconButton onClick={handlePlaySelectedSongs} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: theme.palette.primary.main }}>
-                    <PlayCircle />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Eliminar todas" arrow>
-                  <IconButton onClick={handleClearAllSongs} sx={{ bgcolor: alpha(theme.palette.error.main, 0.1), color: theme.palette.error.main }}>
-                    <DeleteSweepIcon />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </Box>
-            <Grow in timeout={500}>
-              <Box>
-                <SongCarousel
-                  songs={selectedSongs}
-                  title=""
-                  onRemoveSong={handleRemoveSong}
-                  showRemoveButton={true}
-                  variant="compact"
-                />
-              </Box>
-            </Grow>
+            <SongCarousel 
+              songs={selectedSongs} 
+              title="TUS BEATS"
+              subtitle=""
+              onRemoveSong={handleRemoveSong} 
+              showRemoveButton={true} 
+              variant="featured"  // Cambia a: "default", "compact", "featured", o "list"
+              onPlayAll={handlePlaySelectedSongs}
+              onShuffle={handleShuffleSelectedSongs}
+              showViewMore={true}
+              initialLimit={8}
+              loading={false}
+            />
           </Box>
         )}
 
-        {/* Carrusel de artistas */}
-        {!artistsLoading && artists.length > 0 && (
-          <ArtistCarouselHorizontal artists={artists} title="" loading={artistsLoading} />
-        )}
+        {/* Artistas */}
+        {!artistsLoading && artists.length > 0 && <ArtistCarouselHorizontal artists={artists} title="" loading={artistsLoading} />}
 
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, my: 3 }}>
-          <Box sx={{ width: '30px', height: '1px', background: alpha(theme.palette.primary.main, 0.2), borderRadius: '1px' }} />
-          <Typography sx={{ color: alpha(theme.palette.primary.main, 0.3), fontSize: '0.9rem' }}>◈</Typography>
-          <Box sx={{ width: '30px', height: '1px', background: alpha(theme.palette.primary.main, 0.2), borderRadius: '1px' }} />
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+          <Box sx={{ width: '30px', height: '1px', bgcolor: alpha(theme.palette.primary.main, 0.2) }} />
+          <Typography sx={{ color: alpha(theme.palette.primary.main, 0.3), px: 1 }}>◈</Typography>
+          <Box sx={{ width: '30px', height: '1px', bgcolor: alpha(theme.palette.primary.main, 0.2) }} />
         </Box>
 
-        {/* ID para scroll de explorar */}
         <div id="discovery-sections">
-          {/* Carrusel de géneros */}
+          {/* Géneros */}
           {!discovery.genres.isLoading && discovery.genres.data?.data?.length > 0 && (
             <Box sx={{ mb: 5 }}>
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 2.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <MusicNoteIcon sx={{ color: theme.palette.primary.main }} /> Explorar por Géneros
-              </Typography>
-              <GenreCarousel
-                genres={discovery.genres.data.data}
-                onGenreClick={(genre) => navigate(`/genre/${encodeURIComponent(genre.name)}`)}
-              />
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 2.5 }}><MusicNoteIcon sx={{ color: theme.palette.primary.main, mr: 1 }} /> Explorar por Géneros</Typography>
+              <GenreCarousel genres={discovery.genres.data.data} onGenreClick={(genre) => navigate(`/genre/${encodeURIComponent(genre.name)}`)} />
             </Box>
           )}
 
-          {/* SECCIONES DE DESCUBRIMIENTO */}
-          
           {/* Tendencias */}
           <Box sx={{ position: 'relative' }}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
@@ -896,7 +576,7 @@ const MainPage = () => {
             </Box>
             <DiscoverySection
               title="Más Escuchadas"
-              subtitle="lo que mas se escucha"
+              subtitle="Lo que más se escucha"
               icon={<PlayCircle />}
               queryResult={discovery.plays}
               limit={20}
@@ -922,7 +602,7 @@ const MainPage = () => {
             </Box>
             <DiscoverySection
               title="Novedades"
-              subtitle="las mas nuevas"
+              subtitle="Las más nuevas"
               icon={<AccessTime />}
               queryResult={discovery.recent}
               limit={20}
@@ -935,72 +615,38 @@ const MainPage = () => {
           </Box>
         </div>
 
-        {/* Componentes existentes */}
-        <Box sx={{ mb: 6 }}><RandomSongsDisplay /></Box>
-        <Box sx={{ mb: 6 }}><ArtistCarousel /></Box>
-        <Box sx={{ mb: 6 }}><PopularSongs /></Box>
+        {/* Componentes adicionales */}
+        <RandomSongsDisplay />
+        <ArtistCarousel />
+        <PopularSongs />
 
-        {/* Footer */}
         <Box sx={{ mt: 5, pt: 3, pb: 2, textAlign: 'center', borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
-          <Typography variant="body2" sx={{ color: alpha(theme.palette.text.secondary, 0.8), fontWeight: 400, fontSize: '0.8rem' }}>
-            EL SONIDO ES NUESTRO
-          </Typography>
+          <Typography variant="body2" sx={{ color: alpha(theme.palette.text.secondary, 0.8) }}>EL SONIDO ES NUESTRO</Typography>
         </Box>
 
         {/* Notificaciones */}
         <Snackbar open={showCacheNotification} autoHideDuration={2000} onClose={() => setShowCacheNotification(false)}>
-          <Alert severity="info" sx={{ bgcolor: alpha(theme.palette.primary.main, 0.08), color: theme.palette.primary.main, fontSize: '0.8rem' }}>
-            📦 Resultados desde caché • {searchMetrics?.time}ms
-          </Alert>
+          <Alert severity="info" sx={{ fontSize: '0.8rem' }}>📦 Resultados desde caché • {searchMetrics?.time}ms</Alert>
         </Snackbar>
-
         <Snackbar open={showLimitNotification} autoHideDuration={2000} onClose={() => setShowLimitNotification(false)}>
-          <Alert severity="warning" sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1), color: theme.palette.warning.dark, fontSize: '0.8rem' }}>
-            🎵 Máximo {MAX_SELECTED_SONGS} canciones
-          </Alert>
+          <Alert severity="warning" sx={{ fontSize: '0.8rem' }}>🎵 Máximo {MAX_SELECTED_SONGS} canciones</Alert>
         </Snackbar>
-
         <Snackbar open={showAddNotification} autoHideDuration={1500} onClose={() => setShowAddNotification(false)}>
-          <Alert severity="success" sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: theme.palette.success.main, fontSize: '0.8rem' }}>
-            ✅ {newlyAddedSong?.title}
-          </Alert>
+          <Alert severity="success" sx={{ fontSize: '0.8rem' }}>✅ {newlyAddedSong?.title}</Alert>
         </Snackbar>
-
         <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
           <Alert severity="info" sx={{ fontSize: '0.8rem' }}>{snackbar.message}</Alert>
         </Snackbar>
       </Container>
 
-      {/* FAB de upload */}
       <Fade in={showFab} timeout={800}>
         <Tooltip title="Subir mi música" placement="left">
-          <Fab
-            onClick={() => setUploadModalOpen(true)}
-            sx={{
-              position: 'fixed',
-              bottom: { xs: 16, md: 24 },
-              right: { xs: 16, md: 24 },
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
-              color: 'white',
-              boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
-              width: { xs: 56, md: 64 },
-              height: { xs: 56, md: 64 },
-              '&:hover': {
-                transform: 'scale(1.05)',
-                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-                boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, 0.4)}`
-              },
-              transition: 'all 0.2s ease',
-              zIndex: 1200,
-              border: '1px solid rgba(255,255,255,0.2)'
-            }}
-          >
-            <CloudUploadIcon sx={{ fontSize: { xs: 28, md: 32 } }} />
+          <Fab onClick={() => setUploadModalOpen(true)} sx={{ position: 'fixed', bottom: { xs: 16, md: 24 }, right: { xs: 16, md: 24 }, background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`, color: 'white', '&:hover': { transform: 'scale(1.05)' } }}>
+            <CloudUploadIcon />
           </Fab>
         </Tooltip>
       </Fade>
 
-      {/* Modal de upload */}
       <UploadModal open={uploadModalOpen} onClose={() => setUploadModalOpen(false)} />
     </Box>
   );

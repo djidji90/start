@@ -1,13 +1,14 @@
 // ============================================
 // src/pages/GenrePage.jsx
-// PÁGINA DE GÉNERO - CANCIONES EN SONGCARD
+// PÁGINA DE GÉNERO - CON PLAYLIST AUTOMÁTICA
 // ✅ Muestra canciones del género seleccionado
 // ✅ Usa SongCard para renderizar
 // ✅ Filtros y ordenamiento
 // ✅ Grid responsivo
+// ✅ PLAYLIST AUTOMÁTICA al hacer click en cualquier canción
 // ============================================
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -23,12 +24,16 @@ import {
   Chip,
   Grid,
   Pagination,
-  Skeleton
+  Skeleton,
+  Snackbar
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSongsByGenre } from '../../components/hook/services/useDiscovery';
 import SongCard from '../../songs/SongCard';
 import { ArrowBack, Sort } from '@mui/icons-material';
+
+// Import del sistema de reproducción
+import { usePlayer } from '../../components/PlayerContext';
 
 // ============================================
 // SKELETON PARA CARGA
@@ -51,9 +56,13 @@ const GenrePage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   
+  // Hook del reproductor
+  const player = usePlayer();
+  
   // Estado para ordenamiento
   const [sortBy, setSortBy] = useState('popular');
   const [page, setPage] = useState(1);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '' });
   const itemsPerPage = 20;
 
   // Decodificar el género de la URL
@@ -71,6 +80,39 @@ const GenrePage = () => {
     (page - 1) * itemsPerPage,
     page * itemsPerPage
   );
+
+  // ==========================================
+  // 🎯 REPRODUCCIÓN CON PLAYLIST AUTOMÁTICA
+  // ==========================================
+  
+  /**
+   * Al hacer click en una canción:
+   * 1. Crea playlist con TODAS las canciones del género
+   * 2. Comienza reproduciendo desde la canción seleccionada
+   * 3. El usuario puede navegar siguiente/anterior automáticamente
+   */
+  const handlePlaySong = useCallback((song) => {
+    if (!song?.id) return;
+
+    // Encontrar la posición de la canción en la lista completa (no solo la página actual)
+    const songIndex = songs.findIndex(s => s.id === song.id);
+    
+    if (songIndex !== -1 && songs.length > 0) {
+      // 🆕 Crear playlist desde la posición actual hacia adelante
+      const playlistSongs = songs.slice(songIndex);
+      
+      // 🆕 Usar setPlaylistAndPlay para establecer la playlist y reproducir
+      player.setPlaylistAndPlay(playlistSongs, 0, true);
+      
+      setSnackbar({
+        open: true,
+        message: `🎵 Reproduciendo: ${song.title} + ${playlistSongs.length - 1} canciones de ${decodedGenre}`
+      });
+    } else {
+      // Si no se encuentra la canción en la lista, reproducir individualmente
+      player.playSong(song);
+    }
+  }, [songs, player, decodedGenre]);
 
   // ==========================================
   // HANDLERS
@@ -202,7 +244,8 @@ const GenrePage = () => {
                 <SongCard 
                   song={song}
                   variant="compact"
-                  onLike={() => {}} // El hook ya maneja el like internamente
+                  onPlaySong={handlePlaySong}
+                  onLike={() => {}}
                 />
               </Grid>
             ))}
@@ -243,6 +286,18 @@ const GenrePage = () => {
           </Typography>
         </Box>
       )}
+
+      {/* Notificación */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" sx={{ fontSize: '0.8rem' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

@@ -1,5 +1,8 @@
 // ============================================
-// src/components/PlayerContext.jsx - VERSIÓN CORREGIDA (orden definitivo)
+// src/components/PlayerContext.jsx - VERSIÓN CORREGIDA
+// ✅ playNext y playPrevious funcionan correctamente
+// ✅ onended llama a playNext automáticamente
+// ✅ Sin errores de referencias circulares
 // ============================================
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
@@ -41,6 +44,11 @@ export const PlayerProvider = ({ children }) => {
   const currentSongIdRef = useRef(null);
   const playerAPIExposedRef = useRef(false);
   const audioRef = useRef(null);
+  
+  // 🆕 REFERENCIAS PARA FUNCIONES (para romper dependencias circulares)
+  const playSongRef = useRef(null);
+  const playNextRef = useRef(null);
+  const playPreviousRef = useRef(null);
 
   // ============================================
   // FUNCIONES DE ESTADO DE CARGA
@@ -173,15 +181,6 @@ export const PlayerProvider = ({ children }) => {
   }, [repeatMode]);
 
   // ============================================
-  // 🟢 playNext y playPrevious DEFINIDAS PRIMERO (como useCallback vacíos)
-  // ============================================
-  // Nota: Estas funciones se implementan completamente después de playSong
-  // pero las declaramos primero con useRef para evitar el error de dependencia circular
-  
-  const playNextRef = useRef(null);
-  const playPreviousRef = useRef(null);
-  
-  // ============================================
   // FUNCIONES DE PLAYLIST (sin playSong)
   // ============================================
   const generateShuffledPlaylist = useCallback((originalSongs) => {
@@ -296,182 +295,201 @@ export const PlayerProvider = ({ children }) => {
   }, []);
 
   // ============================================
-  // 🎵 PLAYSONG - FUNCIÓN PRINCIPAL (usa playNextRef)
+  // 🎵 PLAYSONG - FUNCIÓN PRINCIPAL
   // ============================================
-  const playSong = useCallback(async (song) => {
-    if (!song?.id || !isMountedRef.current) return;
+  // ============================================
+// 🎵 PLAYSONG - MODIFICADA PARA ACEPTAR CONTEXTO DE PLAYLIST
+// ============================================
+const playSong = useCallback(async (song, contextPlaylist = null) => {
+  if (!song?.id || !isMountedRef.current) return;
 
-    // Si es la misma canción, solo toggle
-    if (currentSong?.id === song.id) {
-      togglePlay();
-      return;
+  // Si es la misma canción, solo toggle
+  if (currentSong?.id === song.id) {
+    togglePlay();
+    return;
+  }
+
+  // 🆕 CREAR PLAYLIST AUTOMÁTICA si se proporciona contexto
+  if (contextPlaylist && contextPlaylist.length > 0 && playlist.length === 0) {
+    const songIndex = contextPlaylist.findIndex(s => s.id === song.id);
+    if (songIndex !== -1) {
+      const newPlaylist = contextPlaylist.slice(songIndex);
+      console.log(`[PlayerContext] 📋 Creando playlist automática con ${newPlaylist.length} canciones`);
+      setPlaylist(newPlaylist);
+      setOriginalPlaylist([...contextPlaylist]);
+      setPlaylistIndex(0);
+    }
+  }
+
+  setError(null);
+  currentSongIdRef.current = song.id;
+
+  updateSongLoadingState(song.id, {
+    isLoading: true,
+    progress: 0,
+    stage: 'init',
+    message: 'Iniciando...'
+  });
+
+  try {
+    // Detener canción anterior si existe
+    if (currentSong) {
+      streamManager.stopStream(currentSong.id);
+      if (audioRef.current) {
+        audioRef.current.ontimeupdate = null;
+        audioRef.current.onended = null;
+        audioRef.current = null;
+      }
     }
 
-    setError(null);
-    currentSongIdRef.current = song.id;
+    // Verificar caché offline
+    let offlineUrl = null;
+    const isCached = download?.isDownloaded?.(song.id);
+    
+    if (isCached) {
+      console.log(`[PlayerContext] 📴 Canción encontrada en caché: ${song.title}`);
+      offlineUrl = await download?.getOfflineAudioUrl?.(song.id);
+    }
+
+    const songWithSource = {
+      ...song,
+      source: offlineUrl ? 'offline' : 'online'
+    };
+
+    setCurrentSong(songWithSource);
 
     updateSongLoadingState(song.id, {
-      isLoading: true,
-      progress: 0,
-      stage: 'init',
-      message: 'Iniciando...'
+      progress: 70,
+      stage: 'loading_audio',
+      message: offlineUrl ? 'Cargando desde caché...' : 'Conectando...'
     });
 
-    try {
-      // Detener canción anterior si existe
-      if (currentSong) {
-        streamManager.stopStream(currentSong.id);
-        if (audioRef.current) {
-          audioRef.current.ontimeupdate = null;
-          audioRef.current = null;
-        }
-      }
+    console.log(`[PlayerContext] Reproduciendo: ${song.title} (${offlineUrl ? 'OFFLINE' : 'ONLINE'})`);
 
-      // Verificar caché offline
-      let offlineUrl = null;
-      const isCached = download?.isDownloaded?.(song.id);
+    const audio = await streamManager.playSong(song.id, null, {
+      streamUrl: offlineUrl
+    });
+    
+    audioRef.current = audio;
+
+    if (audio) {
+      audio.loop = (repeatMode === 'one');
       
-      if (isCached) {
-        console.log(`[PlayerContext] 📴 Canción encontrada en caché: ${song.title}`);
-        offlineUrl = await download?.getOfflineAudioUrl?.(song.id);
-      }
-
-      const songWithSource = {
-        ...song,
-        source: offlineUrl ? 'offline' : 'online'
+      audio.onplay = () => {
+        if (isMountedRef.current && currentSongIdRef.current === song.id) {
+          setIsPlaying(true);
+          updateSongLoadingState(song.id, {
+            isLoading: false,
+            stage: 'playing',
+            message: 'Reproduciendo'
+          });
+        }
+      };
+      
+      audio.onpause = () => {
+        if (isMountedRef.current && currentSongIdRef.current === song.id) {
+          setIsPlaying(false);
+          updateSongLoadingState(song.id, {
+            isLoading: false,
+            stage: 'paused',
+            message: 'Pausado'
+          });
+        }
+      };
+      
+      audio.onended = () => {
+        if (isMountedRef.current && currentSongIdRef.current === song.id) {
+          console.log('[PlayerContext] Canción finalizada, repeatMode:', repeatMode);
+          
+          if (repeatMode === 'one') {
+            playSong(song);
+          } else if (playlist.length > 0) {
+            if (playNextRef.current) {
+              console.log('[PlayerContext] ⏭️ Llamando a playNext desde onended');
+              playNextRef.current();
+            } else {
+              console.log('[PlayerContext] ⚠️ playNextRef no disponible');
+            }
+          } else {
+            setIsPlaying(false);
+            setProgress({ current: 0, duration: 0 });
+            currentSongIdRef.current = null;
+            audioRef.current = null;
+            
+            updateSongLoadingState(song.id, {
+              isLoading: false,
+              stage: 'ended',
+              message: 'Finalizado'
+            });
+          }
+        }
       };
 
-      setCurrentSong(songWithSource);
+      audio.onerror = (e) => {
+        if (isMountedRef.current && currentSongIdRef.current === song.id) {
+          console.error('[PlayerContext] Error en audio:', audio.error);
+          setError('Error en reproducción');
+          updateSongLoadingState(song.id, {
+            isLoading: false,
+            stage: 'error',
+            message: audio.error?.message || 'Error desconocido'
+          });
+        }
+      };
 
-      updateSongLoadingState(song.id, {
-        progress: 70,
-        stage: 'loading_audio',
-        message: offlineUrl ? 'Cargando desde caché...' : 'Conectando...'
-      });
-
-      console.log(`[PlayerContext] Reproduciendo: ${song.title} (${offlineUrl ? 'OFFLINE' : 'ONLINE'})`);
-
-      const audio = await streamManager.playSong(song.id, null, {
-        streamUrl: offlineUrl
-      });
-      
-      audioRef.current = audio;
-
-      if (audio) {
-        audio.loop = (repeatMode === 'one');
-        
-        audio.onplay = () => {
-          if (isMountedRef.current && currentSongIdRef.current === song.id) {
-            setIsPlaying(true);
-            updateSongLoadingState(song.id, {
-              isLoading: false,
-              stage: 'playing',
-              message: 'Reproduciendo'
-            });
-          }
-        };
-        
-        audio.onpause = () => {
-          if (isMountedRef.current && currentSongIdRef.current === song.id) {
-            setIsPlaying(false);
-            updateSongLoadingState(song.id, {
-              isLoading: false,
-              stage: 'paused',
-              message: 'Pausado'
-            });
-          }
-        };
-        
-        audio.onended = () => {
-          if (isMountedRef.current && currentSongIdRef.current === song.id) {
-            console.log('[PlayerContext] Canción finalizada, repeatMode:', repeatMode);
-            
-            if (repeatMode === 'one') {
-              playSong(song);
-            } else if (repeatMode === 'all' || playlist.length > 0) {
-              // Usar la referencia a playNext
-              if (playNextRef.current) {
-                playNextRef.current();
-              }
-            } else {
-              setIsPlaying(false);
-              setProgress({ current: 0, duration: 0 });
-              currentSongIdRef.current = null;
-              audioRef.current = null;
-              
-              updateSongLoadingState(song.id, {
-                isLoading: false,
-                stage: 'ended',
-                message: 'Finalizado'
-              });
-            }
-          }
-        };
-
-        audio.onerror = (e) => {
-          if (isMountedRef.current && currentSongIdRef.current === song.id) {
-            console.error('[PlayerContext] Error en audio:', audio.error);
-            setError('Error en reproducción');
-            updateSongLoadingState(song.id, {
-              isLoading: false,
-              stage: 'error',
-              message: audio.error?.message || 'Error desconocido'
-            });
-          }
-        };
-
-        audio.ontimeupdate = () => {
-          if (isMountedRef.current && currentSongIdRef.current === song.id) {
-            setProgress({
-              current: audio.currentTime,
-              duration: audio.duration || 0
-            });
-          }
-        };
-      }
-
-      updateSongLoadingState(song.id, {
-        isLoading: false,
-        progress: 100,
-        stage: 'playing',
-        message: 'Reproduciendo'
-      });
-
-    } catch (err) {
-      console.error("[PlayerContext] Error:", err);
-      
-      let errorMessage = err.message;
-      if (err.message.includes('401')) {
-        errorMessage = 'Sesión expirada. Inicia sesión nuevamente.';
-      } else if (err.message.includes('403')) {
-        errorMessage = 'No tienes permisos para esta canción.';
-      } else if (err.message.includes('404')) {
-        errorMessage = 'Canción no disponible.';
-      } else if (err.message.includes('429')) {
-        errorMessage = 'Límite de reproducciones excedido.';
-      } else if (err.message.includes('fetch') || err.message.includes('network')) {
-        errorMessage = 'Error de conexión. Verifica tu internet.';
-      } else if (!navigator.onLine && !offlineUrl) {
-        errorMessage = 'No hay internet y esta canción no está disponible offline.';
-      }
-      
-      setError(errorMessage);
-      
-      updateSongLoadingState(song.id, {
-        isLoading: false,
-        stage: 'error',
-        message: errorMessage
-      });
-      
-      currentSongIdRef.current = null;
-      audioRef.current = null;
+      audio.ontimeupdate = () => {
+        if (isMountedRef.current && currentSongIdRef.current === song.id) {
+          setProgress({
+            current: audio.currentTime,
+            duration: audio.duration || 0
+          });
+        }
+      };
     }
-  }, [currentSong, togglePlay, updateSongLoadingState, download, repeatMode, playlist.length]);
 
+    updateSongLoadingState(song.id, {
+      isLoading: false,
+      progress: 100,
+      stage: 'playing',
+      message: 'Reproduciendo'
+    });
+
+  } catch (err) {
+    console.error("[PlayerContext] Error:", err);
+    
+    let errorMessage = err.message;
+    if (err.message.includes('401')) {
+      errorMessage = 'Sesión expirada. Inicia sesión nuevamente.';
+    } else if (err.message.includes('403')) {
+      errorMessage = 'No tienes permisos para esta canción.';
+    } else if (err.message.includes('404')) {
+      errorMessage = 'Canción no disponible.';
+    } else if (err.message.includes('429')) {
+      errorMessage = 'Límite de reproducciones excedido.';
+    } else if (err.message.includes('fetch') || err.message.includes('network')) {
+      errorMessage = 'Error de conexión. Verifica tu internet.';
+    } else if (!navigator.onLine && !offlineUrl) {
+      errorMessage = 'No hay internet y esta canción no está disponible offline.';
+    }
+    
+    setError(errorMessage);
+    
+    updateSongLoadingState(song.id, {
+      isLoading: false,
+      stage: 'error',
+      message: errorMessage
+    });
+    
+    currentSongIdRef.current = null;
+    audioRef.current = null;
+  }
+}, [currentSong, togglePlay, updateSongLoadingState, download, repeatMode, playlist.length]);
   // ============================================
-  // playNext y playPrevious - IMPLEMENTACIÓN REAL (usando playSong)
+  // playNext y playPrevious - IMPLEMENTACIÓN REAL
   // ============================================
   const playNext = useCallback(() => {
+    console.log('[PlayerContext] playNext llamado, playlist length:', playlist.length);
+    
     if (playlist.length === 0) {
       console.log('[PlayerContext] No hay playlist para avanzar');
       return false;
@@ -485,6 +503,8 @@ export const PlayerProvider = ({ children }) => {
         console.log('[PlayerContext] 🔁 Repitiendo playlist desde inicio');
       } else {
         console.log('[PlayerContext] Fin de playlist');
+        setIsPlaying(false);
+        setProgress({ current: 0, duration: 0 });
         return false;
       }
     }
@@ -535,9 +555,11 @@ export const PlayerProvider = ({ children }) => {
   // ASIGNAR REFERENCIAS (para romper dependencia circular)
   // ============================================
   useEffect(() => {
+    playSongRef.current = playSong;
     playNextRef.current = playNext;
     playPreviousRef.current = playPrevious;
-  }, [playNext, playPrevious]);
+    console.log('[PlayerContext] Referencias asignadas correctamente');
+  }, [playSong, playNext, playPrevious]);
 
   // ============================================
   // CLEANUP
@@ -549,6 +571,7 @@ export const PlayerProvider = ({ children }) => {
 
       if (audioRef.current) {
         audioRef.current.ontimeupdate = null;
+        audioRef.current.onended = null;
         audioRef.current = null;
       }
       

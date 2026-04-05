@@ -1,35 +1,41 @@
+// src/components/context/AuthContext.jsx - VERSIÓN CORREGIDA
+
 import React, { createContext, useState, useEffect } from "react";
-import { api } from "./services/apia";
-import { jwtDecode } from "jwt-decode"; // Importación nombrada, ES6
+import { api } from "../hook/services/apia";
+import { jwtDecode } from "jwt-decode";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessToken, setAccessToken] = useState(null);
+  const [refreshToken, setRefreshToken] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar token de localStorage al iniciar
+  // Cargar tokens de localStorage al iniciar
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem("accessToken");
+      const storedAccessToken = localStorage.getItem("accessToken");
+      const storedRefreshToken = localStorage.getItem("refreshToken");
 
-      if (storedToken) {
+      if (storedAccessToken && storedRefreshToken) {
         try {
-          // Verificar token válido
-          const decoded = jwtDecode(storedToken);
-
-          // Verificar expiración
+          const decoded = jwtDecode(storedAccessToken);
           const currentTime = Date.now() / 1000;
+
           if (decoded.exp < currentTime) {
-            console.warn("Token expirado");
-            logout();
+            // Token expirado, intentar renovar
+            const renewed = await refreshAccessToken(storedRefreshToken);
+            if (!renewed) {
+              logout();
+            }
           } else {
-            setAccessToken(storedToken);
+            setAccessToken(storedAccessToken);
+            setRefreshToken(storedRefreshToken);
             setIsAuthenticated(true);
-            setUser({ 
-              id: decoded.user_id || decoded.sub, 
+            setUser({
+              id: decoded.user_id || decoded.sub,
               username: decoded.username || decoded.email,
               email: decoded.email,
               roles: decoded.roles || []
@@ -46,18 +52,38 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-  const login = (newToken) => {
+  // Función para renovar token
+  const refreshAccessToken = async (oldRefreshToken) => {
     try {
-      const decoded = jwtDecode(newToken); // Usar jwtDecode (con D mayúscula)
+      const response = await api.post("/musica/api/token/refresh/", {
+        refresh: oldRefreshToken
+      });
 
-      // Guardar en localStorage
-      localStorage.setItem("accessToken", newToken);
+      const { access } = response.data;
+      if (access) {
+        localStorage.setItem("accessToken", access);
+        setAccessToken(access);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error refreshing token:", error);
+      return false;
+    }
+  };
 
-      // Actualizar estado
-      setAccessToken(newToken);
+  const login = (accessToken, refreshToken) => {
+    try {
+      const decoded = jwtDecode(accessToken);
+
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      setAccessToken(accessToken);
+      setRefreshToken(refreshToken);
       setIsAuthenticated(true);
-      setUser({ 
-        id: decoded.user_id || decoded.sub, 
+      setUser({
+        id: decoded.user_id || decoded.sub,
         username: decoded.username || decoded.email,
         email: decoded.email,
         roles: decoded.roles || []
@@ -72,39 +98,22 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     setAccessToken(null);
+    setRefreshToken(null);
     setUser(null);
     setIsAuthenticated(false);
-
-    // Opcional: Limpiar otros datos de usuario
-    localStorage.removeItem("userData");
   };
-
-  // Interceptor Axios: agrega Authorization automáticamente
-  useEffect(() => {
-    const requestInterceptor = api.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem("accessToken") || accessToken;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
-
-    return () => {
-      api.interceptors.request.eject(requestInterceptor);
-    };
-  }, [accessToken]);
 
   const value = {
     isAuthenticated,
     accessToken,
+    refreshToken,
     user,
     login,
     logout,
-    loading
+    loading,
+    refreshAccessToken
   };
 
   return (

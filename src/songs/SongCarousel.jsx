@@ -1,4 +1,10 @@
-// src/components/songs/SongCarousel.jsx - VERSIÓN PREMIUM
+// src/components/songs/SongCarousel.jsx - VERSIÓN ULTRA COMPACTA
+// ✅ Cards súper pequeñas
+// ✅ Totalmente responsive
+// ✅ Sin numeración
+// ✅ Máxima densidad de información
+// ============================================
+
 import React, { useState } from "react";
 import { 
   Grid, 
@@ -11,13 +17,17 @@ import {
   Paper,
   alpha,
   useTheme,
-  Chip
+  Chip,
+  Skeleton,
+  Button,
+  useMediaQuery
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import QueueMusicIcon from "@mui/icons-material/QueueMusic";
 import ShuffleIcon from "@mui/icons-material/Shuffle";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import SongCard from "../songs/SongCard";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import SongCard from "./SongCard";
 
 const SongCarousel = ({ 
   songs = [], 
@@ -27,49 +37,80 @@ const SongCarousel = ({
   showRemoveButton = false,
   onPlayAll,
   onShuffle,
-  variant = "default", // "default", "compact", "featured"
+  loading = false,
+  variant = "ultraCompact", // Ultra compacto por defecto
+  showViewMore = true,
+  initialLimit = 12,
   sx = {}
 }) => {
   const theme = useTheme();
   const primaryColor = theme.palette.primary.main;
   const [hoveredSection, setHoveredSection] = useState(false);
-
-  if (!songs.length) return null;
-
-  // Configuración según variante
+  const [showAll, setShowAll] = useState(false);
+  
+  // Breakpoints responsive
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  
+  // Configuración ULTRA COMPACTA según variante
   const variants = {
-    default: {
-      spacing: 2,
-      grid: { xs: 12, sm: 6, md: 4, lg: 3 },
-      showCount: true,
+    ultraCompact: {
+      spacing: 1, // Espaciado mínimo
+      // Grid responsive: más columnas en cada dispositivo
+      grid: {
+        xs: 6,    // Móvil: 2 columnas
+        sm: 4,    // Tablet pequeña: 3 columnas
+        md: 3,    // Tablet: 4 columnas
+        lg: 2.4,  // Desktop: 5 columnas
+        xl: 2     // Desktop grande: 6 columnas
+      },
+      showCount: false,
       showActions: true,
-      cardVariant: "default",
+      cardVariant: "compact", // SongCard compacto
     },
     compact: {
       spacing: 1.5,
-      grid: { xs: 6, sm: 4, md: 3, lg: 2.4 },
+      grid: {
+        xs: 6,
+        sm: 4,
+        md: 3,
+        lg: 3,
+        xl: 2.4
+      },
       showCount: false,
-      showActions: false,
+      showActions: true,
       cardVariant: "compact",
     },
-    featured: {
+    default: {
       spacing: 2,
-      grid: { xs: 12, sm: 6, md: 6, lg: 4 },
-      showCount: true,
+      grid: {
+        xs: 12,
+        sm: 6,
+        md: 4,
+        lg: 3,
+        xl: 3
+      },
+      showCount: false,
       showActions: true,
-      cardVariant: "detailed",
+      cardVariant: "default",
     }
   };
 
-  const config = variants[variant] || variants.default;
-
-  const handleLike = (songId, liked) => {
-    console.log(`❤️ Canción ${liked ? "liked" : "unliked"}:`, songId);
+  const config = variants[variant] || variants.ultraCompact;
+  
+  // Determinar cuántas columnas mostrar según el breakpoint actual
+  const getGridColumns = () => {
+    if (isMobile) return { xs: config.grid.xs };
+    if (isTablet) return { xs: config.grid.sm };
+    return config.grid;
   };
-
-  const handleMoreActions = (song) => {
-    console.log("Más opciones:", song);
-  };
+  
+  const gridProps = getGridColumns();
+  
+  // Limitar canciones visibles
+  const visibleSongs = showAll ? songs : songs.slice(0, initialLimit);
+  const hasMoreSongs = songs.length > initialLimit && !showAll && showViewMore;
 
   const handleRemoveClick = (songId, e) => {
     e.stopPropagation();
@@ -80,53 +121,77 @@ const SongCarousel = ({
     }
   };
 
+  const handleViewMore = () => {
+    setShowAll(true);
+  };
+
+  // Skeleton loading - adaptado a las columnas responsive
+  if (loading) {
+    const skeletonCount = isMobile ? 4 : isTablet ? 6 : 8;
+    return (
+      <Box sx={{ mb: 6, ...sx }}>
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Skeleton variant="text" width={200} height={40} />
+            {subtitle && <Skeleton variant="text" width={150} height={24} />}
+          </Box>
+          <Skeleton variant="rounded" width={100} height={36} />
+        </Box>
+        <Grid container spacing={config.spacing}>
+          {[...Array(skeletonCount)].map((_, index) => (
+            <Grid item {...gridProps} key={index}>
+              <Skeleton 
+                variant="rounded" 
+                height={isMobile ? 180 : 200} 
+                sx={{ borderRadius: 2 }}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+    );
+  }
+
+  if (!songs.length) return null;
+
   return (
     <Fade in timeout={600}>
       <Box 
         sx={{ 
-          mb: 6, 
+          mb: 4, 
           ...sx,
           position: 'relative',
-          '&::before': variant === 'featured' ? {
-            content: '""',
-            position: 'absolute',
-            top: -20,
-            left: -20,
-            right: -20,
-            bottom: -20,
-            background: `radial-gradient(circle at 70% 30%, ${alpha(primaryColor, 0.03)} 0%, transparent 70%)`,
-            zIndex: 0,
-            pointerEvents: 'none',
-          } : {},
         }}
         onMouseEnter={() => setHoveredSection(true)}
         onMouseLeave={() => setHoveredSection(false)}
       >
-        {/* Header premium */}
+        {/* Header ultra compacto */}
         <Box sx={{ 
-          mb: 3, 
+          mb: 2.5, 
           display: 'flex', 
           justifyContent: 'space-between',
-          alignItems: 'flex-end',
+          alignItems: 'center',
           position: 'relative',
           zIndex: 2,
+          flexWrap: 'wrap',
+          gap: 1.5
         }}>
           <Box>
             {title && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <QueueMusicIcon 
                   sx={{ 
                     color: primaryColor, 
-                    fontSize: 28,
-                    filter: hoveredSection ? `drop-shadow(0 4px 8px ${alpha(primaryColor, 0.3)})` : 'none',
+                    fontSize: { xs: 22, sm: 24, md: 26 },
+                    filter: hoveredSection ? `drop-shadow(0 2px 4px ${alpha(primaryColor, 0.3)})` : 'none',
                     transition: 'filter 0.3s ease',
                   }} 
                 />
                 <Typography
-                  variant="h5"
+                  variant="h6"
                   sx={{
                     fontWeight: 700,
-                    fontSize: { xs: '1.3rem', sm: '1.5rem', md: '1.8rem' },
+                    fontSize: { xs: '1.1rem', sm: '1.2rem', md: '1.3rem' },
                     background: `linear-gradient(135deg, ${primaryColor}, ${alpha(primaryColor, 0.7)})`,
                     backgroundClip: 'text',
                     WebkitBackgroundClip: 'text',
@@ -141,12 +206,13 @@ const SongCarousel = ({
             
             {subtitle && (
               <Typography
-                variant="body2"
+                variant="caption"
                 sx={{
-                  color: alpha('#000', 0.5),
+                  color: alpha(theme.palette.text.primary, 0.5),
                   fontWeight: 400,
-                  fontSize: '0.9rem',
-                  ml: 5,
+                  fontSize: '0.7rem',
+                  ml: 4,
+                  display: { xs: 'none', sm: 'block' }
                 }}
               >
                 {subtitle}
@@ -154,22 +220,24 @@ const SongCarousel = ({
             )}
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* Contador de canciones con diseño premium */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+            {/* Contador de canciones ultra compacto */}
             <Chip
-              icon={<QueueMusicIcon sx={{ fontSize: 16 }} />}
-              label={`${songs.length} ${songs.length === 1 ? 'canción' : 'canciones'}`}
+              icon={<QueueMusicIcon sx={{ fontSize: 14 }} />}
+              label={`${songs.length}`}
               size="small"
               sx={{
                 bgcolor: alpha(primaryColor, 0.08),
                 color: primaryColor,
                 fontWeight: 600,
-                borderRadius: 2,
-                '& .MuiChip-icon': { color: primaryColor },
+                borderRadius: 1.5,
+                height: 28,
+                '& .MuiChip-icon': { fontSize: 14, color: primaryColor },
+                '& .MuiChip-label': { fontSize: '0.7rem', px: 1 }
               }}
             />
 
-            {/* Acciones rápidas (solo en variantes que lo permitan) */}
+            {/* Acciones rápidas */}
             {config.showActions && (
               <Fade in timeout={300}>
                 <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -181,16 +249,16 @@ const SongCarousel = ({
                         sx={{
                           bgcolor: alpha(primaryColor, 0.05),
                           color: primaryColor,
-                          width: 36,
-                          height: 36,
+                          width: 28,
+                          height: 28,
                           '&:hover': {
                             bgcolor: alpha(primaryColor, 0.15),
-                            transform: 'scale(1.1)',
+                            transform: 'scale(1.05)',
                           },
                           transition: 'all 0.2s ease',
                         }}
                       >
-                        <PlayArrowIcon fontSize="small" />
+                        <PlayArrowIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
                   )}
@@ -202,16 +270,16 @@ const SongCarousel = ({
                         sx={{
                           bgcolor: alpha(primaryColor, 0.05),
                           color: primaryColor,
-                          width: 36,
-                          height: 36,
+                          width: 28,
+                          height: 28,
                           '&:hover': {
                             bgcolor: alpha(primaryColor, 0.15),
-                            transform: 'scale(1.1) rotate(20deg)',
+                            transform: 'scale(1.05) rotate(20deg)',
                           },
                           transition: 'all 0.2s ease',
                         }}
                       >
-                        <ShuffleIcon fontSize="small" />
+                        <ShuffleIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
                   )}
@@ -221,100 +289,65 @@ const SongCarousel = ({
           </Box>
         </Box>
 
-        {/* Grid de canciones con animación de entrada */}
+        {/* Grid ultra compacto - TOTALMENTE RESPONSIVE */}
         <Grid 
           container 
           spacing={config.spacing}
           sx={{ position: 'relative', zIndex: 1 }}
         >
-          {songs.map((song, index) => (
+          {visibleSongs.map((song, index) => (
             <Grow 
               key={`${song.id}-${index}`}
               in={true}
-              timeout={300 + (index * 50)}
+              timeout={200 + (index * 20)}
             >
-              <Grid item {...config.grid}>
+              <Grid item {...gridProps}>
                 <Box sx={{ 
                   position: 'relative',
                   height: '100%',
-                  transition: 'transform 0.2s ease',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                  },
                   '&:hover .remove-button': {
                     opacity: 1,
-                    transform: 'translateY(0) scale(1)',
+                    transform: 'scale(1)',
                   }
                 }}>
-                  {/* Badge de posición (opcional) */}
-                  {config.showCount && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: -8,
-                        left: -8,
-                        zIndex: 15,
-                        width: 28,
-                        height: 28,
-                        borderRadius: '50%',
-                        background: `linear-gradient(135deg, ${primaryColor}, ${alpha(primaryColor, 0.7)})`,
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        boxShadow: `0 4px 8px ${alpha(primaryColor, 0.3)}`,
-                        border: '2px solid white',
-                      }}
-                    >
-                      {index + 1}
-                    </Box>
-                  )}
-
-                  {/* Botón eliminar premium */}
+                  {/* Botón eliminar - ultra compacto */}
                   {showRemoveButton && onRemoveSong && (
-                    <Tooltip title="Eliminar de la lista" arrow>
+                    <Tooltip title="Eliminar" arrow placement="top">
                       <IconButton
                         className="remove-button"
                         onClick={(e) => handleRemoveClick(song.id, e)}
                         size="small"
                         sx={{
                           position: 'absolute',
-                          top: 8,
-                          right: 8,
+                          top: 4,
+                          right: 4,
                           zIndex: 10,
-                          bgcolor: alpha('#fff', 0.98),
+                          bgcolor: alpha(theme.palette.background.paper, 0.95),
                           color: '#d32f2f',
-                          boxShadow: `0 4px 12px ${alpha('#000', 0.15)}`,
+                          boxShadow: `0 1px 4px ${alpha(theme.palette.common.black, 0.15)}`,
                           opacity: 0,
-                          transform: 'translateY(-4px) scale(0.9)',
+                          transform: 'scale(0.8)',
                           transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
                           backdropFilter: 'blur(4px)',
-                          border: `1px solid ${alpha('#d32f2f', 0.2)}`,
-                          width: 32,
-                          height: 32,
+                          width: 24,
+                          height: 24,
                           '&:hover': {
                             bgcolor: '#ffebee',
                             opacity: 1,
-                            transform: 'scale(1.1)',
-                            color: '#b71c1c',
-                            boxShadow: `0 6px 16px ${alpha('#d32f2f', 0.3)}`,
+                            transform: 'scale(1.05)',
                           }
                         }}
                       >
-                        <ClearIcon sx={{ fontSize: 18 }} />
+                        <ClearIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
                   )}
 
-                  {/* Card de canción */}
+                  {/* SongCard ultra compacto */}
                   <SongCard
                     song={song}
-                    variant={config.cardVariant}
+                    variant="compact" // Fuerza el modo compacto
                     showIndex={false}
-                    onLike={handleLike}
-                    onMoreActions={() => handleMoreActions(song)}
                   />
                 </Box>
               </Grid>
@@ -322,24 +355,44 @@ const SongCarousel = ({
           ))}
         </Grid>
 
-        {/* Mensaje cuando no hay canciones */}
+        {/* Botón "Ver más" compacto */}
+        {hasMoreSongs && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+            <Button
+              variant="text"
+              onClick={handleViewMore}
+              endIcon={<VisibilityIcon sx={{ fontSize: 16 }} />}
+              sx={{
+                borderRadius: 2,
+                px: 2,
+                py: 0.5,
+                color: primaryColor,
+                fontSize: '0.75rem',
+                '&:hover': {
+                  bgcolor: alpha(primaryColor, 0.05),
+                },
+              }}
+            >
+              Ver {songs.length - initialLimit} más
+            </Button>
+          </Box>
+        )}
+
+        {/* Mensaje empty state compacto */}
         {songs.length === 0 && (
           <Paper
             elevation={0}
             sx={{
-              p: 4,
+              p: 3,
               textAlign: 'center',
-              borderRadius: 3,
+              borderRadius: 2,
               bgcolor: alpha(primaryColor, 0.02),
               border: `1px solid ${alpha(primaryColor, 0.1)}`,
             }}
           >
-            <QueueMusicIcon sx={{ fontSize: 48, color: alpha('#000', 0.2), mb: 2 }} />
-            <Typography variant="h6" sx={{ color: alpha('#000', 0.5), mb: 1 }}>
-              No hay canciones en esta lista
-            </Typography>
-            <Typography variant="body2" sx={{ color: alpha('#000', 0.3) }}>
-              Las canciones aparecerán aquí cuando las añadas
+            <QueueMusicIcon sx={{ fontSize: 32, color: alpha(theme.palette.text.primary, 0.2), mb: 1 }} />
+            <Typography variant="body2" sx={{ color: alpha(theme.palette.text.primary, 0.5) }}>
+              No hay canciones
             </Typography>
           </Paper>
         )}
