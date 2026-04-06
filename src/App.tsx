@@ -56,6 +56,8 @@ const Login = lazy(() => import("./components/Loginn"));
 const Register = lazy(() => import("./components/Registrate"));
 const ProfilePage = lazy(() => import("./components/theme/musica/UserProfile"));
 const CategoriaProductos = lazy(() => import("./components/theme/musica/ventas/CategoriaProductos"));
+const UserDownloads = lazy(() => import("./songs/UserDownloads"));
+
 const ProtectedRoute = lazy(() => import("./components/theme/musica/ProtectedRoute"));
 const TechStyleHub = lazy(() => import("./components/TechStyleHub"));
 const MainPage = lazy(() => import("./components/theme/musica/MainPage"));
@@ -144,6 +146,7 @@ export default function App() {
                   <Suspense fallback={<LoadingSpinner />}>
                     <Routes>
                       <Route path="/" element={<LandingPage />} />
+                      <Route path="/my-downloads" element={<UserDownloads />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/SingInPage" element={<Register />} />
                       <Route path="/MainPage" element={<MainPage />} />

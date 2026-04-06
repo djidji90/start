@@ -1,5 +1,5 @@
 // ============================================
-// components/Navbar.jsx - CON MONEDERO
+// components/Navbar.jsx - CON MONEDERO Y MIS DESCARGAS
 // ============================================
 
 import React, { useState } from "react";
@@ -28,7 +28,8 @@ import HomeIcon from "@mui/icons-material/Home";
 import InfoIcon from "@mui/icons-material/Info";
 import SearchIcon from "@mui/icons-material/Search";
 import ExploreIcon from "@mui/icons-material/Explore";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet"; // 🆕 Monedero
+import DownloadIcon from "@mui/icons-material/Download";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 
 // Paleta naranja consistente
 const colors = {
@@ -38,7 +39,7 @@ const colors = {
 };
 
 const Navbar = () => {
-  // Usar el tema existente de MUI en lugar de crear uno nuevo
+  // Usar el tema existente de MUI
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   
@@ -47,13 +48,14 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Items de menú - AÑADIDO MONEDERO
+  // Items de menú - CON MONEDERO Y MIS DESCARGAS
   const menuItems = [
     { label: "Inicio", path: "/", icon: <HomeIcon /> },
     { label: "Nosotros", path: "/AboutUs", icon: <InfoIcon /> }, 
     { label: "Búsqueda", path: "/MainPage", icon: <SearchIcon /> },
     { label: "Descubre", path: "/TechStyleHub", icon: <ExploreIcon /> },
-    { label: "Monedero", path: "/wallet", icon: <AccountBalanceWalletIcon /> }, // 🆕 NUEVO
+    { label: "Mis Descargas", path: "/my-downloads", icon: <DownloadIcon /> },
+    { label: "Monedero", path: "/wallet", icon: <AccountBalanceWalletIcon /> },
   ];
 
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
@@ -101,7 +103,7 @@ const Navbar = () => {
             />
           </Box>
 
-          {/* 🆕 Ícono del monedero en escritorio (visible junto a los botones) */}
+          {/* Ícono del monedero en escritorio */}
           <IconButton
             onClick={() => navigate("/wallet")}
             sx={{
@@ -129,7 +131,7 @@ const Navbar = () => {
           </IconButton>
         </Box>
 
-        {/* Menú móvil con iconos - INCLUYE MONEDERO */}
+        {/* Menú móvil con iconos */}
         <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
@@ -168,7 +170,7 @@ const Navbar = () => {
           })}
         </Menu>
 
-        {/* Links desktop - INCLUYE MONEDERO */}
+        {/* Links desktop */}
         <NavButtonsContainer>
           {menuItems.map((item) => {
             const active = isActive(item.path);
@@ -192,7 +194,7 @@ const Navbar = () => {
 };
 
 // ============================================
-// ESTILOS (sin cambios)
+// ESTILOS
 // ============================================
 const StyledAppBar = styled(AppBar, { shouldForwardProp: (prop) => prop !== 'darkmode' })(({ darkmode }) => ({
   background: darkmode === "true" ? alpha("#1A1D29", 0.95) : alpha("#FFF", 0.98),
