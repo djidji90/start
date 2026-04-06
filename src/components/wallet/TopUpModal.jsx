@@ -2,9 +2,9 @@
 // ✅ Modal para recargar saldo con código
 // ✅ Listo para producción
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useWallet from '../../components/hook/useWallet';
-import '../../components/wallet/WalletBalance.css'; // Opcional: estilos
+import './WalletBalance.css';
 
 /**
  * Modal de recarga de saldo
@@ -21,13 +21,15 @@ const TopUpModal = ({ isOpen, onClose, onSuccess, presetAmount = null }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   
-  // Resetear estado al abrir modal
-  const handleOpen = () => {
-    setCode('');
-    setError(null);
-    setSuccess(null);
-    setIsSubmitting(false);
-  };
+  // ✅ Resetear estado al abrir modal
+  useEffect(() => {
+    if (isOpen) {
+      setCode('');
+      setError(null);
+      setSuccess(null);
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
   
   // Procesar canje de código
   const handleSubmit = async (e) => {
@@ -120,7 +122,7 @@ const TopUpModal = ({ isOpen, onClose, onSuccess, presetAmount = null }) => {
             <p className="topup-methods-title">¿No tienes código?</p>
             <p className="topup-methods-text">
               Puedes recargar en cualquiera de nuestras oficinas o puntos de venta autorizados.
-              Busca un agente DJI Music cerca de ti.
+              Busca un agente de Djidjimusic Music cerca de ti.
             </p>
           </div>
         </div>

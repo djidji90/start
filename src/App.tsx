@@ -1,3 +1,6 @@
+// src/App.js
+// ✅ CON TopUpProvider + Ruta del monedero /wallet + Ruta del agente /agent/dashboard
+
 import { useState, useEffect, lazy, Suspense } from "react";
 import "./styles.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -21,6 +24,16 @@ import { WifiOff, Wifi } from "@mui/icons-material";
 import DownloadsPage from "./components/context/DownloadsPage";
 import GenrePage from "./components/discovery/GenrePage";
 import { PlayerProvider } from "./components/PlayerContext";
+
+// 🆕 IMPORT DEL TOPUP PROVIDER
+import { TopUpProvider } from './components/hook/services/TopUpContext.jsx';
+
+// 🆕 IMPORT DE LA PÁGINA DEL MONEDERO
+import WalletPage from "./pages/WalletPage";
+
+// 🆕 IMPORT DEL DASHBOARD DE AGENTE
+import AgentDashboardPage from "./pages/agent/AgentDashboardPage";
+import AgentRoute from "./pages/agent/AgentRoute";
 
 import LandingPage from "./components/landing/LandingPage";
 
@@ -119,97 +132,114 @@ export default function App() {
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <ThemeProviderWrapper>
-            <PlayerProvider>
-              <BrowserRouter>
-                {/* Componentes principales */}
-                <CartDrawer cartItems={cartItems} isOpen={isCartOpen} toggleDrawer={toggleCart} />
-                <Navbar />
+          {/* ✅ NUEVO: TopUpProvider envuelve toda la app */}
+          <TopUpProvider>
+            <ThemeProviderWrapper>
+              <PlayerProvider>
+                <BrowserRouter>
+                  {/* Componentes principales */}
+                  <CartDrawer cartItems={cartItems} isOpen={isCartOpen} toggleDrawer={toggleCart} />
+                  <Navbar />
 
-                <Suspense fallback={<LoadingSpinner />}>
-                  <Routes>
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/SingInPage" element={<Register />} />
-                    <Route path="/MainPage" element={<MainPage />} />
-                    <Route path="/AboutUS" element={<AboutUs />} />
-                    <Route path="/categoria/:id" element={<CategoriaProductos />} />
-                    <Route path="/ProfilePage" element={<ProfilePage />} />
-                    <Route path="/Todo/*" element={<Todo />} />
-                    <Route path="/TechStyleHub" element={<TechStyleHub />} />
-                    <Route path="/downloads" element={<DownloadsPage />} />
-                    <Route path="/genre/:genre" element={<GenrePage />} />
-                    <Route path="/perfil/:username" element={<ArtistProfile />} />
-                    <Route
-                      path="/song/:songId"
-                      element={
-                        <ProtectedRoute>
-                          <MainPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                  </Routes>
-                </Suspense>
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <Routes>
+                      <Route path="/" element={<LandingPage />} />
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/SingInPage" element={<Register />} />
+                      <Route path="/MainPage" element={<MainPage />} />
+                      <Route path="/AboutUS" element={<AboutUs />} />
+                      <Route path="/categoria/:id" element={<CategoriaProductos />} />
+                      <Route path="/ProfilePage" element={<ProfilePage />} />
+                      <Route path="/Todo/*" element={<Todo />} />
+                      <Route path="/TechStyleHub" element={<TechStyleHub />} />
+                      <Route path="/downloads" element={<DownloadsPage />} />
+                      <Route path="/genre/:genre" element={<GenrePage />} />
+                      <Route path="/perfil/:username" element={<ArtistProfile />} />
+                      
+                      {/* 🆕 RUTA DEL MONEDERO */}
+                      <Route path="/wallet" element={<WalletPage />} />
+                      
+                      {/* 🆕 RUTA DEL DASHBOARD DE AGENTE (protegida) */}
+                      <Route
+                        path="/agent/dashboard"
+                        element={
+                          <AgentRoute>
+                            <AgentDashboardPage />
+                          </AgentRoute>
+                        }
+                      />
+                      
+                      <Route
+                        path="/song/:songId"
+                        element={
+                          <ProtectedRoute>
+                            <MainPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                    </Routes>
+                  </Suspense>
 
-                <Footer />
-                
-                {/* 🆕 MINI PLAYER GLOBAL - Aparece en TODAS las páginas */}
-                <GlobalMiniPlayer />
+                  <Footer />
+                  
+                  {/* 🆕 MINI PLAYER GLOBAL - Aparece en TODAS las páginas */}
+                  <GlobalMiniPlayer />
 
-                {/* 🔔 NOTIFICACIÓN DE ACTUALIZACIÓN */}
-                <UpdateNotification
-                  open={showUpdateNotification}
-                  onUpdate={updateApp}
-                  onDismiss={dismissUpdate}
-                />
+                  {/* 🔔 NOTIFICACIÓN DE ACTUALIZACIÓN */}
+                  <UpdateNotification
+                    open={showUpdateNotification}
+                    onUpdate={updateApp}
+                    onDismiss={dismissUpdate}
+                  />
 
-                {/* 🔔 NOTIFICACIONES DE RED */}
-                <Snackbar
-                  open={showOfflineNotification}
-                  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-                  autoHideDuration={5000}
-                  onClose={() => setShowOfflineNotification(false)}
-                  sx={{ zIndex: 1400, mt: 7 }}
-                >
-                  <Alert
-                    severity="warning"
-                    icon={<WifiOff />}
+                  {/* 🔔 NOTIFICACIONES DE RED */}
+                  <Snackbar
+                    open={showOfflineNotification}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                    autoHideDuration={5000}
                     onClose={() => setShowOfflineNotification(false)}
-                    sx={{
-                      bgcolor: theme.palette.warning.dark,
-                      color: '#fff',
-                      '& .MuiAlert-icon': { color: '#fff' },
-                      boxShadow: `0 4px 12px ${alpha('#000', 0.2)}`,
-                    }}
+                    sx={{ zIndex: 1400, mt: 7 }}
                   >
-                    📡 Sin conexión a internet. Algunas funciones estarán limitadas.
-                  </Alert>
-                </Snackbar>
+                    <Alert
+                      severity="warning"
+                      icon={<WifiOff />}
+                      onClose={() => setShowOfflineNotification(false)}
+                      sx={{
+                        bgcolor: theme.palette.warning.dark,
+                        color: '#fff',
+                        '& .MuiAlert-icon': { color: '#fff' },
+                        boxShadow: `0 4px 12px ${alpha('#000', 0.2)}`,
+                      }}
+                    >
+                      📡 Sin conexión a internet. Algunas funciones estarán limitadas.
+                    </Alert>
+                  </Snackbar>
 
-                <Snackbar
-                  open={showBackOnlineNotification}
-                  anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-                  autoHideDuration={4000}
-                  onClose={() => setShowBackOnlineNotification(false)}
-                  sx={{ zIndex: 1400, mt: 7 }}
-                >
-                  <Alert
-                    severity="success"
-                    icon={<Wifi />}
+                  <Snackbar
+                    open={showBackOnlineNotification}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                    autoHideDuration={4000}
                     onClose={() => setShowBackOnlineNotification(false)}
-                    sx={{
-                      bgcolor: theme.palette.success.main,
-                      color: '#fff',
-                      '& .MuiAlert-icon': { color: '#fff' },
-                      boxShadow: `0 4px 12px ${alpha('#000', 0.2)}`,
-                    }}
+                    sx={{ zIndex: 1400, mt: 7 }}
                   >
-                    🌐 Conexión restablecida. Todo funciona correctamente.
-                  </Alert>
-                </Snackbar>
-              </BrowserRouter>
-            </PlayerProvider>
-          </ThemeProviderWrapper>
+                    <Alert
+                      severity="success"
+                      icon={<Wifi />}
+                      onClose={() => setShowBackOnlineNotification(false)}
+                      sx={{
+                        bgcolor: theme.palette.success.main,
+                        color: '#fff',
+                        '& .MuiAlert-icon': { color: '#fff' },
+                        boxShadow: `0 4px 12px ${alpha('#000', 0.2)}`,
+                      }}
+                    >
+                      🌐 Conexión restablecida. Todo funciona correctamente.
+                    </Alert>
+                  </Snackbar>
+                </BrowserRouter>
+              </PlayerProvider>
+            </ThemeProviderWrapper>
+          </TopUpProvider>
         </AuthProvider>
       </QueryClientProvider>
     </HelmetProvider>

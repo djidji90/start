@@ -1,11 +1,7 @@
 // src/components/songs/SongCard.jsx
-// VERSIÓN FINAL - CON WALLET INTEGRADO + REPEAT BUTTON
-// ✅ Compras con wallet integradas
-// ✅ Manejo de error 402 (saldo insuficiente)
-// ✅ Modal de recarga automático
-// ✅ Botón de repetir canción/playlist
-// ✅ Compatible con useDownload existente
-// ============================================
+// VERSIÓN CORREGIDA - SIN MODAL LOCAL
+// ✅ Usa TopUpContext global para recargas
+// ✅ Elimina parpadeo y conflictos
 
 import React, { useState, useCallback, useEffect } from "react";
 
@@ -34,7 +30,7 @@ import { useSongComments } from "../components/hook/services/useSongComments";
 // ========== IMPORTS DEL WALLET ==========
 import useWallet from "../components/hook/useWallet";
 import { usePurchase } from "../components/hook/usePurchase";
-import TopUpModal from "../components/wallet/TopUpModal";
+// ❌ ELIMINADO: import TopUpModal from "../components/wallet/TopUpModal";
 
 // ============================================ //
 // SISTEMA DE DISEÑO PROFESIONAL
@@ -75,7 +71,8 @@ const SongCard = ({
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [downloadInfoDialog, setDownloadInfoDialog] = useState(false);
-  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  
+  // ❌ ELIMINADO: const [showTopUpModal, setShowTopUpModal] = useState(false);
   
   // Optimistic update para contador de descargas
   const [optimisticDownloads, setOptimisticDownloads] = useState(null);
@@ -108,12 +105,8 @@ const SongCard = ({
     clearPurchaseError
   } = usePurchase(song);
 
-  // Mostrar modal de recarga cuando hay error de saldo
-  useEffect(() => {
-    if (purchaseError?.type === 'insufficient_funds') {
-      setShowTopUpModal(true);
-    }
-  }, [purchaseError]);
+  // ❌ ELIMINADO: useEffect que abría el modal local
+  // El modal ahora es global, manejado por TopUpContext
 
   // ============================================ //
   // CONFIGURACIÓN DE VARIANTES
@@ -250,7 +243,7 @@ const SongCard = ({
       setSnackbar({ open: true, message: '✅ Canción descargada', severity: 'success' });
     } catch (error) {
       setOptimisticDownloads(realDownloads);
-      // El error ya es manejado por usePurchase (modal de recarga si es 402)
+      // El error ya es manejado por usePurchase (muestra modal global si es 402)
       if (error.response?.status !== 402) {
         setSnackbar({ open: true, message: `❌ ${error.message}`, severity: 'error' });
       }
@@ -298,15 +291,7 @@ const SongCard = ({
     handlePlayPause(e);
   };
 
-  const handleTopUpSuccess = useCallback(async () => {
-    setShowTopUpModal(false);
-    clearPurchaseError();
-    await refreshBalance();
-    // Reintentar descarga después de recargar
-    setTimeout(() => {
-      walletHandleDownload();
-    }, 500);
-  }, [refreshBalance, clearPurchaseError, walletHandleDownload]);
+  // ❌ ELIMINADO: handleTopUpSuccess (ahora está en TopUpContext)
 
   // ============================================ //
   // RENDER MENÚ
@@ -906,16 +891,8 @@ const SongCard = ({
         </DialogContent>
       </Dialog>
 
-      {/* MODAL DE RECARGA - Para error 402 (saldo insuficiente) */}
-      <TopUpModal
-        isOpen={showTopUpModal}
-        onClose={() => {
-          setShowTopUpModal(false);
-          clearPurchaseError();
-        }}
-        onSuccess={handleTopUpSuccess}
-        presetAmount={topUpInfo?.required}
-      />
+      {/* ❌ ELIMINADO: MODAL DE RECARGA LOCAL */}
+      {/* Ahora es global, manejado por TopUpContext */}
 
       {/* Snackbar para notificaciones */}
       <Snackbar

@@ -1,7 +1,8 @@
 // src/components/hook/useWallet.js
 // ✅ Hook para manejar estado del wallet
-// ✅ Integra con useAuth
-// ✅ Listo para producción
+// ✅ Optimizado - Sin refresco automático agresivo
+// ✅ Con cache y deduplicación
+// ✅ Ready for production
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { walletService } from './services/wallet';
@@ -31,9 +32,9 @@ export const useWallet = () => {
     total: 0
   });
   
-  // Refs para control de refresco
-  const lastFetchRef = useRef(0);
-  const intervalRef = useRef(null);
+  // Refs para control
+  const isMountedRef = useRef(true);
+  const initialLoadDoneRef = useRef(false);
   
   // ============================================
   // FUNCIONES PRINCIPALES
@@ -46,32 +47,29 @@ export const useWallet = () => {
   const fetchBalance = useCallback(async (force = false) => {
     if (!isAuthenticated) return;
     
-    // Cache de 60 segundos
-    const now = Date.now();
-    if (!force && (now - lastFetchRef.current) < 60000) {
-      return;
-    }
-    
     setIsLoading(prev => ({ ...prev, balance: true }));
     setError(null);
     
     try {
-      const data = await walletService.getBalance();
+      const data = await walletService.getBalance(force);
       
-      // El backend puede devolver formato anidado o plano
-      setBalance({
-        available: data.available?.value ?? data.available ?? 0,
-        pending: data.pending?.value ?? data.pending ?? 0,
-        total: data.total?.value ?? data.total ?? 0,
-        currency: data.currency || 'XAF'
-      });
-      
-      lastFetchRef.current = now;
+      if (isMountedRef.current) {
+        setBalance({
+          available: data.available?.value ?? data.available ?? 0,
+          pending: data.pending?.value ?? data.pending ?? 0,
+          total: data.total?.value ?? data.total ?? 0,
+          currency: data.currency || 'XAF'
+        });
+      }
     } catch (err) {
       console.error('Error fetching balance:', err);
-      setError(err.message);
+      if (isMountedRef.current && err.status !== 429) {
+        setError(err.message);
+      }
     } finally {
-      setIsLoading(prev => ({ ...prev, balance: false }));
+      if (isMountedRef.current) {
+        setIsLoading(prev => ({ ...prev, balance: false }));
+      }
     }
   }, [isAuthenticated]);
   
@@ -89,17 +87,23 @@ export const useWallet = () => {
     try {
       const data = await walletService.getTransactions({ page, type });
       
-      setTransactions(data.results || []);
-      setPagination({
-        page: data.page || page,
-        totalPages: data.total_pages || 1,
-        total: data.total || 0
-      });
+      if (isMountedRef.current) {
+        setTransactions(data.results || []);
+        setPagination({
+          page: data.page || page,
+          totalPages: data.total_pages || 1,
+          total: data.total || 0
+        });
+      }
     } catch (err) {
       console.error('Error fetching transactions:', err);
-      setError(err.message);
+      if (isMountedRef.current && err.status !== 429) {
+        setError(err.message);
+      }
     } finally {
-      setIsLoading(prev => ({ ...prev, transactions: false }));
+      if (isMountedRef.current) {
+        setIsLoading(prev => ({ ...prev, transactions: false }));
+      }
     }
   }, [isAuthenticated]);
   
@@ -120,13 +124,23 @@ export const useWallet = () => {
       return result;
     } catch (err) {
       console.error('Error redeeming code:', err);
-      setError(err.message);
+      
+      // Manejo específico para rate limit
+      if (err.status === 429) {
+        setError({
+          message: err.message,
+          retryAfter: err.retryAfter,
+          type: 'rate_limited'
+        });
+      } else {
+        setError(err.message);
+      }
       throw err;
     }
   }, [isAuthenticated, fetchBalance]);
   
   /**
-   * Refrescar todos los datos
+   * Refrescar todos los datos (solo cuando es necesario)
    */
   const refresh = useCallback(async () => {
     await Promise.all([
@@ -143,31 +157,23 @@ export const useWallet = () => {
   }, []);
   
   // ============================================
-  // EFECTOS
+  // EFECTOS - SIN REFRESCO AUTOMÁTICO
   // ============================================
   
-  // Cargar balance al autenticarse
+  // Cargar datos SOLO al montar y cuando cambia autenticación
   useEffect(() => {
-    if (isAuthenticated) {
+    isMountedRef.current = true;
+    
+    if (isAuthenticated && !initialLoadDoneRef.current) {
+      initialLoadDoneRef.current = true;
       fetchBalance();
       fetchTransactions();
     }
-  }, [isAuthenticated, fetchBalance, fetchTransactions]);
-  
-  // Refresco automático cada 60 segundos (solo si autenticado)
-  useEffect(() => {
-    if (isAuthenticated) {
-      intervalRef.current = setInterval(() => {
-        fetchBalance();
-      }, 60000);
-    }
     
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      isMountedRef.current = false;
     };
-  }, [isAuthenticated, fetchBalance]);
+  }, [isAuthenticated, fetchBalance, fetchTransactions]);
   
   // ============================================
   // VALORES FORMATEADOS

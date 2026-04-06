@@ -1,56 +1,107 @@
 // src/components/hook/usePurchase.js
-// ✅ Hook que orquesta compra + descarga
-// ✅ Integra walletService + useDownload existente
-// ✅ Listo para producción
+// ✅ Con manejo de error 429 (contador regresivo)
+// ✅ Con verificación de saldo antes de comprar
+// ✅ Con integración con TopUpContext
 
-import { useState, useCallback } from 'react';
-import { walletService } from './services/wallet';
-import useDownload from '../../components/hook/services/useDownload'; // Tu hook existente
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { walletService } from '../../components/hook/services/wallet';
+import useDownload from '../../components/hook/services/useDownload';
+import { useTopUp } from '../../components/hook/services/TopUpContext';
+import { useWallet } from '../../components/hook/useWallet';
 import { formatCurrency } from '../../utils/formatters';
-import { generatePurchaseKey } from '../../utils/idempotency';
 
-/**
- * Hook para manejar compra y descarga de canciones
- * @param {Object} song - Objeto de la canción
- * @param {number} song.id - ID de la canción
- * @param {string} song.title - Título de la canción
- * @param {string} song.artist - Artista
- * @param {number} song.price - Precio de la canción
- */
 export const usePurchase = (song) => {
   const { id: songId, title: songTitle, artist: artistName, price } = song;
   
-  // Estados
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseError, setPurchaseError] = useState(null);
+  const [rateLimitRemaining, setRateLimitRemaining] = useState(null);
   
-  // Hook de descarga existente
+  const purchaseLock = useRef(false);
+  const rateLimitTimerRef = useRef(null);
+  
   const downloadHook = useDownload();
-  const { 
-    downloadSong, 
-    isDownloaded, 
-    getDownloadInfo,
-    downloading
-  } = downloadHook;
+  const { showTopUp } = useTopUp();
+  const { balance, refresh: refreshBalance } = useWallet();
   
-  // ============================================
-  // FUNCIONES PRINCIPALES
-  // ============================================
+  // Limpiar timer al desmontar
+  useEffect(() => {
+    return () => {
+      if (rateLimitTimerRef.current) {
+        clearTimeout(rateLimitTimerRef.current);
+      }
+    };
+  }, []);
+  
+  // ✅ Verificar saldo antes de comprar
+  const hasSufficientBalance = useCallback(() => {
+    const available = balance?.available || 0;
+    const songPrice = price || 0;
+    
+    if (available < songPrice) {
+      setPurchaseError({
+        type: 'insufficient_funds',
+        message: `Saldo insuficiente. Dispones de ${formatCurrency(available)} y necesitas ${formatCurrency(songPrice)}.`,
+        required: songPrice,
+        current: available,
+        currency: 'XAF',
+        songTitle: songTitle
+      });
+      
+      // Preguntar si quiere recargar
+      const shouldRecharge = window.confirm(
+        `⚠️ Saldo insuficiente\n\n` +
+        `Disponible: ${formatCurrency(available)}\n` +
+        `Necesitas: ${formatCurrency(songPrice)}\n\n` +
+        `¿Quieres recargar saldo ahora?`
+      );
+      
+      if (shouldRecharge) {
+        showTopUp(songPrice);
+      }
+      
+      return false;
+    }
+    return true;
+  }, [balance, price, songTitle, showTopUp]);
   
   /**
-   * Compra y descarga la canción (flujo completo)
-   * @returns {Promise<Object>} Resultado de la operación
+   * Compra y descarga la canción
    */
   const purchaseAndDownload = useCallback(async () => {
+    // ✅ Verificar saldo ANTES de intentar comprar
+    if (!hasSufficientBalance()) {
+      return { success: false, message: 'Saldo insuficiente' };
+    }
+    
+    // Evitar ejecución simultánea
+    if (purchaseLock.current) {
+      return { success: false, message: 'Compra en progreso' };
+    }
+    
+    // Si hay rate limit activo, no intentar
+    if (rateLimitRemaining > 0) {
+      setPurchaseError({
+        type: 'rate_limited',
+        message: `⏳ Límite de compras alcanzado. Espera ${rateLimitRemaining} segundos.`,
+        retryAfter: rateLimitRemaining
+      });
+      return { success: false, message: 'Rate limit activo' };
+    }
+    
+    purchaseLock.current = true;
     setIsPurchasing(true);
     setPurchaseError(null);
     
     try {
-      // 1. Intentar comprar (el backend verifica saldo y descuenta)
+      // 1. Comprar canción
       const purchaseResult = await walletService.purchaseSong(songId, price);
       
-      // 2. Si compra exitosa, iniciar descarga
-      const downloadResult = await downloadSong(songId, songTitle, artistName);
+      // 2. Descargar canción
+      const downloadResult = await downloadHook.downloadSong(songId, songTitle, artistName);
+      
+      // 3. Refrescar balance
+      await refreshBalance();
       
       return {
         success: true,
@@ -61,42 +112,80 @@ export const usePurchase = (song) => {
       };
       
     } catch (error) {
-      // Manejo específico de errores
-      const status = error.response?.status;
+      const status = error.response?.status || error.status;
       const data = error.response?.data;
       
-      if (status === 402) {
-        // Saldo insuficiente
-        setPurchaseError({
-          type: 'insufficient_funds',
-          message: data?.message || 'Saldo insuficiente para descargar esta canción',
-          required: data?.required || price,
-          current: data?.current_balance || 0,
-          currency: data?.currency || 'XAF',
-          song: {
-            id: songId,
-            title: songTitle,
-            price: price
-          }
-        });
-      } else if (status === 409) {
-        // Conflicto (posible duplicado)
-        setPurchaseError({
-          type: 'duplicate',
-          message: 'Esta transacción ya fue procesada',
-        });
-      } else if (status === 429) {
-        // Rate limit
+      // ============================================
+      // ERROR 429 - RATE LIMIT (con contador regresivo)
+      // ============================================
+      if (status === 429) {
+        const retryAfter = error.retryAfter || 
+                          error.response?.headers?.['retry-after'] || 
+                          data?.retry_after || 
+                          60;
+        
+        setRateLimitRemaining(retryAfter);
         setPurchaseError({
           type: 'rate_limited',
-          message: data?.message || 'Demasiadas solicitudes. Espera un momento.',
-          retryAfter: data?.retry_after || 60
+          message: `⏳ Demasiadas compras. Espera ${retryAfter} segundos antes de intentar nuevamente.`,
+          retryAfter: retryAfter
         });
-      } else {
-        // Error genérico
+        
+        // Contador regresivo visual
+        if (rateLimitTimerRef.current) clearTimeout(rateLimitTimerRef.current);
+        
+        const updateTimer = () => {
+          setRateLimitRemaining(prev => {
+            const newValue = prev - 1;
+            if (newValue <= 0) {
+              setPurchaseError(null);
+              return 0;
+            }
+            rateLimitTimerRef.current = setTimeout(updateTimer, 1000);
+            return newValue;
+          });
+        };
+        rateLimitTimerRef.current = setTimeout(updateTimer, 1000);
+      }
+      
+      // ============================================
+      // ERROR 402 - SALDO INSUFICIENTE (backend)
+      // ============================================
+      else if (status === 402) {
+        const required = data?.required || price;
+        const current = data?.current_balance || 0;
+        
+        setPurchaseError({
+          type: 'insufficient_funds',
+          message: data?.message || `Saldo insuficiente. Necesitas ${formatCurrency(required)}.`,
+          required: required,
+          current: current,
+          currency: data?.currency || 'XAF',
+          songTitle: songTitle
+        });
+        
+        // ✅ Abrir modal de recarga global
+        showTopUp(required);
+      }
+      
+      // ============================================
+      // ERROR 409 - DUPLICADO (idempotencia)
+      // ============================================
+      else if (status === 409) {
+        setPurchaseError({
+          type: 'duplicate',
+          message: 'Esta transacción ya fue procesada. No se cobrará nuevamente.',
+        });
+      }
+      
+      // ============================================
+      // ERRORES GENÉRICOS
+      // ============================================
+      else {
         setPurchaseError({
           type: 'purchase_failed',
-          message: error.message || 'Error al procesar la compra'
+          message: error.message || data?.message || 'Error al procesar la compra. Intenta nuevamente.',
+          status: status
         });
       }
       
@@ -104,17 +193,16 @@ export const usePurchase = (song) => {
       
     } finally {
       setIsPurchasing(false);
+      purchaseLock.current = false;
     }
-  }, [songId, songTitle, artistName, price, downloadSong]);
+  }, [songId, songTitle, artistName, price, downloadHook, rateLimitRemaining, showTopUp, refreshBalance, hasSufficientBalance]);
   
   /**
-   * Maneja la acción de descarga (con verificación de compra previa)
-   * @returns {Promise<Object>}
+   * Maneja la acción de descarga
    */
   const handleDownload = useCallback(async () => {
-    // Si ya está descargada, no necesita comprar
-    if (isDownloaded(songId)) {
-      const info = getDownloadInfo(songId);
+    if (downloadHook.isDownloaded(songId)) {
+      const info = downloadHook.getDownloadInfo(songId);
       return {
         alreadyDownloaded: true,
         info,
@@ -122,62 +210,63 @@ export const usePurchase = (song) => {
       };
     }
     
-    // Si no está descargada, comprar y descargar
     return purchaseAndDownload();
-  }, [songId, isDownloaded, getDownloadInfo, purchaseAndDownload]);
+  }, [songId, downloadHook, purchaseAndDownload]);
   
   /**
-   * Limpiar error de compra
+   * Limpiar error
    */
   const clearPurchaseError = useCallback(() => {
     setPurchaseError(null);
+    if (rateLimitTimerRef.current) {
+      clearTimeout(rateLimitTimerRef.current);
+    }
+    setRateLimitRemaining(null);
   }, []);
   
-  // ============================================
-  // VALORES DERIVADOS
-  // ============================================
+  const isAlreadyDownloaded = downloadHook.isDownloaded(songId);
+  const downloadInfo = downloadHook.getDownloadInfo(songId);
+  const isCurrentlyDownloading = downloadHook.downloading?.[songId] || false;
   
-  const isAlreadyDownloaded = isDownloaded(songId);
-  const downloadInfo = getDownloadInfo(songId);
-  const isCurrentlyDownloading = downloading[songId] || false;
-  
-  // Textos para UI
-  const buttonText = useCallback(() => {
+  const buttonText = (() => {
     if (isPurchasing) return 'Procesando...';
     if (isCurrentlyDownloading) return 'Descargando...';
     if (isAlreadyDownloaded) return 'Reproducir offline';
+    if (rateLimitRemaining > 0) return `Esperar ${rateLimitRemaining}s`;
     return `Descargar por ${formatCurrency(price)}`;
-  }, [isPurchasing, isCurrentlyDownloading, isAlreadyDownloaded, price]);
+  })();
   
-  // ============================================
-  // API PÚBLICA
-  // ============================================
+  const isButtonDisabled = isPurchasing || isCurrentlyDownloading || rateLimitRemaining > 0;
   
   return {
-    // Estado
     isPurchasing,
     purchaseError,
     isAlreadyDownloaded,
     isCurrentlyDownloading,
     downloadInfo,
+    rateLimitRemaining,
+    isButtonDisabled,
     
-    // Acciones
     purchaseAndDownload,
     handleDownload,
     clearPurchaseError,
     
-    // Utilidades UI
-    buttonText: buttonText(),
+    buttonText,
     
-    // Para modales de recarga
     showTopUpRequired: purchaseError?.type === 'insufficient_funds',
     topUpInfo: purchaseError?.type === 'insufficient_funds' ? {
       required: purchaseError.required,
       current: purchaseError.current,
       currency: purchaseError.currency,
-      songTitle: purchaseError.song?.title
+      songTitle: purchaseError.songTitle
+    } : null,
+    
+    showRateLimit: purchaseError?.type === 'rate_limited',
+    rateLimitInfo: purchaseError?.type === 'rate_limited' ? {
+      retryAfter: purchaseError.retryAfter,
+      message: purchaseError.message
     } : null
   };
 };
 
-export default usePurchase;
+export default usePurchase; 

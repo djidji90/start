@@ -1,21 +1,90 @@
 // src/components/hook/services/wallet.js
-// ✅ Servicio para llamadas a la API del wallet
-// ✅ Listo para producción
+// ✅ Servicio optimizado para llamadas a la API del wallet
+// ✅ Con cache, deduplicación de peticiones y manejo de errores
+// ✅ Ready for production
 
-import api from './apia';
+import api from "/src/components/hook/services/apia.js";
 
-/**
- * Servicio de wallet - Comunicación con el backend
- * Todos los métodos devuelven Promesas
- */
+// ============================================
+// CACHE CONFIGURATION
+// ============================================
+
+const cache = new Map();
+const pendingRequests = new Map();
+
+const CACHE_TTL = {
+  balance: 30000,      // 30 segundos
+  transactions: 15000, // 15 segundos
+  earnings: 60000,     // 60 segundos
+  holds: 15000,        // 15 segundos
+};
+
+const getCached = (key, ttl) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.data;
+  }
+  return null;
+};
+
+const setCached = (key, data, ttl) => {
+  cache.set(key, {
+    data,
+    expiresAt: Date.now() + ttl
+  });
+};
+
+const clearCache = (pattern) => {
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) {
+      cache.delete(key);
+    }
+  }
+};
+
+const dedupe = async (key, fn, ttl) => {
+  // Si hay una petición en curso, reutilizarla
+  if (pendingRequests.has(key)) {
+    return pendingRequests.get(key);
+  }
+  
+  // Verificar cache
+  const cached = getCached(key, ttl);
+  if (cached) {
+    return cached;
+  }
+  
+  // Hacer la petición
+  const promise = fn().then(result => {
+    setCached(key, result, ttl);
+    return result;
+  }).finally(() => {
+    pendingRequests.delete(key);
+  });
+  
+  pendingRequests.set(key, promise);
+  return promise;
+};
+
+// ============================================
+// WALLET SERVICE
+// ============================================
+
 export const walletService = {
   /**
    * Obtener balance del usuario autenticado
+   * @param {boolean} forceRefresh - Forzar actualización
    * @returns {Promise<Object>} Datos de balance
    */
-  async getBalance() {
-    const response = await api.get('/wallet/balance/');
-    return response.data;
+  async getBalance(forceRefresh = false) {
+    if (forceRefresh) {
+      cache.delete('balance');
+    }
+    
+    return dedupe('balance', async () => {
+      const response = await api.get('/wallet/balance/');
+      return response.data;
+    }, CACHE_TTL.balance);
   },
   
   /**
@@ -25,21 +94,30 @@ export const walletService = {
    */
   async getTransactions(params = {}) {
     const { page = 1, pageSize = 20, type = null } = params;
-    let url = `/wallet/transactions/?page=${page}&page_size=${pageSize}`;
-    if (type) url += `&transaction_type=${type}`;
-    const response = await api.get(url);
-    return response.data;
+    const cacheKey = `transactions_${page}_${pageSize}_${type || 'all'}`;
+    
+    return dedupe(cacheKey, async () => {
+      let url = `/wallet/transactions/?page=${page}&page_size=${pageSize}`;
+      if (type) url += `&transaction_type=${type}`;
+      const response = await api.get(url);
+      return response.data;
+    }, CACHE_TTL.transactions);
   },
   
   /**
    * Comprar una canción
    * @param {number|string} songId - ID de la canción
-   * @param {number|null} price - Precio (opcional, se obtiene del backend)
+   * @param {number|null} price - Precio (opcional)
    * @returns {Promise<Object>} Resultado de la compra
    */
   async purchaseSong(songId, price = null) {
     const payload = price ? { price } : {};
     const response = await api.post(`/wallet/songs/${songId}/purchase/`, payload);
+    
+    // Invalidar cache relacionado
+    clearCache('balance');
+    clearCache('transactions');
+    
     return response.data;
   },
   
@@ -49,7 +127,12 @@ export const walletService = {
    * @returns {Promise<Object>} Resultado del canje
    */
   async redeemCode(code) {
-    const response = await api.post('/api/wallet/redeem/', { code });
+    const response = await api.post('/wallet/redeem/', { code });
+    
+    // Invalidar cache relacionado
+    clearCache('balance');
+    clearCache('transactions');
+    
     return response.data;
   },
   
@@ -58,8 +141,10 @@ export const walletService = {
    * @returns {Promise<Object>} Datos de ganancias
    */
   async getArtistEarnings() {
-    const response = await api.get('/wallet/artist/earnings/');
-    return response.data;
+    return dedupe('earnings', async () => {
+      const response = await api.get('/wallet/artist/earnings/');
+      return response.data;
+    }, CACHE_TTL.earnings);
   },
   
   /**
@@ -69,8 +154,12 @@ export const walletService = {
    */
   async getArtistHolds(params = {}) {
     const { page = 1, pageSize = 20 } = params;
-    const response = await api.get(`/wallet/artist/holds/?page=${page}&page_size=${pageSize}`);
-    return response.data;
+    const cacheKey = `holds_${page}_${pageSize}`;
+    
+    return dedupe(cacheKey, async () => {
+      const response = await api.get(`/wallet/artist/holds/?page=${page}&page_size=${pageSize}`);
+      return response.data;
+    }, CACHE_TTL.holds);
   },
   
   /**
@@ -80,6 +169,17 @@ export const walletService = {
    */
   async releaseHold(holdId) {
     const response = await api.post('/wallet/admin/holds/release/', { hold_id: holdId });
+    clearCache('holds');
     return response.data;
+  },
+  
+  /**
+   * Limpiar toda la cache manualmente
+   */
+  clearCache() {
+    cache.clear();
+    pendingRequests.clear();
   }
 };
+
+export default walletService;

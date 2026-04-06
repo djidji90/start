@@ -1,4 +1,6 @@
-// src/components/hook/services/apia.js - INTERCEPTOR CORREGIDO
+// src/components/hook/services/apia.js
+// ✅ INTERCEPTOR CORREGIDO - Sin eventos que causan bucles
+// ✅ Solo mostrar logs, no disparar eventos
 
 import axios from "axios";
 import { generateIdempotencyKey, markKeyAsUsed } from "../../../utils/idempotency";
@@ -40,7 +42,7 @@ const getRefreshToken = () => {
   return localStorage.getItem("refreshToken");
 };
 
-// Función para renovar token (necesita importación dinámica para evitar circular)
+// Función para renovar token
 const refreshToken = async () => {
   const refresh = getRefreshToken();
   if (!refresh) throw new Error('No refresh token available');
@@ -79,7 +81,7 @@ api.interceptors.request.use(
 );
 
 // ============================================
-// INTERCEPTOR DE RESPONSE - CON REFRESH TOKEN
+// INTERCEPTOR DE RESPONSE - CORREGIDO
 // ============================================
 api.interceptors.response.use(
   (response) => {
@@ -96,7 +98,6 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       
       if (isRefreshing) {
-        // Si ya hay una renovación en curso, esperar
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(token => {
@@ -114,6 +115,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
+        // ✅ Solo dispatch para logout, no para reintentos
         window.dispatchEvent(new CustomEvent('auth:expired'));
         return Promise.reject(refreshError);
       } finally {
@@ -121,18 +123,24 @@ api.interceptors.response.use(
       }
     }
     
-    // Manejo de otros errores
-    if (error.response?.status === 402) {
-      window.dispatchEvent(new CustomEvent('wallet:insufficient_funds', {
-        detail: error.response?.data
-      }));
-    }
-    
+    // ============================================
+    // ✅ MANEJO DE ERROR 429 - SIN EVENTOS
+    // ============================================
     if (error.response?.status === 429) {
       const retryAfter = error.response?.headers?.['retry-after'] || 60;
-      window.dispatchEvent(new CustomEvent('wallet:rate_limited', {
-        detail: { retryAfter }
-      }));
+      // ✅ Solo loguear silenciosamente - NO disparar eventos
+      console.warn(`[Rate Limit] Demasiadas peticiones. Espera ${retryAfter} segundos.`);
+      
+      // Mejorar mensaje de error
+      error.message = `Has realizado demasiadas peticiones. Espera ${retryAfter} segundos.`;
+      error.retryAfter = parseInt(retryAfter, 10);
+    }
+    
+    // Manejo de saldo insuficiente
+    if (error.response?.status === 402) {
+      // ✅ Solo loguear, no disparar eventos que causan bucles
+      console.warn('[Wallet] Saldo insuficiente');
+      error.message = error.response?.data?.message || 'Saldo insuficiente';
     }
     
     const errorMessage =

@@ -3,6 +3,7 @@
 // ✅ Playlist automática al hacer click en cualquier canción
 // ✅ Siguiente/Anterior funcionan correctamente
 // ✅ UI Premium con SongCarousel mejorado
+// ✅ Dialog de MUI en lugar de window.confirm
 // ============================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -23,7 +24,12 @@ import {
   Tooltip,
   LinearProgress,
   Slider,
-  Badge
+  Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
 } from "@mui/material";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
@@ -265,6 +271,13 @@ const MainPage = () => {
   const [showAddNotification, setShowAddNotification] = useState(false);
   const [showLimitNotification, setShowLimitNotification] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
+  
+  // Dialog de confirmación
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    open: false, 
+    songId: null, 
+    title: '' 
+  });
 
   const searchBarRef = useRef(null);
   const resultsRef = useRef(null);
@@ -400,7 +413,7 @@ const MainPage = () => {
   };
 
   // ============================================
-  // HANDLERS DE SELECCIÓN
+  // HANDLERS DE SELECCIÓN Y ELIMINACIÓN CON DIALOG
   // ============================================
 
   const handleSelectResult = (item, type) => {
@@ -449,19 +462,29 @@ const MainPage = () => {
     }, 100);
   };
 
-  const handleRemoveSong = (songId) => {
-    setSelectedSongs(prev => prev.filter(song => String(song.id) !== String(songId)));
+  const handleRemoveSong = (songId, songTitle) => {
+    setConfirmDialog({ open: true, songId, title: songTitle });
+  };
+
+  const handleConfirmRemoveSong = () => {
+    setSelectedSongs(prev => prev.filter(song => String(song.id) !== String(confirmDialog.songId)));
+    setConfirmDialog({ open: false, songId: null, title: '' });
+    setSnackbar({ open: true, message: `🗑️ Canción eliminada de Tus Beats` });
   };
 
   const handleClearAllSongs = () => {
-    if (selectedSongs.length > 0 && window.confirm(`Eliminar todas las ${selectedSongs.length} canciones?`)) {
-      setSelectedSongs([]);
-    }
+    if (selectedSongs.length === 0) return;
+    setConfirmDialog({ open: true, songId: 'ALL', title: 'Todas las canciones' });
+  };
+
+  const handleConfirmClearAll = () => {
+    setSelectedSongs([]);
+    setConfirmDialog({ open: false, songId: null, title: '' });
+    setSnackbar({ open: true, message: `🗑️ Se eliminaron todas las ${selectedSongs.length} canciones` });
   };
 
   const handleMoreOptions = (song) => {
-    const action = window.confirm(`¿Qué deseas hacer con "${song.title}"?\n\n• Ver detalles\n• Compartir`);
-    if (action) navigate(`/song/${song.id}`);
+    navigate(`/song/${song.id}`);
   };
 
   const handleLike = (song) => {
@@ -506,7 +529,7 @@ const MainPage = () => {
               subtitle=""
               onRemoveSong={handleRemoveSong} 
               showRemoveButton={true} 
-              variant="featured"  // Cambia a: "default", "compact", "featured", o "list"
+              variant="featured"
               onPlayAll={handlePlaySelectedSongs}
               onShuffle={handleShuffleSelectedSongs}
               showViewMore={true}
@@ -646,6 +669,56 @@ const MainPage = () => {
           </Fab>
         </Tooltip>
       </Fade>
+
+      {/* Dialog de confirmación premium */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ open: false, songId: null, title: '' })}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: `linear-gradient(135deg, ${theme.palette.background.paper}, ${alpha(theme.palette.background.default, 0.95)})`,
+            backdropFilter: 'blur(10px)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box display="flex" alignItems="center" gap={1}>
+            <DeleteSweepIcon color="error" />
+            <Typography variant="h6" fontWeight={700}>Eliminar canciones</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" color="text.secondary">
+            ¿Estás seguro de que deseas eliminar <strong>{confirmDialog.title || 'esta canción'}</strong>?
+          </Typography>
+          {confirmDialog.songId === 'ALL' && selectedSongs.length > 0 && (
+            <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+              Esta acción eliminará las {selectedSongs.length} canciones de tu lista.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button 
+            onClick={() => setConfirmDialog({ open: false, songId: null, title: '' })}
+            variant="outlined"
+            startIcon={<CloseIcon />}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={confirmDialog.songId === 'ALL' ? handleConfirmClearAll : handleConfirmRemoveSong}
+            variant="contained"
+            color="error"
+            startIcon={<DeleteSweepIcon />}
+          >
+            Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <UploadModal open={uploadModalOpen} onClose={() => setUploadModalOpen(false)} />
     </Box>

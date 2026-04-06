@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import useWallet from '../../components/hook/useWallet';
 import TopUpModal from './TopUpModal';
 import { formatCurrency } from '../../utils/formatters';
-import './WalletBalance.css'; // Opcional: estilos
+import './WalletBalance.css';  // ✅ Ruta corregida
 
 /**
  * Componente WalletBalance

@@ -1,5 +1,9 @@
 // src/components/hook/services/useAuth.js
-import { useState, useEffect, useCallback } from 'react';
+// ✅ Hook optimizado para autenticación
+// ✅ Sin event listeners que causaban bucles infinitos
+// ✅ Ready for production
+
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAuthToken } from '../../../components/hook/services/apia';
 
 /**
@@ -10,36 +14,58 @@ export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const loadingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   /**
    * Cargar datos del usuario desde localStorage
    */
-  const loadUser = useCallback(() => {
+  const loadUser = useCallback(async () => {
+    // Evitar cargas múltiples simultáneas
+    if (loadingRef.current) return;
+    
     const token = getAuthToken();
     
     if (!token) {
-      setUser(null);
-      setIsAuthenticated(false);
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setUser(null);
+        setIsAuthenticated(false);
+        setIsLoading(false);
+      }
       return;
     }
 
-    // Intentar obtener datos del usuario desde localStorage
+    loadingRef.current = true;
+    
     try {
+      // Intentar obtener datos del usuario desde localStorage
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const userData = JSON.parse(userStr);
-        setUser({
-          id: userData.id,
-          username: userData.username,
-          email: userData.email,
-          avatar: userData.avatar || null,
-          isAuthenticated: true,
-        });
-        setIsAuthenticated(true);
+        if (mountedRef.current) {
+          setUser({
+            id: userData.id,
+            username: userData.username,
+            email: userData.email,
+            avatar: userData.avatar || null,
+            isAuthenticated: true,
+          });
+          setIsAuthenticated(true);
+        }
       } else {
-        // Si hay token pero no hay datos de usuario, creamos un objeto básico
-        // Esto permite que el comentario funcione aunque no tengamos el perfil completo
+        // Si hay token pero no hay datos de usuario, crear objeto básico
+        if (mountedRef.current) {
+          setUser({
+            id: null,
+            username: 'Usuario',
+            isAuthenticated: true,
+          });
+          setIsAuthenticated(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      if (mountedRef.current) {
         setUser({
           id: null,
           username: 'Usuario',
@@ -47,17 +73,12 @@ export const useAuth = () => {
         });
         setIsAuthenticated(true);
       }
-    } catch (error) {
-      console.error('Error parsing user data:', error);
-      setUser({
-        id: null,
-        username: 'Usuario',
-        isAuthenticated: true,
-      });
-      setIsAuthenticated(true);
+    } finally {
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
+      loadingRef.current = false;
     }
-    
-    setIsLoading(false);
   }, []);
 
   /**
@@ -69,7 +90,6 @@ export const useAuth = () => {
       localStorage.setItem('user', JSON.stringify(userData));
     }
     loadUser();
-    window.dispatchEvent(new Event('auth:change'));
   }, [loadUser]);
 
   /**
@@ -79,9 +99,10 @@ export const useAuth = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
-    setUser(null);
-    setIsAuthenticated(false);
-    window.dispatchEvent(new Event('auth:change'));
+    if (mountedRef.current) {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   }, []);
 
   /**
@@ -96,21 +117,11 @@ export const useAuth = () => {
 
   // Cargar usuario al montar
   useEffect(() => {
+    mountedRef.current = true;
     loadUser();
     
-    // Escuchar cambios en localStorage (para múltiples pestañas)
-    const handleStorageChange = (e) => {
-      if (e.key === 'user' || e.key === 'accessToken') {
-        loadUser();
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('auth:change', loadUser);
-    
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('auth:change', loadUser);
+      mountedRef.current = false;
     };
   }, [loadUser]);
 

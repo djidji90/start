@@ -1,5 +1,5 @@
 // ============================================
-// components/Navbar.jsx - VERSIÓN CORREGIDA
+// components/Navbar.jsx - CON MONEDERO
 // ============================================
 
 import React, { useState } from "react";
@@ -28,6 +28,7 @@ import HomeIcon from "@mui/icons-material/Home";
 import InfoIcon from "@mui/icons-material/Info";
 import SearchIcon from "@mui/icons-material/Search";
 import ExploreIcon from "@mui/icons-material/Explore";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet"; // 🆕 Monedero
 
 // Paleta naranja consistente
 const colors = {
@@ -46,12 +47,13 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Items de menú
+  // Items de menú - AÑADIDO MONEDERO
   const menuItems = [
     { label: "Inicio", path: "/", icon: <HomeIcon /> },
     { label: "Nosotros", path: "/AboutUs", icon: <InfoIcon /> }, 
     { label: "Búsqueda", path: "/MainPage", icon: <SearchIcon /> },
     { label: "Descubre", path: "/TechStyleHub", icon: <ExploreIcon /> },
+    { label: "Monedero", path: "/wallet", icon: <AccountBalanceWalletIcon /> }, // 🆕 NUEVO
   ];
 
   const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
@@ -99,6 +101,22 @@ const Navbar = () => {
             />
           </Box>
 
+          {/* 🆕 Ícono del monedero en escritorio (visible junto a los botones) */}
+          <IconButton
+            onClick={() => navigate("/wallet")}
+            sx={{
+              display: { xs: "none", md: "flex" },
+              color: isActive("/wallet") ? colors.primary : darkMode ? alpha("#FFF", 0.8) : alpha("#2D3047", 0.8),
+              bgcolor: isActive("/wallet") ? alpha(colors.primary, 0.1) : "transparent",
+              '&:hover': {
+                color: colors.primary,
+                bgcolor: alpha(colors.primary, 0.08),
+              }
+            }}
+          >
+            <AccountBalanceWalletIcon />
+          </IconButton>
+
           {/* Menú móvil */}
           <IconButton
             edge="end"
@@ -111,7 +129,7 @@ const Navbar = () => {
           </IconButton>
         </Box>
 
-        {/* Menú móvil con iconos - CORREGIDO */}
+        {/* Menú móvil con iconos - INCLUYE MONEDERO */}
         <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
@@ -150,7 +168,7 @@ const Navbar = () => {
           })}
         </Menu>
 
-        {/* Links desktop */}
+        {/* Links desktop - INCLUYE MONEDERO */}
         <NavButtonsContainer>
           {menuItems.map((item) => {
             const active = isActive(item.path);
