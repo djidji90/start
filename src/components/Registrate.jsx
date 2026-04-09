@@ -783,7 +783,12 @@ const Register = () => {
 
     try {
       api.baseURL = "https://djibackend-production.up.railway.app";
+      
+      console.log("📤 Enviando datos al servidor:", formData);
+      
       const response = await axios.post(`${api.baseURL}/musica/register/`, formData);
+
+      console.log("✅ Respuesta exitosa:", response.data);
 
       setSuccessMessage(`¡Bienvenido a bordo, ${formData.username || 'artista'}! 🚀`);
       setOpenSuccessDialog(true);
@@ -810,17 +815,34 @@ const Register = () => {
         navigate("/Login");
       }, 5000);
     } catch (error) {
+      // 🔍 DEBUG: Muestra el error completo
+      console.error("=== ERROR COMPLETO ===");
+      console.error("Status:", error.response?.status);
+      console.error("Data:", error.response?.data);
+      console.error("Headers:", error.response?.headers);
+      console.error("Error object:", error);
+      
       const errorData = error.response?.data || {};
-
-      if (errorData.errors) {
-        const newErrors = {};
-        Object.entries(errorData.errors).forEach(([field, messages]) => {
-          newErrors[field] = Array.isArray(messages) ? messages[0] : messages;
+      
+      // Si hay errores de validación del backend
+      if (errorData.errors || errorData.error) {
+        console.error("Errores del backend:", errorData);
+        setErrors({
+          general: JSON.stringify(errorData, null, 2)
         });
-        setErrors(newErrors);
+      } else if (typeof errorData === 'object') {
+        // Mostrar errores campo por campo si vienen en otro formato
+        const errorMessages = [];
+        Object.keys(errorData).forEach(key => {
+          errorMessages.push(`${key}: ${errorData[key]}`);
+          console.error(`Campo ${key}:`, errorData[key]);
+        });
+        setErrors({
+          general: errorMessages.join('\n') || "Error en el servidor. Intente nuevamente."
+        });
       } else {
         setErrors({
-          general: errorData.message || "Error en el servidor. Intente nuevamente."
+          general: errorData.message || errorData.error || "Error en el servidor. Intente nuevamente."
         });
       }
     } finally {
@@ -975,7 +997,9 @@ const Register = () => {
                 },
               }}
             >
-              {errors.general}
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: '0.85rem' }}>
+                {errors.general}
+              </pre>
             </Alert>
           )}
 
