@@ -4,7 +4,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
   Box,
-  Alert,
   Fade,
   Button,
   Typography,
@@ -14,6 +13,7 @@ import {
   Paper
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
+import HomeIcon from '@mui/icons-material/Home'; // Icono para el nuevo botón
 import { AuthContext } from '../hook/UseAut';
 import useArtistDetail from '../../components/hook/services/useArtistDetail';
 import ProfileHeader from './ProfileHeader';
@@ -27,7 +27,7 @@ const ArtistProfile = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const { isAuthenticated } = useContext(AuthContext);
-  
+
   const identifier = slug || legacyUsername;
   const { artist: profile, loading, error } = useArtistDetail(identifier);
 
@@ -45,32 +45,23 @@ const ArtistProfile = () => {
     );
   }
 
-  // ❌ Error
-  if (error) {
+  // ❌ Error o Usuario no encontrado
+  if (error || !profile) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
-          <Typography variant="h5" sx={{ mb: 2, color: 'error.main' }}>
-            😕 {error}
+          <Typography variant="h5" sx={{ mb: 2, color: 'text.secondary' }}>
+            😕 Artista no encontrado
           </Typography>
-          <Button onClick={() => navigate('/artistas')} variant="contained">
-            ← Explorar artistas
-          </Button>
-        </Paper>
-      </Container>
-    );
-  }
-
-  // 👤 Usuario no encontrado
-  if (!profile) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 3 }}>
-          <Typography variant="h5" sx={{ mb: 2 }}>
-            Artista no encontrado
+          <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
+            Es posible que la dirección web sea incorrecta o que el artista ya no esté disponible.
           </Typography>
-          <Button onClick={() => navigate('/artistas')} variant="contained">
-            ← Explorar artistas
+          <Button 
+            onClick={() => navigate('/')} 
+            variant="contained" 
+            startIcon={<HomeIcon />}
+          >
+            Volver al inicio
           </Button>
         </Paper>
       </Container>
