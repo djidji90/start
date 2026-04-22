@@ -57,7 +57,7 @@ const ArtistProfile = () => {
             Es posible que la dirección web sea incorrecta o que el artista ya no esté disponible.
           </Typography>
           <Button 
-            onClick={() => navigate('/')} 
+            onClick={() => navigate('/MainPage')} 
             variant="contained" 
             startIcon={<HomeIcon />}
           >

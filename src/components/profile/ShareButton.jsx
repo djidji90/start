@@ -12,20 +12,27 @@ import {
   Divider,
   alpha,
   Modal,
-  Paper
+  Paper,
+  Stack,
+  Avatar,
+  Chip,
+  Button
 } from '@mui/material';
 import {
   Share as ShareIcon,
   Link as LinkIcon,
   QrCode as QrCodeIcon,
   CheckCircle,
-  Close
+  Close,
+  ContentCopy,
+  Download,
+  Verified as VerifiedIcon
 } from '@mui/icons-material';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTheme } from '@mui/material/styles';
 
 /**
- * Botón para compartir perfil
+ * Botón para compartir perfil con branding de Guinea Ecuatorial
  * @param {Object} profile - Datos del perfil
  * @param {string} username - Nombre de usuario
  */
@@ -36,25 +43,25 @@ const ShareButton = ({ profile, username }) => {
   const [qrOpen, setQrOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // 🆕 URL del perfil - Prioriza slug sobre username
+  // URL del perfil
   const profileUrl = `${window.location.origin}/perfil/${profile?.slug || username}`;
   
-  // Texto para compartir
+  // Texto para compartir - ACTUALIZADO con el formato solicitado
   const shareText = profile?.full_name 
-    ? `🎵 Escucha a ${profile.full_name} en DjidjiMusic` 
-    : `🎵 Descubre el perfil de @${username} en DjidjiMusic`;
+    ? `🎵 Escucha a ${profile.full_name} y descubre toda su música en DjidjiMusic 🦆\n🇬🇶 Puro talento nacional ⚡⚡`
+    : `🎵 Escucha a @${username} y descubre toda su música en DjidjiMusic 🦆\n🇬🇶 Puro talento nacional ⚡⚡`;
 
   const handleNativeShare = async () => {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: profile?.full_name || username,
+          title: `${profile?.full_name || username} | DjidjiMusic 🇬🇶`,
           text: shareText,
           url: profileUrl,
         });
         setSnackbar({
           open: true,
-          message: '✅ Compartido con éxito',
+          message: '✓ Compartido con éxito',
           severity: 'success'
         });
       } else {
@@ -64,7 +71,7 @@ const ShareButton = ({ profile, username }) => {
       if (error.name !== 'AbortError') {
         setSnackbar({
           open: true,
-          message: '❌ Error al compartir',
+          message: '✗ Error al compartir',
           severity: 'error'
         });
       }
@@ -77,17 +84,34 @@ const ShareButton = ({ profile, username }) => {
       await navigator.clipboard.writeText(profileUrl);
       setSnackbar({
         open: true,
-        message: '✅ Enlace copiado al portapapeles',
+        message: '✓ Enlace copiado al portapapeles',
         severity: 'success'
       });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: '❌ No se pudo copiar',
+        message: '✗ No se pudo copiar',
         severity: 'error'
       });
     }
     handleClose();
+  };
+
+  const downloadQR = () => {
+    const qrCanvas = document.querySelector('#qr-canvas canvas');
+    if (qrCanvas) {
+      const qrImage = qrCanvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `${username}-djidjimusic-qr.png`;
+      link.href = qrImage;
+      link.click();
+      
+      setSnackbar({
+        open: true,
+        message: '✓ QR descargado',
+        severity: 'success'
+      });
+    }
   };
 
   const handleOpenQR = () => {
@@ -140,38 +164,143 @@ const ShareButton = ({ profile, username }) => {
         onClose={handleClose}
         PaperProps={{
           sx: {
-            borderRadius: 2,
-            minWidth: 200,
-            boxShadow: `0 8px 20px ${alpha('#000', 0.15)}`,
+            borderRadius: 3,
+            minWidth: 280,
+            maxWidth: 320,
+            boxShadow: `0 8px 24px ${alpha('#000', 0.12)}`,
             mt: 1,
+            overflow: 'hidden'
           }
         }}
       >
-        <Box sx={{ px: 2, py: 1, borderBottom: `1px solid ${alpha('#000', 0.1)}` }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: primaryColor }}>
-            Compartir perfil
-          </Typography>
+        {/* Header con info del artista mejorada */}
+        <Box sx={{ 
+          p: 2.5, 
+          background: `linear-gradient(135deg, ${alpha(primaryColor, 0.08)} 0%, ${alpha(primaryColor, 0.02)} 100%)`,
+          borderBottom: `1px solid ${alpha(primaryColor, 0.1)}`
+        }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Avatar 
+              src={profile?.avatar} 
+              sx={{ 
+                width: 56, 
+                height: 56, 
+                border: `3px solid ${primaryColor}`,
+                boxShadow: `0 4px 12px ${alpha(primaryColor, 0.3)}`
+              }}
+            >
+              {profile?.full_name?.[0] || username[0]}
+            </Avatar>
+            <Box flex={1}>
+              <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  {profile?.full_name || username}
+                </Typography>
+                {profile?.verified && (
+                  <VerifiedIcon sx={{ fontSize: 16, color: primaryColor }} />
+                )}
+              </Stack>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                @{username}
+              </Typography>
+              
+              {/* Badge de Guinea Ecuatorial */}
+              <Chip 
+                label="🇬🇶 Puro talento nacional"
+                size="small"
+                sx={{ 
+                  mt: 1,
+                  height: 20,
+                  fontSize: '0.65rem',
+                  bgcolor: alpha(primaryColor, 0.1),
+                  color: primaryColor,
+                  '& .MuiChip-label': { px: 1 }
+                }}
+              />
+            </Box>
+          </Stack>
+          
+          {/* Bio del artista si existe */}
+          {profile?.bio && (
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                mt: 1.5, 
+                color: 'text.secondary', 
+                fontSize: '0.75rem',
+                lineHeight: 1.4,
+                fontStyle: 'italic'
+              }}
+            >
+              "{profile.bio.length > 100 ? `${profile.bio.substring(0, 100)}...` : profile.bio}"
+            </Typography>
+          )}
         </Box>
 
-        <MenuItem onClick={copyLink} sx={{ py: 1 }}>
-          <LinkIcon sx={{ mr: 2, color: primaryColor, fontSize: 20 }} />
-          <Typography>Copiar enlace</Typography>
+        <Divider />
+
+        {/* Género musical si existe */}
+        {profile?.genre && (
+          <>
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                Género
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                {Array.isArray(profile.genre) ? (
+                  profile.genre.map(g => (
+                    <Chip key={g} label={g} size="small" variant="outlined" />
+                  ))
+                ) : (
+                  <Chip label={profile.genre} size="small" variant="outlined" />
+                )}
+              </Box>
+            </Box>
+            <Divider />
+          </>
+        )}
+
+        {/* Opciones de compartir */}
+        <MenuItem onClick={copyLink} sx={{ py: 1.5, gap: 2 }}>
+          <ContentCopy sx={{ color: primaryColor, fontSize: 20 }} />
+          <Box>
+            <Typography variant="body2" fontWeight={500}>Copiar enlace</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Comparte el perfil
+            </Typography>
+          </Box>
         </MenuItem>
 
-        <MenuItem onClick={handleOpenQR} sx={{ py: 1 }}>
-          <QrCodeIcon sx={{ mr: 2, color: primaryColor, fontSize: 20 }} />
-          <Typography>Código QR</Typography>
+        <MenuItem onClick={handleOpenQR} sx={{ py: 1.5, gap: 2 }}>
+          <QrCodeIcon sx={{ color: primaryColor, fontSize: 20 }} />
+          <Box>
+            <Typography variant="body2" fontWeight={500}>Código QR</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Escanea para seguir al artista
+            </Typography>
+          </Box>
         </MenuItem>
 
-        <Divider sx={{ my: 0.5 }} />
-
-        <Box sx={{ px: 2, py: 1 }}>
-          <Typography variant="caption" sx={{ color: alpha('#000', 0.5) }}>
-            En móvil: usa el botón compartir del sistema
+        {/* Footer con eslogan */}
+        <Box sx={{ 
+          px: 2, 
+          py: 1.5, 
+          bgcolor: alpha(primaryColor, 0.04),
+          borderTop: `1px solid ${alpha(primaryColor, 0.08)}`
+        }}>
+          <Typography variant="caption" sx={{ 
+            color: alpha(primaryColor, 0.7),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1
+          }}>
+            <span>🇬🇶</span> Talento de Guinea Ecuatorial <span>🦆</span> <span>⚡⚡</span>
           </Typography>
         </Box>
       </Menu>
 
+      {/* Modal QR mejorado con branding */}
       <Modal
         open={qrOpen}
         onClose={handleCloseQR}
@@ -184,12 +313,13 @@ const ShareButton = ({ profile, username }) => {
       >
         <Paper
           sx={{
-            maxWidth: 400,
+            maxWidth: 380,
             width: '100%',
-            p: 4,
-            borderRadius: 3,
+            p: 3,
+            borderRadius: 4,
             textAlign: 'center',
             position: 'relative',
+            background: `linear-gradient(135deg, #fff 0%, ${alpha(primaryColor, 0.02)} 100%)`
           }}
         >
           <IconButton
@@ -204,33 +334,80 @@ const ShareButton = ({ profile, username }) => {
             <Close />
           </IconButton>
 
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-            {profile?.full_name || username}
+          {/* Info del artista */}
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+            <Avatar 
+              src={profile?.avatar} 
+              sx={{ width: 60, height: 60, border: `2px solid ${primaryColor}` }}
+            >
+              {profile?.full_name?.[0] || username[0]}
+            </Avatar>
+            <Box textAlign="left">
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {profile?.full_name || username}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                @{username} <span>🇬🇶</span>
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+            Escanea el código QR para ver el perfil 🦆⚡⚡
           </Typography>
 
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-            Escanea para ver el perfil
-          </Typography>
-
-          <Box sx={{
-            p: 2,
-            bgcolor: '#ffffff',
-            borderRadius: 2,
-            display: 'inline-block',
-            mb: 2,
-          }}>
+          {/* QR Code */}
+          <Box
+            id="qr-canvas"
+            sx={{
+              p: 2,
+              bgcolor: '#ffffff',
+              borderRadius: 3,
+              display: 'inline-block',
+              boxShadow: `0 8px 24px ${alpha('#000', 0.1)}`,
+              mb: 2
+            }}
+          >
             <QRCodeSVG
               value={profileUrl}
               size={200}
               bgColor="#ffffff"
-              fgColor="#000000"
+              fgColor={primaryColor}
               level="H"
-              includeMargin={false}
             />
           </Box>
 
-          <Typography variant="caption" sx={{ color: alpha('#000', 0.5), display: 'block' }}>
-            {profileUrl}
+          {/* Botones de acción */}
+          <Stack direction="row" spacing={1} justifyContent="center" sx={{ mt: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={downloadQR}
+              sx={{ borderRadius: 2 }}
+            >
+              Descargar QR
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<ContentCopy />}
+              onClick={copyLink}
+              sx={{ borderRadius: 2 }}
+            >
+              Copiar enlace
+            </Button>
+          </Stack>
+
+          {/* Footer con eslogan */}
+          <Typography variant="caption" sx={{ 
+            color: alpha(primaryColor, 0.6), 
+            display: 'block', 
+            mt: 2,
+            pt: 1,
+            borderTop: `1px solid ${alpha(primaryColor, 0.1)}`
+          }}>
+            🇬🇶 DjidjiMusic - Puro talento nacional 🦆⚡⚡
           </Typography>
         </Paper>
       </Modal>
