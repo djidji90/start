@@ -25,7 +25,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useTheme } from '@mui/material/styles';
 
 /**
- * Botón para compartir perfil - VERSIÓN SIMPLIFICADA
+ * Botón para compartir perfil
  * @param {Object} profile - Datos del perfil
  * @param {string} username - Nombre de usuario
  */
@@ -36,17 +36,14 @@ const ShareButton = ({ profile, username }) => {
   const [qrOpen, setQrOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // URL del perfil
-  const profileUrl = `${window.location.origin}/perfil/${username}`;
+  // 🆕 URL del perfil - Prioriza slug sobre username
+  const profileUrl = `${window.location.origin}/perfil/${profile?.slug || username}`;
   
-  // Texto para compartir (simple y efectivo)
+  // Texto para compartir
   const shareText = profile?.full_name 
     ? `🎵 Escucha a ${profile.full_name} en DjidjiMusic` 
     : `🎵 Descubre el perfil de @${username} en DjidjiMusic`;
 
-  // ============================================
-  // OPCIÓN 1: COMPARTIR NATIVO (Web Share API)
-  // ============================================
   const handleNativeShare = async () => {
     try {
       if (navigator.share) {
@@ -61,7 +58,6 @@ const ShareButton = ({ profile, username }) => {
           severity: 'success'
         });
       } else {
-        // Si no hay Web Share API, mostrar menú con opciones manuales
         setAnchorEl(document.getElementById('share-button'));
       }
     } catch (error) {
@@ -76,9 +72,6 @@ const ShareButton = ({ profile, username }) => {
     handleClose();
   };
 
-  // ============================================
-  // OPCIÓN 2: COPIAR ENLACE
-  // ============================================
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(profileUrl);
@@ -97,9 +90,6 @@ const ShareButton = ({ profile, username }) => {
     handleClose();
   };
 
-  // ============================================
-  // OPCIÓN 3: CÓDIGO QR
-  // ============================================
   const handleOpenQR = () => {
     setQrOpen(true);
     handleClose();
@@ -111,7 +101,6 @@ const ShareButton = ({ profile, username }) => {
 
   const handleOpen = (event) => {
     event.stopPropagation();
-    // Intentar compartir nativo primero
     if (navigator.share) {
       handleNativeShare();
     } else {
@@ -145,7 +134,6 @@ const ShareButton = ({ profile, username }) => {
         </IconButton>
       </Tooltip>
 
-      {/* Menú de opciones (solo para escritorio sin Web Share) */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
@@ -184,7 +172,6 @@ const ShareButton = ({ profile, username }) => {
         </Box>
       </Menu>
 
-      {/* Modal del Código QR */}
       <Modal
         open={qrOpen}
         onClose={handleCloseQR}
@@ -248,7 +235,6 @@ const ShareButton = ({ profile, username }) => {
         </Paper>
       </Modal>
 
-      {/* Snackbar de confirmación */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}

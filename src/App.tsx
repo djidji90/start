@@ -1,5 +1,3 @@
-// src/App.js
-// ✅ CON TopUpProvider + Ruta del monedero /wallet + Ruta del agente /agent/dashboard
 
 import { useState, useEffect, lazy, Suspense } from "react";
 import "./styles.css";
@@ -143,45 +141,52 @@ export default function App() {
                   <CartDrawer cartItems={cartItems} isOpen={isCartOpen} toggleDrawer={toggleCart} />
                   <Navbar />
 
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <Routes>
-                      <Route path="/" element={<LandingPage />} />
-                      <Route path="/my-downloads" element={<UserDownloads />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/SingInPage" element={<Register />} />
-                      <Route path="/MainPage" element={<MainPage />} />
-                      <Route path="/AboutUS" element={<AboutUs />} />
-                      <Route path="/categoria/:id" element={<CategoriaProductos />} />
-                      <Route path="/ProfilePage" element={<ProfilePage />} />
-                      <Route path="/Todo/*" element={<Todo />} />
-                      <Route path="/TechStyleHub" element={<TechStyleHub />} />
-                      <Route path="/downloads" element={<DownloadsPage />} />
-                      <Route path="/genre/:genre" element={<GenrePage />} />
-                      <Route path="/perfil/:username" element={<ArtistProfile />} />
-                      
-                      {/* 🆕 RUTA DEL MONEDERO */}
-                      <Route path="/wallet" element={<WalletPage />} />
-                      
-                      {/* 🆕 RUTA DEL DASHBOARD DE AGENTE (protegida) */}
-                      <Route
-                        path="/agent/dashboard"
-                        element={
-                          <AgentRoute>
-                            <AgentDashboardPage />
-                          </AgentRoute>
-                        }
-                      />
-                      
-                      <Route
-                        path="/song/:songId"
-                        element={
-                          <ProtectedRoute>
-                            <MainPage />
-                          </ProtectedRoute>
-                        }
-                      />
-                    </Routes>
-                  </Suspense>
+              
+
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/my-downloads" element={<UserDownloads />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/SingInPage" element={<Register />} />
+            <Route path="/MainPage" element={<MainPage />} />
+            <Route path="/AboutUS" element={<AboutUs />} />
+            <Route path="/categoria/:id" element={<CategoriaProductos />} />
+            <Route path="/ProfilePage" element={<ProfilePage />} />
+            <Route path="/Todo/*" element={<Todo />} />
+            <Route path="/TechStyleHub" element={<TechStyleHub />} />
+            <Route path="/downloads" element={<DownloadsPage />} />
+            <Route path="/genre/:genre" element={<GenrePage />} />
+            
+            {/* 🆕 Ruta SEO con slug (principal) - NUEVA */}
+            <Route path="/perfil/:slug" element={<ArtistProfile />} />
+            
+            {/* Ruta antigua con username (mantener compatibilidad) */}
+            <Route path="/perfil/:username" element={<ArtistProfile />} />
+            
+            {/* Ruta del monedero */}
+            <Route path="/wallet" element={<WalletPage />} />
+            
+            {/* Ruta del dashboard de agente (protegida) */}
+            <Route
+              path="/agent/dashboard"
+              element={
+                <AgentRoute>
+                  <AgentDashboardPage />
+                </AgentRoute>
+              }
+            />
+            
+            <Route
+              path="/song/:songId"
+              element={
+                <ProtectedRoute>
+                  <MainPage />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </Suspense>
 
                   <Footer />
                   

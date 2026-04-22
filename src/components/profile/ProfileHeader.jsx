@@ -15,31 +15,25 @@ import {
   LocationOn,
   Link as LinkIcon,
   CalendarToday,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Verified as VerifiedIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import ShareButton from '../../components/profile/ShareButton'; // 👈 IMPORTAR SHARE BUTTON
+import ShareButton from './ShareButton';
 
-/**
- * Componente para mostrar la cabecera del perfil de usuario/artista
- * @param {Object} profile - Datos del perfil (de uploaded_by)
- * @param {boolean} isOwner - Si el perfil visto es del usuario actual
- * @param {Function} onEdit - Función para editar perfil (solo si isOwner)
- */
 const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
   const theme = useTheme();
+  const primaryColor = theme.palette.primary.main;
 
   // ============================================
   // FUNCIONES AUXILIARES
   // ============================================
 
-  /**
-   * Obtener iniciales del nombre de usuario
-   */
   const getInitials = () => {
-    if (profile?.full_name && profile.full_name !== '') {
-      return profile.full_name
+    const name = profile?.full_name || profile?.name;
+    if (name && name !== '') {
+      return name
         .split(' ')
         .map(word => word[0])
         .join('')
@@ -49,26 +43,23 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
     return profile?.username?.substring(0, 2).toUpperCase() || '?';
   };
 
-  /**
-   * Formatear fecha de registro
-   */
   const formatJoinDate = (dateString) => {
+    if (!dateString) return 'Fecha desconocida';
     try {
       const date = new Date(dateString);
       return format(date, "MMMM yyyy", { locale: es });
-    } catch (error) {
+    } catch {
       return 'Fecha desconocida';
     }
   };
 
-  /**
-   * Obtener nombre para mostrar
-   */
   const getDisplayName = () => {
-    if (profile?.full_name && profile.full_name !== '') {
-      return profile.full_name;
-    }
-    return profile?.username || 'Usuario';
+    return profile?.full_name || profile?.name || profile?.username || 'Usuario';
+  };
+
+  // Construir ubicación desde city + country
+  const getLocation = () => {
+    return [profile?.city, profile?.country].filter(Boolean).join(', ');
   };
 
   // ============================================
@@ -77,7 +68,8 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
 
   if (!profile) return null;
 
-  const primaryColor = theme.palette.primary.main;
+  const displayName = getDisplayName();
+  const location = getLocation();
 
   return (
     <Paper
@@ -107,7 +99,7 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
       />
 
       <Box sx={{ position: 'relative', zIndex: 1 }}>
-        {/* Botón de edición (solo si es el dueño) */}
+        {/* Botón de edición */}
         {isOwner && onEdit && (
           <Tooltip title="Editar perfil" arrow>
             <IconButton
@@ -118,9 +110,7 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
                 right: 0,
                 bgcolor: alpha(primaryColor, 0.1),
                 color: primaryColor,
-                '&:hover': {
-                  bgcolor: alpha(primaryColor, 0.2),
-                }
+                '&:hover': { bgcolor: alpha(primaryColor, 0.2) }
               }}
             >
               <EditIcon />
@@ -136,8 +126,8 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
         }}>
           {/* Avatar */}
           <Avatar
-            src={profile.profile?.avatar_url}
-            alt={getDisplayName()}
+            src={profile.avatar_url}
+            alt={displayName}
             sx={{
               width: { xs: 100, sm: 120 },
               height: { xs: 100, sm: 120 },
@@ -149,7 +139,7 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
               fontWeight: 600,
             }}
           >
-            {!profile.profile?.avatar_url && getInitials()}
+            {!profile.avatar_url && getInitials()}
           </Avatar>
 
           {/* Información */}
@@ -157,18 +147,24 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
             flex: 1,
             textAlign: { xs: 'center', sm: 'left' }
           }}>
-            {/* Nombre y username */}
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 700,
-                color: 'text.primary',
-                mb: 0.5,
-                fontSize: { xs: '1.8rem', sm: '2.2rem' }
-              }}
-            >
-              {getDisplayName()}
-            </Typography>
+            {/* Nombre con badge de verificación */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 700,
+                  color: 'text.primary',
+                  fontSize: { xs: '1.8rem', sm: '2.2rem' }
+                }}
+              >
+                {displayName}
+              </Typography>
+              {profile.is_verified && (
+                <Tooltip title="Artista Verificado" arrow>
+                  <VerifiedIcon sx={{ color: '#3b82f6', fontSize: 28 }} />
+                </Tooltip>
+              )}
+            </Box>
 
             <Typography
               variant="subtitle1"
@@ -182,7 +178,7 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
             </Typography>
 
             {/* Bio */}
-            {profile.profile?.bio && (
+            {profile.bio && (
               <Typography
                 variant="body1"
                 sx={{
@@ -192,11 +188,11 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
                   lineHeight: 1.6,
                 }}
               >
-                {profile.profile.bio}
+                {profile.bio}
               </Typography>
             )}
 
-            {/* Metadata chips + Share Button */}
+            {/* Metadata chips */}
             <Box sx={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -205,10 +201,10 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
               justifyContent: { xs: 'center', sm: 'flex-start' }
             }}>
               {/* Ubicación */}
-              {profile.profile?.location && (
+              {location && (
                 <Chip
                   icon={<LocationOn sx={{ fontSize: 16 }} />}
-                  label={profile.profile.location}
+                  label={location}
                   size="small"
                   sx={{
                     bgcolor: alpha(primaryColor, 0.1),
@@ -218,14 +214,14 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
                 />
               )}
 
-              {/* Website */}
-              {profile.profile?.website && (
+              {/* Website (si existe) */}
+              {profile.website && (
                 <Chip
                   icon={<LinkIcon sx={{ fontSize: 16 }} />}
-                  label={profile.profile.website.replace(/^https?:\/\//, '')}
+                  label={profile.website.replace(/^https?:\/\//, '')}
                   size="small"
                   component="a"
-                  href={profile.profile.website}
+                  href={profile.website}
                   target="_blank"
                   rel="noopener noreferrer"
                   clickable
@@ -233,9 +229,7 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
                     bgcolor: alpha(primaryColor, 0.1),
                     color: primaryColor,
                     '& .MuiChip-icon': { color: primaryColor },
-                    '&:hover': {
-                      bgcolor: alpha(primaryColor, 0.2),
-                    }
+                    '&:hover': { bgcolor: alpha(primaryColor, 0.2) }
                   }}
                 />
               )}
@@ -252,7 +246,7 @@ const ProfileHeader = ({ profile, isOwner = false, onEdit }) => {
                 }}
               />
 
-              {/* 🔥 BOTÓN DE COMPARTIR */}
+              {/* Botón de compartir */}
               <ShareButton profile={profile} username={profile.username} />
             </Box>
           </Box>
