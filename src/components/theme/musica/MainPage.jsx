@@ -1,9 +1,11 @@
 // src/components/theme/musica/MainPage.jsx
-// VERSIÓN PREMIUM - CON SongCarousel mejorado
-// ✅ Playlist automática al hacer click en cualquier canción
-// ✅ Siguiente/Anterior funcionan correctamente
-// ✅ UI Premium con SongCarousel mejorado
-// ✅ Dialog de MUI en lugar de window.confirm
+// ============================================
+// 🎵 MAIN PAGE - VERSIÓN PREMIUM OPTIMIZADA
+// ✅ SongCarousel mejorado
+// ✅ Playlist automática al hacer click
+// ✅ Smart Playlists Hub integrado
+// ✅ PlayerContext completamente integrado
+// ✅ UI Premium con transiciones fluidas
 // ============================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -17,7 +19,6 @@ import {
   Fade,
   Alert,
   Snackbar,
-  Grow,
   IconButton,
   alpha,
   Fab,
@@ -44,7 +45,7 @@ import ShuffleIcon from "@mui/icons-material/Shuffle";
 import CloseIcon from "@mui/icons-material/Close";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
-import { TrendingUp, PlayCircle, AccessTime, Whatshot } from '@mui/icons-material';
+import { PlayCircle, AccessTime, Whatshot } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 // Imports del sistema de reproducción
@@ -56,10 +57,11 @@ import {
 } from '../../../components/hook/services/useDiscovery';
 
 // Componentes UI
+import PlaylistsSection from "../../../components/playlists/PlaylistsSection";
 import SearchBar from "../../../components/search/SearchBar";
 import SearchResults from "../../../components/search/SearchResults";
 import { useSearch } from "../../../components/hook/services/useSearch";
-import SongCarousel from "../../../songs/SongCarousel"; // Versión premium
+import SongCarousel from "../../../songs/SongCarousel";
 import ArtistCarousel from "../../../components/theme/musica/ArtistCarousel";
 import PopularSongs from "../../../components/theme/musica/PopularSongs";
 import RandomSongsDisplay from "../../../components/search/RandomSongsDisplay";
@@ -201,7 +203,7 @@ const FloatingMiniPlayer = ({ player, onClose, theme }) => {
 };
 
 // ============================================
-// 🎵 HERO SECTION
+// 🎵 HERO SECTION PREMIUM
 // ============================================
 const Hero = ({ onUploadClick }) => {
   const theme = useTheme();
@@ -220,7 +222,7 @@ const Hero = ({ onUploadClick }) => {
       </Box>
       <Box sx={{ position: "relative", zIndex: 10, maxWidth: "800px", textAlign: "center", px: 3 }}>
         <Typography variant="h1" sx={{ fontSize: { xs: "2.5rem", md: "4rem" }, fontWeight: 800, lineHeight: 1.2, mb: 3 }}>La casa digital de los amantes del EcuaBeats.</Typography>
-        <Typography variant="body1" sx={{ fontSize: { xs: "1.1rem", md: "1.3rem" }, mb: 5, maxWidth: "600px", mx: "auto" }}>Escucha, descubre y apoya a los artistas que estan marcando la diferencia.</Typography>
+        <Typography variant="body1" sx={{ fontSize: { xs: "1.1rem", md: "1.3rem" }, mb: 5, maxWidth: "600px", mx: "auto" }}>Escucha, descubre y apoya a los artistas que están marcando la diferencia.</Typography>
         <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, justifyContent: "center", gap: 2 }}>
           <Box component="button" onClick={() => document.getElementById('discovery-sections')?.scrollIntoView({ behavior: 'smooth' })} sx={{ bgcolor: theme.palette.primary.main, color: "white", border: "none", px: 5, py: 2, borderRadius: "16px", fontSize: "1.1rem", fontWeight: 600, cursor: "pointer", transition: "all 0.2s ease", '&:hover': { bgcolor: theme.palette.primary.dark, transform: "translateY(-2px)" } }}>🎧 Explorar música</Box>
           <Box component="button" onClick={onUploadClick} sx={{ bgcolor: "rgba(255,255,255,0.15)", color: "white", border: "2px solid rgba(255,255,255,0.3)", px: 5, py: 2, borderRadius: "16px", fontSize: "1.1rem", fontWeight: 600, cursor: "pointer", transition: "all 0.2s ease", '&:hover': { bgcolor: "rgba(255,255,255,0.25)", transform: "translateY(-2px)" } }}>🎤 Subir mi música</Box>
@@ -231,7 +233,7 @@ const Hero = ({ onUploadClick }) => {
 };
 
 // ============================================
-// 🎵 MAIN PAGE PRINCIPAL
+// 🎵 MAIN PAGE PRINCIPAL OPTIMIZADA
 // ============================================
 const MainPage = () => {
   const theme = useTheme();
@@ -272,7 +274,6 @@ const MainPage = () => {
   const [showLimitNotification, setShowLimitNotification] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
   
-  // Dialog de confirmación
   const [confirmDialog, setConfirmDialog] = useState({ 
     open: false, 
     songId: null, 
@@ -285,6 +286,7 @@ const MainPage = () => {
 
   const MAX_SELECTED_SONGS = 50;
 
+  // Efectos iniciales
   useEffect(() => {
     const timer = setTimeout(() => setShowFab(true), 500);
     return () => clearTimeout(timer);
@@ -333,7 +335,7 @@ const MainPage = () => {
   }, [showResults, closeResults]);
 
   // ============================================
-  // 🎯 HANDLER DE REPRODUCCIÓN CON PLAYLIST AUTOMÁTICA
+  // 🎯 HANDLERS DE REPRODUCCIÓN OPTIMIZADOS
   // ============================================
 
   const handlePlaySong = (song) => {
@@ -341,7 +343,6 @@ const MainPage = () => {
     
     console.log('🎵 Reproducir:', song.title);
     
-    // Obtener todas las canciones de las secciones
     const allSongs = [
       ...(discovery.trending?.data?.data || []),
       ...(discovery.plays?.data?.data || []),
@@ -349,7 +350,6 @@ const MainPage = () => {
       ...selectedSongs
     ];
     
-    // Eliminar duplicados por ID
     const uniqueSongs = [];
     const seenIds = new Set();
     for (const s of allSongs) {
@@ -387,6 +387,22 @@ const MainPage = () => {
     });
   };
 
+  // 🎯 Handler mejorado para playlists curadas
+  const handlePlayCuratedPlaylist = (songs, playlistName) => {
+    if (!songs?.length) {
+      console.warn(`⚠️ No hay canciones en ${playlistName}`);
+      return;
+    }
+    
+    console.log(`🎵 Reproduciendo playlist curada: ${playlistName} (${songs.length} canciones)`);
+    player.setPlaylistAndPlay(songs, 0, true);
+    
+    setSnackbar({
+      open: true,
+      message: `🎵 Reproduciendo: ${playlistName} • ${songs.length} canciones`,
+    });
+  };
+
   const handlePlaySelectedSongs = () => {
     if (selectedSongs.length === 0) return;
     
@@ -413,7 +429,7 @@ const MainPage = () => {
   };
 
   // ============================================
-  // HANDLERS DE SELECCIÓN Y ELIMINACIÓN CON DIALOG
+  // HANDLERS DE SELECCIÓN Y ELIMINACIÓN
   // ============================================
 
   const handleSelectResult = (item, type) => {
@@ -492,7 +508,7 @@ const MainPage = () => {
   };
 
   // ============================================
-  // RENDER
+  // RENDER PRINCIPAL
   // ============================================
 
   return (
@@ -501,12 +517,14 @@ const MainPage = () => {
       {showMiniPlayer && <FloatingMiniPlayer player={player} onClose={() => setShowMiniPlayer(false)} theme={theme} />}
 
       <Container maxWidth="lg" sx={{ px: { xs: 1.5, md: 3 } }}>
+        {/* Indicador flotante de Tus Beats */}
         {selectedSongs.length > 0 && (
           <Badge badgeContent={selectedSongs.length} color="primary" sx={{ position: 'fixed', top: 60, right: 16, zIndex: 1300, cursor: 'pointer' }} onClick={() => selectedSongsRef.current?.scrollIntoView({ behavior: 'smooth' })}>
             <MusicNoteIcon sx={{ color: theme.palette.primary.main, fontSize: 32 }} />
           </Badge>
         )}
 
+        {/* Barra de búsqueda */}
         <Box ref={searchBarRef} sx={{ maxWidth: 600, mx: "auto", mb: 4, position: "relative" }}>
           <Paper elevation={0} sx={{ borderRadius: "12px", bgcolor: theme.palette.mode === 'light' ? theme.palette.grey[100] : theme.palette.grey[900], border: `1px solid ${theme.palette.divider}` }}>
             <SearchBar query={query} onQueryChange={setQuery} loading={loading} autoFocus={!isMobile} placeholder="Buscar canciones, artistas..." />
@@ -520,7 +538,7 @@ const MainPage = () => {
           )}
         </Box>
 
-        {/* Tus Beats - VERSIÓN PREMIUM CON SongCarousel MEJORADO */}
+        {/* Tus Beats - Sección premium */}
         {selectedSongs.length > 0 && (
           <Box ref={selectedSongsRef} sx={{ mb: 6 }}>
             <SongCarousel 
@@ -542,23 +560,35 @@ const MainPage = () => {
         {/* Artistas */}
         {!artistsLoading && artists.length > 0 && <ArtistCarouselHorizontal artists={artists} title="" loading={artistsLoading} />}
 
+        {/* Separador decorativo */}
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
           <Box sx={{ width: '30px', height: '1px', bgcolor: alpha(theme.palette.primary.main, 0.2) }} />
           <Typography sx={{ color: alpha(theme.palette.primary.main, 0.3), px: 1 }}>◈</Typography>
           <Box sx={{ width: '30px', height: '1px', bgcolor: alpha(theme.palette.primary.main, 0.2) }} />
         </Box>
 
+        {/* SECCIÓN DE DESCUBRIMIENTO PRINCIPAL */}
         <div id="discovery-sections">
+          
           {/* Géneros */}
           {!discovery.genres.isLoading && discovery.genres.data?.data?.length > 0 && (
             <Box sx={{ mb: 5 }}>
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 2.5 }}><MusicNoteIcon sx={{ color: theme.palette.primary.main, mr: 1 }} /> Explorar por Géneros</Typography>
-              <GenreCarousel genres={discovery.genres.data.data} onGenreClick={(genre) => navigate(`/genre/${encodeURIComponent(genre.name)}`)} />
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 2.5 }}>
+                <MusicNoteIcon sx={{ color: theme.palette.primary.main, mr: 1 }} /> 
+                Explorar por Géneros
+              </Typography>
+              <GenreCarousel 
+                genres={discovery.genres.data.data} 
+                onGenreClick={(genre) => navigate(`/genre/${encodeURIComponent(genre.name)}`)} 
+              />
             </Box>
           )}
 
+          {/* ⭐ PLAYLISTS CURADAS - VERSIÓN SMART HUB ⭐ */}
+          <PlaylistsSection onPlayPlaylist={handlePlayCuratedPlaylist} />
+
           {/* Tendencias */}
-          <Box sx={{ position: 'relative' }}>
+          <Box sx={{ position: 'relative', mb: 5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
               <Tooltip title="Reproducir todas las tendencias" arrow>
                 <IconButton
@@ -585,7 +615,7 @@ const MainPage = () => {
           </Box>
 
           {/* Más Escuchadas */}
-          <Box sx={{ position: 'relative' }}>
+          <Box sx={{ position: 'relative', mb: 5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
               <Tooltip title="Reproducir todas las más escuchadas" arrow>
                 <IconButton
@@ -611,7 +641,7 @@ const MainPage = () => {
           </Box>
 
           {/* Novedades */}
-          <Box sx={{ position: 'relative' }}>
+          <Box sx={{ position: 'relative', mb: 5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
               <Tooltip title="Reproducir todas las novedades" arrow>
                 <IconButton
@@ -643,8 +673,11 @@ const MainPage = () => {
         <ArtistCarousel />
         <PopularSongs />
 
+        {/* Footer */}
         <Box sx={{ mt: 5, pt: 3, pb: 2, textAlign: 'center', borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.1)}` }}>
-          <Typography variant="body2" sx={{ color: alpha(theme.palette.text.secondary, 0.8) }}>EL SONIDO ES NUESTRO</Typography>
+          <Typography variant="body2" sx={{ color: alpha(theme.palette.text.secondary, 0.8) }}>
+            EL SONIDO ES NUESTRO
+          </Typography>
         </Box>
 
         {/* Notificaciones */}
@@ -662,6 +695,7 @@ const MainPage = () => {
         </Snackbar>
       </Container>
 
+      {/* FAB para subir música */}
       <Fade in={showFab} timeout={800}>
         <Tooltip title="Subir mi música" placement="left">
           <Fab onClick={() => setUploadModalOpen(true)} sx={{ position: 'fixed', bottom: { xs: 16, md: 24 }, right: { xs: 16, md: 24 }, background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`, color: 'white', '&:hover': { transform: 'scale(1.05)' } }}>
