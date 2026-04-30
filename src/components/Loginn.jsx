@@ -1,4 +1,4 @@
-
+ 
 import React, { useState, useContext, useRef, useCallback } from "react"; import { Box, TextField, Button, Typography, Grid, Alert, InputAdornment, IconButton, CircularProgress, styled, Link, alpha, useMediaQuery, useTheme, Collapse, Snackbar, } from "@mui/material"; import { Visibility, VisibilityOff, Login as LoginIcon, Person, Lock, Verified, WarningAmber, CheckCircle, WifiOff, } from "@mui/icons-material"; import { useNavigate, Link as RouterLink } from "react-router-dom"; import { keyframes } from "@emotion/react"; import { useConfig } from "./hook/useConfig"; import { AuthContext } from "./hook/UseAut";
  
 // Animaciones const fadeIn = keyframes`  from { opacity: 0; transform: translateY(10px); }   to { opacity: 1; transform: translateY(0); }  `;
