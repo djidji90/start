@@ -1,22 +1,22 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../../hook/UseAut";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useContext(AuthContext);
+const ProtectedRoute = ({ children, requiredRoles = [] }) => {
+  const location = useLocation();
+  const { isAuthenticated, loading, user } = useContext(AuthContext);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Pequeña pausa para evitar flashes
     const timer = setTimeout(() => {
       setIsChecking(false);
-    }, 300);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, []);
 
-  // Mientras carga el contexto
+  // Loader global
   if (loading || isChecking) {
     return (
       <Box
@@ -31,18 +31,42 @@ const ProtectedRoute = ({ children }) => {
       >
         <CircularProgress />
         <Typography sx={{ mt: 2 }}>
-          Cargando...
+          Verificando sesión...
         </Typography>
       </Box>
     );
   }
 
-  // Si no está autenticado, redirigir al login
+  // No autenticado
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location }}
+      />
+    );
   }
 
-  // Si está autenticado, mostrar el contenido protegido
+  // Roles (opcional)
+  if (requiredRoles.length > 0 && user) {
+    const userRoles = user.roles || [];
+
+    const hasAccess = requiredRoles.some(role =>
+      userRoles.includes(role)
+    );
+
+    if (!hasAccess) {
+      return (
+        <Navigate
+          to="/unauthorized"
+          replace
+          state={{ from: location }}
+        />
+      );
+    }
+  }
+
   return children;
 };
 
